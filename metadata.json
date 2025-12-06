@@ -1,0 +1,8 @@
+{
+  "name": "Vpena Onpoint",
+  "description": "An application for employees to clock in/out, manage their work hours, and book holidays. It includes an administrative interface for managers to approve requests and manage team members.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera"
+  ]
+}
