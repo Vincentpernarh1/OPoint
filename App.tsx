@@ -18,7 +18,7 @@ import Expenses from './components/Expenses';
 import Profile from './components/Profile';
 import MobileMoneyPayroll from './components/MobileMoneyPayroll';
 import Settings from './components/Settings';
-import { LogoIcon, LogOutIcon, LayoutDashboardIcon, BriefcaseIcon, CheckSquareIcon, UsersIcon, DollarSignIcon, MenuIcon, XIcon, FileTextIcon, MegaphoneIcon, ReceiptIcon, UserCircleIcon, SmartphoneIcon, CogIcon } from './components/Icons';
+import { LogoIcon, LogOutIcon, LayoutDashboardIcon, BriefcaseIcon, CheckSquareIcon, UsersIcon, DollarSignIcon, MenuIcon, XIcon, FileTextIcon, MegaphoneIcon, ReceiptIcon, UserCircleIcon, SmartphoneIcon, CogIcon, SearchIcon } from './components/Icons';
 import { api, InAppNotification } from './services/api';
 
 type AppState = 'loading' | 'login_choice' | 'company_login' | 'superadmin_login' | 'company_app' | 'superadmin_app';
@@ -196,15 +196,18 @@ const App = () => {
 
         const allItems = [
             { name: 'Dashboard', view: 'dashboard', icon: LayoutDashboardIcon, enabled: true },
-            { name: 'Leave', view: 'leave', icon: BriefcaseIcon, enabled: modules.leave },
-            { name: 'Payslips', view: 'payslips', icon: DollarSignIcon, enabled: modules.payroll },
-            { name: 'Expenses', view: 'expenses', icon: ReceiptIcon, enabled: modules.expenses },
-            { name: 'Announcements', view: 'announcements', icon: MegaphoneIcon, enabled: modules.announcements, badge: unreadAnnouncementsCount },
-            { name: 'My Profile', view: 'profile', icon: UserCircleIcon, enabled: true },
+            // Employee-level pages removed - admins use employee login for these:
+            // { name: 'Leave', view: 'leave', icon: BriefcaseIcon, enabled: modules.leave },
+            // { name: 'Expenses', view: 'expenses', icon: ReceiptIcon, enabled: modules.expenses },
+            // { name: 'My Profile', view: 'profile', icon: UserCircleIcon, enabled: true },
+            
+            // Admin pages:
             { name: 'Approvals', view: 'approvals', icon: CheckSquareIcon, enabled: true },
             { name: 'Employees', view: 'employees', icon: UsersIcon, enabled: true },
+            { name: 'Payslips', view: 'payslips', icon: DollarSignIcon, enabled: modules.payroll },
             { name: 'Payroll', view: 'payroll', icon: SmartphoneIcon, enabled: modules.payroll },
             { name: 'Reports', view: 'reports', icon: FileTextIcon, enabled: modules.reports },
+            { name: 'Announcements', view: 'announcements', icon: MegaphoneIcon, enabled: modules.announcements, badge: unreadAnnouncementsCount },
             { name: 'Settings', view: 'settings', icon: CogIcon, enabled: true },
         ];
         
