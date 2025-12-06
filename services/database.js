@@ -1,13 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-
 let supabase = null;
 
 // Create Supabase client with error handling
 export function getSupabaseClient() {
+    // Read environment variables inside the function to ensure dotenv has loaded
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    
     if (!supabaseUrl || !supabaseKey) {
         console.warn('⚠️  Supabase credentials not found. Database features disabled.');
         return null;
