@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { User, Payslip, UserRole, View } from '../types';
 import { PAYSCLIP_HISTORY, USERS } from '../constants';
-import { TrendingUpIcon, TrendingDownIcon, LogoIcon, ChevronDownIcon, ArrowLeftIcon, SmartphoneIcon } from './Icons';
+import { TrendingUpIcon, TrendingDownIcon, LogoIcon, ChevronDownIcon, ArrowLeftIcon, SmartphoneIcon, SearchIcon } from './Icons';
 import { api } from '../services/api';
 
 interface PayslipsProps {
@@ -225,19 +225,64 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
 const Payslips = ({ currentUser, onViewChange }: PayslipsProps) => {
     const isManager = [UserRole.ADMIN, UserRole.HR, UserRole.PAYMENTS].includes(currentUser.role);
     const [selectedEmployee, setSelectedEmployee] = useState<User | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+
+    // Debounce search query with 300ms delay
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchQuery(searchQuery);
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+    // Filter employees based on debounced search query and current user's company
+    const filteredEmployees = useMemo(() => {
+        // Filter by company first
+        const companyEmployees = USERS.filter(u => u.companyId === currentUser.companyId);
+        
+        // Then filter by search query
+        if (!debouncedSearchQuery.trim()) return companyEmployees;
+        return companyEmployees.filter(user => 
+            user.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+            user.email.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+            user.team.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+            user.role.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+        );
+    }, [debouncedSearchQuery, currentUser.companyId]);
 
     if (isManager && !selectedEmployee) {
         return (
             <div className="bg-white p-6 rounded-xl shadow-lg">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">Select Employee to View Payslips</h2>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                    <h2 className="text-2xl font-bold text-gray-800">Select Employee to View Payslips</h2>
+                    <div className="relative flex-shrink-0 sm:w-80">
+                        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="Search by name, email, team, or role..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                        />
+                    </div>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {USERS.map(user => (
-                        <button key={user.id} onClick={() => setSelectedEmployee(user)} className="p-4 border rounded-lg text-center hover:shadow-lg hover:border-primary transition-all duration-200">
-                             <img src={user.avatarUrl} alt={user.name} className="w-16 h-16 rounded-full mx-auto mb-3" />
-                             <p className="font-semibold text-gray-800">{user.name}</p>
-                             <p className="text-sm text-gray-500">{user.team}</p>
-                        </button>
-                    ))}
+                    {filteredEmployees.length > 0 ? (
+                        filteredEmployees.map(user => (
+                            <button key={user.id} onClick={() => setSelectedEmployee(user)} className="p-4 border rounded-lg text-center hover:shadow-lg hover:border-primary transition-all duration-200">
+                                <img src={user.avatarUrl} alt={user.name} className="w-16 h-16 rounded-full mx-auto mb-3" />
+                                <p className="font-semibold text-gray-800">{user.name}</p>
+                                <p className="text-sm text-gray-500">{user.team}</p>
+                            </button>
+                        ))
+                    ) : (
+                        <div className="col-span-full text-center py-12 text-gray-500">
+                            <p className="text-lg">No employees found</p>
+                            <p className="text-sm mt-2">Try adjusting your search query</p>
+                        </div>
+                    )}
                 </div>
             </div>
         );
