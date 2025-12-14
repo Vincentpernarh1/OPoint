@@ -1,17 +1,5 @@
 import { User, UserRole, LeaveRequest, AdjustmentRequest, RequestStatus, TimeEntry, TimeEntryType, Payslip, LeaveType, LeaveBalance, Deduction, Announcement, ExpenseRequest, ProfileUpdateRequest, Company } from './types';
 
-export const SUPER_ADMIN_USER: User = {
-    id: 'sa_01',
-    name: 'Super Admin',
-    email: 'admin@vpena.com',
-    password: 'superadminpassword',
-    role: UserRole.SUPER_ADMIN,
-    avatarUrl: 'https://picsum.photos/seed/superadmin/100/100',
-    team: 'Platform',
-    basicSalary: 0,
-    hireDate: new Date('2020-01-01'),
-};
-
 export const COMPANIES: Company[] = [
     {
         id: 'c1',

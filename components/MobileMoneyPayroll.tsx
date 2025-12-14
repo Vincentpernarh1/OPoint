@@ -124,8 +124,13 @@ const MobileMoneyPayroll = () => {
         setIsLoading(true);
         try {
             const data = await api.getPayableEmployees();
-            setAllEmployees(data);
+            if (Array.isArray(data)) {
+                setAllEmployees(data);
+            } else {
+                setAllEmployees([]);
+            }
         } catch (err) {
+            setAllEmployees([]);
             setError(err instanceof Error ? err.message : 'An unknown error occurred.');
         } finally {
             setIsLoading(false);
