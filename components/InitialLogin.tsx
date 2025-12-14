@@ -1,11 +1,10 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LogoIcon, ShieldCheckIcon, UsersIcon } from './Icons';
 
-interface InitialLoginProps {
-    onSelectMode: (mode: 'company' | 'superadmin') => void;
-}
+const InitialLogin = () => {
+    const navigate = useNavigate();
 
-const InitialLogin = ({ onSelectMode }: InitialLoginProps) => {
     return (
         <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
             <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center animate-fade-in">
@@ -15,7 +14,7 @@ const InitialLogin = ({ onSelectMode }: InitialLoginProps) => {
 
                 <div className="space-y-4">
                     <button
-                        onClick={() => onSelectMode('company')}
+                        onClick={() => navigate('/login')}
                         className="w-full flex items-center text-left p-4 rounded-lg border-2 border-transparent bg-slate-50 hover:bg-indigo-50 hover:border-primary transition-all duration-200"
                     >
                         <UsersIcon className="h-8 w-8 text-primary mr-4" />
@@ -25,7 +24,7 @@ const InitialLogin = ({ onSelectMode }: InitialLoginProps) => {
                         </div>
                     </button>
                     <button
-                        onClick={() => onSelectMode('superadmin')}
+                        onClick={() => navigate('/superadmin-login')}
                         className="w-full flex items-center text-left p-4 rounded-lg border-2 border-transparent bg-slate-50 hover:bg-indigo-50 hover:border-primary transition-all duration-200"
                     >
                         <ShieldCheckIcon className="h-8 w-8 text-primary mr-4" />
@@ -41,3 +40,4 @@ const InitialLogin = ({ onSelectMode }: InitialLoginProps) => {
 };
 
 export default InitialLogin;
+

@@ -5,7 +5,6 @@ export enum UserRole {
   HR = 'HR',
   OPERATIONS = 'Operations',
   PAYMENTS = 'Payments',
-  SUPER_ADMIN = 'Super Admin',
 }
 
 export interface Company {
@@ -20,6 +19,11 @@ export interface Company {
     announcements: boolean;
   };
 }
+
+export type NewCompanyData = Omit<Company, 'id'> & {
+  adminName: string;
+  adminEmail: string;
+};
 
 export interface User {
   id: string;

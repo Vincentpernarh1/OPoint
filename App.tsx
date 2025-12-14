@@ -1,259 +1,227 @@
+import React, { useState, useCallback, useMemo, useEffect, lazy, Suspense } from 'react';
+import { Routes, Route, Link, Navigate, useLocation, Outlet } from 'react-router-dom';
+import { User, UserRole, Company } from './types';
+import { COMPANIES } from './constants';
 
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { User, View, UserRole, Company, Announcement } from './types';
-import { USERS, SUPER_ADMIN_USER, COMPANIES, ANNOUNCEMENTS as initialAnnouncements } from './constants';
-import InitialLogin from './components/InitialLogin';
-import SuperAdminLogin from './components/SuperAdminLogin';
-import Login from './components/Login';
-import SuperAdminDashboard from './components/SuperAdminDashboard';
-import TimeClock from './components/TimeClock';
-import ManagerDashboard from './components/ManagerDashboard';
-import LeaveManagement from './components/LeaveManagement';
-import Approvals from './components/Approvals';
-import EmployeeManagement from './components/EmployeeManagement';
-import Payslips from './components/Payslips';
-import Reports from './components/Reports';
-import Announcements from './components/Announcements';
-import Expenses from './components/Expenses';
-import Profile from './components/Profile';
-import MobileMoneyPayroll from './components/MobileMoneyPayroll';
-import Settings from './components/Settings';
-import { LogoIcon, LogOutIcon, LayoutDashboardIcon, BriefcaseIcon, CheckSquareIcon, UsersIcon, DollarSignIcon, MenuIcon, XIcon, FileTextIcon, MegaphoneIcon, ReceiptIcon, UserCircleIcon, SmartphoneIcon, CogIcon, SearchIcon } from './components/Icons';
-import { api, InAppNotification } from './services/api';
+// Import Components with lazy loading
+const Login = lazy(() => import('./components/Login'));
+const InitialLogin = lazy(() => import('./components/InitialLogin'));
+const TimeClock = lazy(() => import('./components/TimeClock'));
+const ManagerDashboard = lazy(() => import('./components/ManagerDashboard'));
+const LeaveManagement = lazy(() => import('./components/LeaveManagement'));
+const Approvals = lazy(() => import('./components/Approvals'));
+const EmployeeManagement = lazy(() => import('./components/EmployeeManagement'));
+const Payslips = lazy(() => import('./components/Payslips'));
+const Reports = lazy(() => import('./components/Reports'));
+const Announcements = lazy(() => import('./components/Announcements'));
+const Expenses = lazy(() => import('./components/Expenses'));
+const Profile = lazy(() => import('./components/Profile'));
+const MobileMoneyPayroll = lazy(() => import('./components/MobileMoneyPayroll'));
+const Settings = lazy(() => import('./components/Settings'));
+const AddCompanyPage = lazy(() => import('./components/AddCompanyPage'));
+const ProtectedRoute = lazy(() => import('./components/ProtectedRoute')); // Correctly import ProtectedRoute
 
-type AppState = 'loading' | 'login_choice' | 'company_login' | 'superadmin_login' | 'company_app' | 'superadmin_app';
+// Import Services
+import { authService } from './services/authService';
 
-const PERMISSIONS: Record<View, UserRole[]> = {
-    dashboard: [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
-    leave: [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
-    payslips: [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
-    expenses: [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
-    announcements: [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
-    profile: [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
-    approvals: [UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS],
-    employees: [UserRole.ADMIN, UserRole.HR],
-    payroll: [UserRole.ADMIN, UserRole.PAYMENTS],
-    reports: [UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
-    settings: [UserRole.ADMIN],
+// Import Icons
+import { LogoIcon, LogOutIcon, LayoutDashboardIcon, BriefcaseIcon, CheckSquareIcon, UsersIcon, DollarSignIcon, MenuIcon, XIcon, FileTextIcon, MegaphoneIcon, ReceiptIcon, UserCircleIcon, SmartphoneIcon, CogIcon } from './components/Icons';
+
+const PERMISSIONS: Record<string, UserRole[]> = {
+    '/dashboard': [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
+    '/leave': [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
+    '/payslips': [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
+    '/expenses': [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
+    '/announcements': [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
+    '/profile': [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
+    '/approvals': [UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS],
+    '/employees': [UserRole.ADMIN, UserRole.HR],
+    '/payroll': [UserRole.ADMIN, UserRole.PAYMENTS],
+    '/reports': [UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
+    '/settings': [UserRole.ADMIN],
 };
-
-// Notification Bell Icon Component
-const BellIcon = ({ className = 'h-6 w-6' }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
-);
-
 
 const App = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [currentCompany, setCurrentCompany] = useState<Company | null>(null);
-    const [appState, setAppState] = useState<AppState>('loading');
-    const [currentView, setCurrentView] = useState<View>('dashboard');
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const [isOnline, setIsOnline] = useState(navigator.onLine);
-    const [announcements, setAnnouncements] = useState<Announcement[]>(initialAnnouncements);
-    
-    // Notification State
-    const [notifications, setNotifications] = useState<InAppNotification[]>([]);
-    const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-    const notificationRef = useRef<HTMLDivElement>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // Initial load and event listeners
+    console.log('--- App Render ---');
+    console.log('isLoading:', isLoading);
+    console.log('currentUser:', currentUser);
+    console.log('currentCompany:', currentCompany);
+
     useEffect(() => {
-        // Session Persistence
-        const savedUserJSON = localStorage.getItem('currentUser');
-        if (savedUserJSON) {
-            const user: User = JSON.parse(savedUserJSON);
-            const company = COMPANIES.find(c => c.id === user.companyId);
-            if (user && company) {
-                setCurrentUser(user);
-                setCurrentCompany(company);
-                setAppState('company_app');
-                setCurrentView('dashboard');
+        setIsLoading(true);
+        console.log('[useEffect] Checking session...');
+        try {
+            const userFromCookie: any = authService.getCurrentUser();
+            console.log('[useEffect] User from cookie:', userFromCookie);
+            if (userFromCookie) {
+                // Normalize role string
+                let role = userFromCookie.role;
+                if (role === 'SuperAdmin') role = 'Super Admin';
+                const isSuperAdmin = role === 'Super Admin';
+                // Use only valid User fields
+                const appUser: User = {
+                    id: userFromCookie?.id || userFromCookie?.auth_user_id || '',
+                    name: userFromCookie?.name || userFromCookie?.full_name || '',
+                    email: userFromCookie?.email || '',
+                    role: role as UserRole,
+                    companyId: isSuperAdmin ? undefined : userFromCookie?.company_id,
+                    team: userFromCookie?.team || '',
+                    avatarUrl: userFromCookie?.avatar_url || '',
+                    basicSalary: userFromCookie?.basic_salary || 0,
+                    hireDate: userFromCookie?.hire_date ? new Date(userFromCookie?.hire_date) : new Date(),
+                };
+                console.log('[useEffect] Mapped appUser:', appUser);
+
+                if (isSuperAdmin) {
+                    setCurrentUser(appUser);
+                } else {
+                    const company = COMPANIES.find(c => c.id === appUser.companyId);
+                    console.log('[useEffect] Found company:', company);
+                    setCurrentUser(appUser);
+                    setCurrentCompany(company || null);
+                }
             } else {
-                 setAppState('login_choice');
+                console.log('[useEffect] No active session found.');
             }
+        } catch (error) {
+            console.error("Session check failed:", error);
+        } finally {
+            console.log('[useEffect] Finished session check, setting isLoading to false.');
+            setIsLoading(false);
+        }
+    }, []);
+
+    const handleLogin = (userFromApi: any) => {
+        console.log('[handleLogin] User from API:', userFromApi);
+        // Normalize role string
+        let role = userFromApi.role;
+        if (role === 'SuperAdmin') role = 'Super Admin';
+        const isSuperAdmin = role === 'Super Admin';
+        // Use only valid User fields
+        const user: any = userFromApi;
+        const appUser: User = {
+            id: user?.id || user?.auth_user_id || '',
+            name: user?.name || user?.full_name || '',
+            email: user?.email || '',
+            role: role as UserRole,
+            companyId: isSuperAdmin ? undefined : user?.company_id,
+            team: user?.team || '',
+            avatarUrl: user?.avatar_url || '',
+            basicSalary: user?.basic_salary || 0,
+            hireDate: user?.hire_date ? new Date(user?.hire_date) : new Date(),
+        };
+        console.log('[handleLogin] Mapped appUser:', appUser);
+
+        if (isSuperAdmin) {
+            setCurrentUser(appUser);
         } else {
-            setAppState('login_choice');
+            const company = COMPANIES.find(c => c.id === appUser.companyId);
+            console.log('[handleLogin] Found company:', company);
+            setCurrentUser(appUser);
+            setCurrentCompany(company || null);
         }
-
-        const handleOnline = () => setIsOnline(true);
-        const handleOffline = () => setIsOnline(false);
-
-        window.addEventListener('online', handleOnline);
-        window.addEventListener('offline', handleOffline);
-
-        // Click outside to close notifications
-        const handleClickOutside = (event: MouseEvent) => {
-            if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
-                setIsNotificationOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-
-        // Request notification permission
-        if ('Notification' in window) {
-            Notification.requestPermission();
-        }
-
-        return () => {
-            window.removeEventListener('online', handleOnline);
-            window.removeEventListener('offline', handleOffline);
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-
-    // Polling for Notifications
-    useEffect(() => {
-        if (!currentUser) return;
-        
-        const fetchNotifications = () => {
-            const notifs = api.getNotifications(currentUser);
-            setNotifications(notifs);
-        };
-
-        fetchNotifications(); // Fetch immediately
-        const interval = setInterval(fetchNotifications, 5000); // Poll every 5s
-
-        return () => clearInterval(interval);
-    }, [currentUser]);
-    
-    const handleSetLoginMode = (mode: 'company' | 'superadmin') => {
-        setAppState(mode === 'company' ? 'company_login' : 'superadmin_login');
+        setIsLoading(false);
     };
-
-    const handleCompanyLogin = useCallback((email: string, password: string): boolean => {
-        const user = USERS.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-        if (user && user.companyId) {
-            const company = COMPANIES.find(c => c.id === user.companyId);
-            if (company) {
-                localStorage.setItem('currentUser', JSON.stringify(user));
-                setCurrentUser(user);
-                setCurrentCompany(company);
-                setAppState('company_app');
-                setCurrentView('dashboard');
-                return true;
-            }
-        }
-        return false;
-    }, []);
-    
-    const handleSuperAdminLogin = useCallback((email: string, password: string): boolean => {
-        if (email.toLowerCase() === SUPER_ADMIN_USER.email.toLowerCase() && password === SUPER_ADMIN_USER.password) {
-            setCurrentUser(SUPER_ADMIN_USER);
-            setAppState('superadmin_app');
-            return true;
-        }
-        return false;
-    }, []);
 
     const handleLogout = useCallback(() => {
-        localStorage.removeItem('currentUser');
+        authService.logout();
         setCurrentUser(null);
         setCurrentCompany(null);
-        setAppState('login_choice');
     }, []);
 
-    const handleSetView = (view: View) => {
-        setCurrentView(view);
-        setIsSidebarOpen(false); // Close sidebar on navigation
-    };
-    
-    const handlePostAnnouncement = useCallback((newAnnouncement: Announcement) => {
-        setAnnouncements(prev => [newAnnouncement, ...prev]);
-    }, []);
-
-    const handleMarkAnnouncementsAsRead = useCallback(() => {
-        setAnnouncements(prev => {
-            if (prev.some(ann => !ann.isRead)) {
-                return prev.map(ann => ({ ...ann, isRead: true }));
-            }
-            return prev;
-        });
-    }, []);
-    
-    const unreadAnnouncementsCount = useMemo(() => {
-        return announcements.filter(ann => !ann.isRead).length;
-    }, [announcements]);
-
-    const unreadNotificationsCount = useMemo(() => {
-        return notifications.filter(n => !n.read).length;
-    }, [notifications]);
-
-    const handleMarkNotificationsRead = () => {
-        if(isNotificationOpen) {
-             setIsNotificationOpen(false);
-        } else {
-             setIsNotificationOpen(true);
-             // Mark as read when opening (mock update)
-             setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-        }
-    };
-
-    const navigationItems = useMemo(() => {
-        if (!currentUser || !currentCompany || currentUser.role === UserRole.SUPER_ADMIN) return [];
-
-        const modules = currentCompany.modules;
-
-        const allItems = [
-            { name: 'Dashboard', view: 'dashboard', icon: LayoutDashboardIcon, enabled: true },
-            // Employee-level pages removed - admins use employee login for these:
-            // { name: 'Leave', view: 'leave', icon: BriefcaseIcon, enabled: modules.leave },
-            // { name: 'Expenses', view: 'expenses', icon: ReceiptIcon, enabled: modules.expenses },
-            // { name: 'My Profile', view: 'profile', icon: UserCircleIcon, enabled: true },
-            
-            // Admin pages:
-            { name: 'Approvals', view: 'approvals', icon: CheckSquareIcon, enabled: true },
-            { name: 'Employees', view: 'employees', icon: UsersIcon, enabled: true },
-            { name: 'Payslips', view: 'payslips', icon: DollarSignIcon, enabled: modules.payroll },
-            { name: 'Payroll', view: 'payroll', icon: SmartphoneIcon, enabled: modules.payroll },
-            { name: 'Reports', view: 'reports', icon: FileTextIcon, enabled: modules.reports },
-            { name: 'Announcements', view: 'announcements', icon: MegaphoneIcon, enabled: modules.announcements, badge: unreadAnnouncementsCount },
-            { name: 'Settings', view: 'settings', icon: CogIcon, enabled: true },
-        ];
-        
-        return allItems.filter(item => item.enabled && PERMISSIONS[item.view as View]?.includes(currentUser.role));
-
-    }, [currentUser, currentCompany, unreadAnnouncementsCount]);
-    
-    if (appState === 'loading') {
+    if (isLoading) {
         return <div className="h-screen w-screen flex items-center justify-center"><LogoIcon className="h-16 w-16 animate-pulse" /></div>;
     }
-    if (appState === 'login_choice') {
-        return <InitialLogin onSelectMode={handleSetLoginMode} />;
-    }
-    if (appState === 'company_login') {
-        return <Login onLogin={handleCompanyLogin} />;
-    }
-    if (appState === 'superadmin_login') {
-        return <SuperAdminLogin onLogin={handleSuperAdminLogin} />;
-    }
-    if (appState === 'superadmin_app' && currentUser) {
-        return <SuperAdminDashboard currentUser={currentUser} onLogout={handleLogout} />;
-    }
-    if (!currentUser || !currentCompany) {
-        return <InitialLogin onSelectMode={handleSetLoginMode} />;
+
+    const companyRoles = [UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS, UserRole.EMPLOYEE];
+
+    // Guard: If user is logged in but has no company, show error and prevent app crash/loop
+    if (
+        currentUser &&
+        !currentCompany
+    ) {
+        return (
+            <div className="h-screen w-screen flex flex-col items-center justify-center bg-red-50">
+                <LogoIcon className="h-16 w-16 mb-4 text-red-400" />
+                <h2 className="text-2xl font-bold text-red-600 mb-2">No Company Assigned</h2>
+                <p className="text-gray-700 mb-4">Your account is not assigned to any company. Please contact your administrator.</p>
+                <button onClick={handleLogout} className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">Logout</button>
+            </div>
+        );
     }
 
-    const isAdminRole = [UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS].includes(currentUser.role);
+    return (
+        <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center"><LogoIcon className="h-16 w-16 animate-pulse" /></div>}>
+            <Routes>
+                {/* AUTH ROUTES */}
+                <Route path="/login/*" element={currentUser ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />} />
+                <Route path="/login" element={currentUser ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />} />
+                <Route path="/" element={currentUser ? <Navigate to="/dashboard" /> : <InitialLogin />} />
 
-    const renderView = () => {
-        switch (currentView) {
-            case 'dashboard': return isAdminRole ? <ManagerDashboard currentUser={currentUser} onViewChange={handleSetView} /> : <TimeClock currentUser={currentUser} isOnline={isOnline} />;
-            case 'leave': return <LeaveManagement currentUser={currentUser} />;
-            case 'payslips': return <Payslips currentUser={currentUser} onViewChange={handleSetView} />;
-            case 'expenses': return <Expenses currentUser={currentUser} />;
-            case 'profile': return <Profile currentUser={currentUser} />;
-            case 'announcements': return <Announcements currentUser={currentUser} announcements={announcements} onPost={handlePostAnnouncement} onMarkAsRead={handleMarkAnnouncementsAsRead} />;
-            case 'approvals': return <Approvals />;
-            case 'employees': return <EmployeeManagement currentUser={currentUser} />;
-            case 'payroll': return <MobileMoneyPayroll />;
-            case 'reports': return <Reports />;
-            case 'settings': return <Settings />;
-            default: return isAdminRole ? <ManagerDashboard currentUser={currentUser} onViewChange={handleSetView} /> : <TimeClock currentUser={currentUser} isOnline={isOnline} />;
-        }
-    };
-    
-    const SidebarContent = () => (
+                {/* PROTECTED COMPANY ROUTES */}
+                <Route
+                    path="/"
+                    element={
+                        <ProtectedRoute currentUser={currentUser} allowedRoles={companyRoles}>
+                            <CompanyLayout currentUser={currentUser!} currentCompany={currentCompany!} onLogout={handleLogout} />
+                        </ProtectedRoute>
+                    }
+                >
+                    <Route path="dashboard" element={ currentUser && [UserRole.ADMIN, UserRole.HR].includes(currentUser.role) ? <ManagerDashboard currentUser={currentUser} onViewChange={() => {}} /> : <TimeClock currentUser={currentUser!} isOnline={true} /> } />
+                    <Route path="leave" element={<LeaveManagement currentUser={currentUser!} />} />
+                    <Route path="payslips" element={<Payslips currentUser={currentUser!} onViewChange={() => {}} />} />
+                    <Route path="expenses" element={<Expenses currentUser={currentUser!} />} />
+                    <Route path="profile" element={<Profile currentUser={currentUser!} />} />
+                    <Route path="announcements" element={<Announcements currentUser={currentUser!} announcements={[]} onPost={()=>{}} onMarkAsRead={()=>{}} />} />
+                    <Route path="approvals" element={<Approvals />} />
+                    <Route path="employees" element={<EmployeeManagement currentUser={currentUser!} />} />
+                    <Route path="payroll" element={<MobileMoneyPayroll />} />
+                    <Route path="reports" element={<Reports />} />
+                    <Route path="settings" element={<Settings />} />
+                </Route>
+                
+                {/* Fallback redirect */}
+                <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+        </Suspense>
+    );
+};
+
+
+// Layout for the main company application
+const CompanyLayout = ({ currentUser, currentCompany, onLogout }: { currentUser: User, currentCompany: Company, onLogout: () => void }) => {
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const location = useLocation();
+
+    const navigationItems = useMemo(() => {
+        if (!currentUser || !currentCompany) return [];
+        const modules = currentCompany.modules;
+        const allItems = [
+            { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboardIcon, enabled: true },
+            { name: 'Leave', path: '/leave', icon: BriefcaseIcon, enabled: modules.leave },
+            { name: 'Payslips', path: '/payslips', icon: DollarSignIcon, enabled: modules.payroll },
+            { name: 'Expenses', path: '/expenses', icon: ReceiptIcon, enabled: modules.expenses },
+            { name: 'Announcements', path: '/announcements', icon: MegaphoneIcon, enabled: modules.announcements, badge: 0 },
+            { name: 'My Profile', path: '/profile', icon: UserCircleIcon, enabled: true },
+            { name: 'Approvals', path: '/approvals', icon: CheckSquareIcon, enabled: true },
+            { name: 'Employees', path: '/employees', icon: UsersIcon, enabled: true },
+            { name: 'Payroll', path: '/payroll', icon: SmartphoneIcon, enabled: modules.payroll },
+            { name: 'Reports', path: '/reports', icon: FileTextIcon, enabled: modules.reports },
+            { name: 'Settings', path: '/settings', icon: CogIcon, enabled: true },
+        ];
+        return allItems.filter(item => item.enabled && PERMISSIONS[item.path]?.includes(currentUser.role));
+    }, [currentUser, currentCompany]);
+
+    const pageTitle = useMemo(() => {
+        const item = navigationItems.find(navItem => navItem.path === location.pathname);
+        return item ? item.name : 'Dashboard';
+    }, [location.pathname, navigationItems]);
+
+     const SidebarContent = () => (
          <>
             <div className="h-16 flex items-center justify-center border-b shrink-0 px-4">
                  <div className="flex items-center space-x-2">
@@ -263,11 +231,12 @@ const App = () => {
             </div>
             <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
                 {navigationItems.map(item => (
-                    <button
+                    <Link
                         key={item.name}
-                        onClick={() => handleSetView(item.view as View)}
+                        to={item.path}
+                        onClick={() => setIsSidebarOpen(false)}
                         className={`w-full flex items-center justify-between px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                            currentView === item.view
+                            location.pathname === item.path
                                 ? 'bg-primary-light text-primary'
                                 : 'text-gray-600 hover:bg-gray-100'
                         }`}
@@ -276,16 +245,12 @@ const App = () => {
                             <item.icon className="h-5 w-5 mr-3" />
                             {item.name}
                         </div>
-                        {item.badge && item.badge > 0 && (
-                            <span className="bg-primary text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                                {item.badge}
-                            </span>
-                        )}
-                    </button>
+                        {item.badge && item.badge > 0 && <span className="bg-primary text-white text-xs font-bold rounded-full h-5 w-5">{item.badge}</span>}
+                    </Link>
                 ))}
             </nav>
             <div className="px-4 py-4 border-t shrink-0">
-                <button onClick={handleLogout} className="w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
+                <button onClick={onLogout} className="w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
                     <LogOutIcon className="h-5 w-5 mr-3" />
                     Logout
                 </button>
@@ -295,95 +260,27 @@ const App = () => {
 
     return (
         <div className="flex h-screen bg-slate-100 font-sans">
-             {/* Mobile Sidebar */}
-            <div className={`fixed inset-0 z-40 flex md:hidden ${isSidebarOpen ? '' : 'pointer-events-none'}`}>
-                <div 
-                    className={`fixed inset-0 bg-black transition-opacity ${isSidebarOpen ? 'opacity-50' : 'opacity-0'}`}
-                    onClick={() => setIsSidebarOpen(false)}
-                ></div>
-                <div className={`relative flex-1 flex flex-col max-w-xs w-full bg-white transform transition-transform ease-in-out duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                    <div className="absolute top-0 right-0 -mr-12 pt-2">
-                        <button
-                          onClick={() => setIsSidebarOpen(false)}
-                          className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
-                        >
-                          <span className="sr-only">Close sidebar</span>
-                          <XIcon className="h-6 w-6 text-white" />
-                        </button>
-                    </div>
-                   <SidebarContent />
-                </div>
-            </div>
-
-            {/* Desktop Sidebar */}
-            <aside className="w-64 bg-white border-r flex-col hidden md:flex shrink-0">
-                <SidebarContent/>
-            </aside>
-
-            {/* Main Content */}
+            <aside className="w-64 bg-white border-r flex-col hidden md:flex shrink-0"><SidebarContent/></aside>
             <div className="flex-1 flex flex-col overflow-hidden">
-                <header className="h-16 bg-gradient-to-r from-white to-slate-50 border-b flex justify-between items-center px-6 shrink-0 relative">
+                <header className="h-16 bg-white border-b flex justify-between items-center px-6 shrink-0">
                     <div className="flex items-center">
-                         <button onClick={() => setIsSidebarOpen(true)} className="md:hidden mr-4 text-gray-500 hover:text-gray-700">
-                            <MenuIcon className="h-6 w-6" />
-                        </button>
-                        <h1 className="text-xl font-semibold text-gray-800 capitalize">{currentView}</h1>
+                        <h1 className="text-xl font-semibold text-gray-800 capitalize">{pageTitle}</h1>
                     </div>
-                     {!isOnline && (
-                        <div className="absolute left-1/2 -translate-x-1/2 top-4 bg-yellow-400 text-yellow-900 text-xs font-semibold px-3 py-1 rounded-full shadow animate-pulse">
-                            Offline Mode
-                        </div>
-                    )}
-                    <div className="flex items-center space-x-3 md:space-x-6">
-                        {/* Notification Bell */}
-                        <div className="relative" ref={notificationRef}>
-                            <button onClick={handleMarkNotificationsRead} className="p-2 text-gray-500 hover:text-primary transition-colors relative">
-                                <BellIcon />
-                                {unreadNotificationsCount > 0 && (
-                                    <span className="absolute top-1 right-1 h-3 w-3 bg-red-500 rounded-full border-2 border-white"></span>
-                                )}
-                            </button>
-                            
-                            {/* Notification Dropdown */}
-                            {isNotificationOpen && (
-                                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 animate-fade-in-down overflow-hidden">
-                                    <div className="p-4 border-b bg-slate-50">
-                                        <h3 className="font-semibold text-gray-800">Notifications</h3>
-                                    </div>
-                                    <div className="max-h-80 overflow-y-auto">
-                                        {notifications.length > 0 ? (
-                                            notifications.map(n => (
-                                                <div key={n.id} className={`p-4 border-b last:border-b-0 hover:bg-slate-50 transition-colors ${!n.read ? 'bg-indigo-50/50' : ''}`}>
-                                                    <p className="text-sm text-gray-800">{n.message}</p>
-                                                    <p className="text-xs text-gray-500 mt-1">{n.timestamp.toLocaleTimeString()}</p>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="p-8 text-center text-gray-500 text-sm">No notifications</div>
-                                        )}
-                                    </div>
-                                </div>
+                    <div className="flex items-center space-x-6">
+                        <Link to="/profile" className="flex items-center space-x-3 hover:bg-slate-50 p-2 rounded-lg">
+                            <span className="text-right text-sm hidden sm:block"><p className="font-semibold">{currentUser.name}</p><p className="text-gray-500">{currentUser.role}</p></span>
+                            {currentUser.avatarUrl && (
+                                <img src={currentUser.avatarUrl} alt="avatar" className="h-8 w-8 rounded-full object-cover border border-gray-300" />
                             )}
-                        </div>
-
-                        <button 
-                            onClick={() => setCurrentView(prev => prev === 'profile' ? 'dashboard' : 'profile')}
-                            className="flex items-center space-x-3 hover:bg-slate-50 p-2 rounded-lg transition-colors focus:outline-none"
-                        >
-                            <span className="text-right text-sm hidden sm:block">
-                                <p className="font-semibold">{currentUser.name}</p>
-                                <p className="text-gray-500">{currentUser.role}</p>
-                            </span>
-                            <img src={currentUser.avatarUrl} alt={currentUser.name} className="h-10 w-10 rounded-full" />
-                        </button>
+                        </Link>
                     </div>
                 </header>
                 <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8">
-                    {renderView()}
+                    <Outlet />
                 </main>
             </div>
         </div>
     );
-};
+}
 
 export default App;

@@ -1,0 +1,85 @@
+/* Login Component Styles */
+
+/* Password Strength Indicator */
+.password-strength-label {
+    color: rgb(75 85 99); /* text-gray-600 */
+}
+
+.password-strength-bar-container {
+    width: 100%;
+    background-color: rgb(229 231 235); /* bg-gray-200 */
+    border-radius: 9999px;
+    height: 0.5rem;
+}
+
+.password-strength-bar {
+    height: 0.5rem;
+    border-radius: 9999px;
+    transition: all 0.3s;
+    width: var(--strength-bar-width, 0%);
+}
+    .password-strength-bar {
+        height: 0.5rem;
+        border-radius: 9999px;
+        transition: all 0.3s;
+        width: 0%;
+    }
+
+    /* Dynamically set width based on data-strength-score attribute (0-100) */
+    .password-strength-bar[data-strength-score="0"] { width: 0%; }
+    .password-strength-bar[data-strength-score="10"] { width: 10%; }
+    .password-strength-bar[data-strength-score="20"] { width: 20%; }
+    .password-strength-bar[data-strength-score="30"] { width: 30%; }
+    .password-strength-bar[data-strength-score="40"] { width: 40%; }
+    .password-strength-bar[data-strength-score="50"] { width: 50%; }
+    .password-strength-bar[data-strength-score="60"] { width: 60%; }
+    .password-strength-bar[data-strength-score="70"] { width: 70%; }
+    .password-strength-bar[data-strength-score="80"] { width: 80%; }
+    .password-strength-bar[data-strength-score="90"] { width: 90%; }
+    .password-strength-bar[data-strength-score="100"] { width: 100%; }
+
+    /* For in-between values, use attribute selectors for ranges */
+    .password-strength-bar[data-strength-score]:not([data-strength-score="0"]):not([data-strength-score="10"]):not([data-strength-score="20"]):not([data-strength-score="30"]):not([data-strength-score="40"]):not([data-strength-score="50"]):not([data-strength-score="60"]):not([data-strength-score="70"]):not([data-strength-score="80"]):not([data-strength-score="90"]):not([data-strength-score="100"]) {
+        width: calc(attr(data-strength-score number) * 1%);
+    }
+
+/* Strength colors */
+.strength-very-strong {
+    color: #22c55e;
+}
+
+.strength-strong {
+    color: #84cc16;
+}
+
+.strength-moderate {
+    color: #eab308;
+}
+
+.strength-fair {
+    color: #f97316;
+}
+
+.strength-weak {
+    color: #ef4444;
+}
+
+.strength-bar-very-strong {
+    background-color: #22c55e;
+}
+
+.strength-bar-strong {
+    background-color: #84cc16;
+}
+
+.strength-bar-moderate {
+    background-color: #eab308;
+}
+
+.strength-bar-fair {
+    background-color: #f97316;
+}
+
+.strength-bar-weak {
+    background-color: #ef4444;
+}

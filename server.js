@@ -16,7 +16,9 @@ try {
 import express from 'express';
 import cors from 'cors';
 import crypto from 'crypto';
-import db, { getSupabaseClient } from './services/database.js';
+import bcrypt from 'bcrypt';
+import db, { getSupabaseClient, setCompanyContext } from './services/database.js';
+import { validatePasswordStrength } from './utils/passwordValidator.js';
 
 const app = express();
 
@@ -323,6 +325,31 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// Test endpoint to check if user exists
+app.get('/api/test/check-user/:email', async (req, res) => {
+    try {
+        const { email } = req.params;
+        const { data: user, error } = await db.getUserByEmail(email);
+        
+        res.json({
+            success: true,
+            exists: !!user,
+            error: error?.message,
+            user: user ? {
+                email: user.email,
+                name: user.name,
+                role: user.role,
+                hasTemporaryPassword: !!user.temporary_password,
+                hasPasswordHash: !!user.password_hash,
+                requiresPasswordChange: user.requires_password_change,
+                isActive: user.is_active
+            } : null
+        });
+    } catch (error) {
+        res.json({ success: false, error: error.message });
+    }
+});
+
 // --- AUTHENTICATION ENDPOINTS ---
 app.post('/api/auth/login', async (req, res) => {
     try {
@@ -342,19 +369,91 @@ app.post('/api/auth/login', async (req, res) => {
             });
         }
 
-        const { data, error } = await db.signIn(email, password);
+        // Get user from database
+        const { data: user, error } = await db.getUserByEmail(email);
+
+        console.log(`Login attempt for: ${email}`);
+        console.log('Database query result:', { user: user ? 'Found' : 'Not found', error: error?.message });
 
         if (error) {
+            console.error('Database error during login:', error);
             return res.status(401).json({ 
                 success: false, 
                 error: 'Invalid credentials' 
             });
         }
 
+        if (!user) {
+            console.log(`User not found in database: ${email}`);
+            return res.status(401).json({ 
+                success: false, 
+                error: 'Invalid credentials' 
+            });
+        }
+
+        console.log('User found:', {
+            email: user.email,
+            hasTemporaryPassword: !!user.temporary_password,
+            hasPasswordHash: !!user.password_hash,
+            requiresPasswordChange: user.requires_password_change,
+            isActive: user.is_active
+        });
+
+        let passwordMatch = false;
+
+        // Check if this is first-time login with temporary password
+        if (user.temporary_password && user.requires_password_change) {
+            // Direct comparison for temporary password (plain text)
+            passwordMatch = password === user.temporary_password;
+            
+            if (passwordMatch) {
+                console.log(`✅ First-time login successful for: ${email}`);
+            } else {
+                console.log(`❌ Temporary password mismatch for: ${email}`);
+            }
+        } 
+        // Regular login with hashed password
+        else if (user.password_hash) {
+            passwordMatch = await bcrypt.compare(password, user.password_hash);
+            if (passwordMatch) {
+                console.log(`✅ Regular login successful for: ${email}`);
+            } else {
+                console.log(`❌ Password hash mismatch for: ${email}`);
+            }
+        } 
+        // No password set at all
+        else {
+            console.log(`❌ No password configured for: ${email}`);
+            return res.status(401).json({ 
+                success: false, 
+                error: 'Account not properly configured. Please contact administrator.' 
+            });
+        }
+
+        if (!passwordMatch) {
+            return res.status(401).json({ 
+                success: false, 
+                error: 'Invalid credentials' 
+            });
+        }
+
+        // Update last login
+        await db.updateLastLogin(user.id);
+
+        // Set company context for RLS (Row Level Security)
+        if (user.company_id) {
+            await setCompanyContext(user.company_id, user.id);
+            console.log('✅ Company context set for:', user.company_id);
+        }
+
+        // Remove sensitive data before sending response
+        const { password_hash, temporary_password, ...userWithoutPassword } = user;
+
         res.json({ 
             success: true, 
-            user: data.user,
-            session: data.session
+            user: userWithoutPassword,
+            requiresPasswordChange: user.requires_password_change || false,
+            isFirstLogin: !!user.temporary_password
         });
 
     } catch (error) {
@@ -362,6 +461,187 @@ app.post('/api/auth/login', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: 'Login failed' 
+        });
+    }
+});
+
+// Change password endpoint (for first-time login and password changes)
+app.post('/api/auth/change-password', async (req, res) => {
+    try {
+        const { email, currentPassword, newPassword } = req.body;
+
+        if (!email || !newPassword) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Email and new password are required' 
+            });
+        }
+
+        // Validate password strength
+        const validation = validatePasswordStrength(newPassword);
+        
+        if (!validation.isValid) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Password does not meet security requirements',
+                validationErrors: validation.errors,
+                passwordStrength: validation.strength,
+                passwordScore: validation.score
+            });
+        }
+
+        // Get user from database
+        const { data: user, error } = await db.getUserByEmail(email);
+
+        if (error || !user) {
+            return res.status(401).json({ 
+                success: false, 
+                error: 'User not found' 
+            });
+        }
+
+        // Verify current password (either temporary or hashed)
+        if (currentPassword) {
+            let passwordMatch = false;
+            
+            // Check temporary password for first-time login
+            if (user.temporary_password && user.requires_password_change) {
+                passwordMatch = currentPassword === user.temporary_password;
+            } 
+            // Check regular password hash
+            else if (user.password_hash) {
+                passwordMatch = await bcrypt.compare(currentPassword, user.password_hash);
+            }
+            
+            if (!passwordMatch) {
+                return res.status(401).json({ 
+                    success: false, 
+                    error: 'Current password is incorrect' 
+                });
+            }
+        }
+
+        // Prevent reusing the same password
+        if (user.password_hash) {
+            const isSamePassword = await bcrypt.compare(newPassword, user.password_hash);
+            if (isSamePassword) {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: 'New password must be different from your current password' 
+                });
+            }
+        }
+
+        // Hash new password
+        const saltRounds = 10;
+        const passwordHash = await bcrypt.hash(newPassword, saltRounds);
+
+        // Update password in database
+        const { data: updatedUser, error: updateError } = await db.updateUserPassword(user.id, passwordHash);
+
+        if (updateError) {
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Failed to update password' 
+            });
+        }
+
+        // Remove sensitive data
+        const { password_hash, temporary_password, ...userWithoutPassword } = updatedUser;
+
+        res.json({ 
+            success: true, 
+            message: 'Password updated successfully',
+            user: userWithoutPassword,
+            passwordStrength: validation.strength
+        });
+
+    } catch (error) {
+        console.error('Change password error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to change password' 
+        });
+    }
+});
+
+// Validate password strength (for real-time feedback in UI)
+app.post('/api/auth/validate-password', async (req, res) => {
+    try {
+        const { password } = req.body;
+
+        if (!password) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Password is required' 
+            });
+        }
+
+        const validation = validatePasswordStrength(password);
+
+        res.json({ 
+            success: true,
+            isValid: validation.isValid,
+            errors: validation.errors,
+            strength: validation.strength,
+            score: validation.score
+        });
+
+    } catch (error) {
+        console.error('Password validation error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to validate password' 
+        });
+    }
+});
+
+// Initialize user password (for admin creating test user)
+app.post('/api/auth/initialize-password', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Email and password are required' 
+            });
+        }
+
+        // Get user from database
+        const { data: user, error } = await db.getUserByEmail(email);
+
+        if (error || !user) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'User not found' 
+            });
+        }
+
+        // Hash password
+        const saltRounds = 10;
+        const passwordHash = await bcrypt.hash(password, saltRounds);
+
+        // Update password in database
+        const { data: updatedUser, error: updateError } = await db.updateUserPassword(user.id, passwordHash);
+
+        if (updateError) {
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Failed to initialize password' 
+            });
+        }
+
+        res.json({ 
+            success: true, 
+            message: 'Password initialized successfully'
+        });
+
+    } catch (error) {
+        console.error('Initialize password error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to initialize password' 
         });
     }
 });
