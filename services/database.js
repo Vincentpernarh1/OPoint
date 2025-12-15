@@ -27,16 +27,51 @@ export function getSupabaseClient() {
     return supabase;
 }
 
+// Create Supabase admin client with service role key (bypasses RLS)
+export function getSupabaseAdminClient() {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl || !serviceRoleKey) {
+        console.warn('⚠️  Supabase service role credentials not found. Admin operations disabled.');
+        return null;
+    }
+    
+    if (!supabaseAdmin) {
+        supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+    }
+    
+    return supabaseAdmin;
+}
+
 // Set company context for RLS (Row Level Security)
 export async function setCompanyContext(companyId, userId) {
-    const client = getSupabaseClient();
-    if (!client) return false;
+    const client = getSupabaseAdminClient(); // Use admin client to bypass RLS
     
     currentCompanyId = companyId;
     currentUserId = userId;
     
+    // Also fetch company details to set table name
+    console.log('Fetching company details for context ID:', companyId);
+    const { data: company, error: fetchError } = await client
+        .from('opoint_companies')
+        .select('*')
+        .eq('id', companyId)
+        .single();
+
+    if (fetchError || !company) {
+        console.warn('⚠️  Could not fetch company details:', fetchError?.message);
+    } else {
+        currentCompanyTable = company.table_name || `company_${company.name.replace(/\s+/g, '_').toLowerCase()}_users`;
+        currentCompanyName = company.name;
+        currentCompanyAdminEmail = company.admin_email;
+        console.log('✅ Company table set:', currentCompanyTable);
+    }
+    
+    // Use regular client for RLS context
+    const rlsClient = getSupabaseClient();
     try {
-        const { error } = await client.rpc('set_company_context', {
+        const { error } = await rlsClient.rpc('set_company_context', {
             company_uuid: companyId,
             user_uuid: userId
         });
@@ -59,21 +94,10 @@ export function getCurrentCompanyId() {
     return currentCompanyId;
 }
 
-// Create Supabase admin client with service role for DDL operations
-export function getSupabaseAdminClient() {
-    const supabaseUrl = import.meta?.env?.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-    const supabaseServiceKey = import.meta?.env?.VITE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
-    
-    if (!supabaseUrl || !supabaseServiceKey) {
-        console.warn('⚠️  Supabase service role key not found. Admin operations disabled.');
-        return null;
-    }
-    
-    if (!supabaseAdmin) {
-        supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-    }
-    
-    return supabaseAdmin;
+// Get dynamic table name for company-specific tables
+export function getTableName(tableType) {
+    if (!currentCompanyName) return `P360-Opoint_${tableType.charAt(0).toUpperCase() + tableType.slice(1)}`;
+    return `company_${currentCompanyName.replace(/\s+/g, '_').toLowerCase()}_${tableType}`;
 }
 
 // Set company context by decrypting encrypted company ID
@@ -114,7 +138,7 @@ export async function setCompanyContextById(companyId, userId = null) {
 
     currentCompanyId = companyId;
     currentUserId = userId;
-    currentCompanyTable = company.table_name;
+    currentCompanyTable = company.table_name || `company_${company.name.replace(/\s+/g, '_').toLowerCase()}_users`; // Company-specific table
     currentCompanyName = company.name;
     currentCompanyAdminEmail = company.admin_email;
 
@@ -142,8 +166,9 @@ export const db = {
         const client = getSupabaseClient();
         if (!client) return { data: [], error: 'Database not configured' };
         
+        const table = getTableName('user');
         const { data, error } = await client
-            .from(getCurrentCompanyTable())
+            .from(table)
             .select('*')
             .order('created_at', { ascending: false });
         
@@ -154,8 +179,9 @@ export const db = {
         const client = getSupabaseClient();
         if (!client) return { data: null, error: 'Database not configured' };
         
+        const table = getTableName('user');
         const { data, error } = await client
-            .from(getCurrentCompanyTable())
+            .from(table)
             .select('*')
             .eq('id', userId)
             .single();
@@ -167,8 +193,9 @@ export const db = {
         const client = getSupabaseClient();
         if (!client) return { data: null, error: 'Database not configured' };
         
+        const table = getTableName('user');
         const { data, error } = await client
-            .from(getCurrentCompanyTable())
+            .from(table)
             .insert([userData])
             .select()
             .single();
@@ -180,8 +207,9 @@ export const db = {
         const client = getSupabaseClient();
         if (!client) return { data: null, error: 'Database not configured' };
         
+        const table = getTableName('user');
         const { data, error } = await client
-            .from(getCurrentCompanyTable())
+            .from(table)
             .update(updates)
             .eq('id', userId)
             .select()
@@ -194,8 +222,9 @@ export const db = {
         const client = getSupabaseClient();
         if (!client) return { data: null, error: 'Database not configured' };
         
+        const table = getTableName('user');
         const { data, error } = await client
-            .from(getCurrentCompanyTable())
+            .from(table)
             .delete()
             .eq('id', userId);
         
@@ -204,11 +233,11 @@ export const db = {
 
     // --- COMPANIES ---
     async getCompanies() {
-        const client = getSupabaseClient();
+        const client = getSupabaseAdminClient(); // Use admin client to bypass RLS
         if (!client) return { data: [], error: 'Database not configured' };
         
         const { data, error } = await client
-            .from('P360-Opoint_Companies')
+            .from('opoint_companies')
             .select('*')
             .order('created_at', { ascending: false });
         
@@ -220,7 +249,7 @@ export const db = {
         if (!client) return { data: null, error: 'Database not configured' };
         
         const { data, error } = await client
-            .from('P360-Opoint_Companies')
+            .from('opoint_companies')
             .insert([companyData])
             .select()
             .single();
@@ -234,7 +263,7 @@ export const db = {
         if (!client) return { data: null, error: 'Database not configured' };
         
         const { data, error } = await client
-            .from('P360-Opoint_PayrollHistory')
+            .from(getTableName('payrollhistory'))
             .insert([payrollData])
             .select()
             .single();
@@ -247,8 +276,8 @@ export const db = {
         if (!client) return { data: [], error: 'Database not configured' };
         
         let query = client
-            .from('opoint_payroll_history')
-            .select('*, ' + getCurrentCompanyTable() + '(name, email, mobile_money_number)');
+            .from(getTableName('payrollhistory'))
+            .select(`*, ${getTableName('user')}(name, email, mobile_money_number)`);
 
         if (filters.userId) {
             query = query.eq('user_id', filters.userId);
@@ -288,7 +317,7 @@ export const db = {
         if (!client) return { data: null, error: 'Database not configured' };
         
         const { data, error } = await client
-            .from('P360-Opoint_LeaveRequests')
+            .from(getTableName('leaverequest'))
             .insert([leaveData])
             .select()
             .single();
@@ -301,8 +330,8 @@ export const db = {
         if (!client) return { data: [], error: 'Database not configured' };
         
         let query = client
-            .from('P360-Opoint_LeaveRequests')
-            .select('*, ' + getCurrentCompanyTable() + '(name, email)');
+            .from(getTableName('leaverequest'))
+            .select(`*, ${getTableName('user')}(name, email)`);
 
         if (filters.status) {
             query = query.eq('status', filters.status);
@@ -323,7 +352,7 @@ export const db = {
         if (!client) return { data: null, error: 'Database not configured' };
         
         const { data, error } = await client
-            .from('P360-Opoint_LeaveRequests')
+            .from(getTableName('leaverequest'))
             .update({ ...updates, updated_at: new Date().toISOString() })
             .eq('id', leaveId)
             .select()
@@ -333,14 +362,63 @@ export const db = {
     },
 
     // --- AUTHENTICATION ---
-    async getUserByEmail(email) {
-        const client = getSupabaseClient();
+    async getUserByEmail(email, tableName = null) {
+        const client = getSupabaseAdminClient(); // Use admin client to bypass RLS
         if (!client) return { data: null, error: 'Database not configured' };
         
+        let table = tableName || getCurrentCompanyTable();
+        
+        // If no specific table and no company context, search across all company tables
+        if (!table || table === 'P360-Opoint_User') {
+            // Get all companies
+            const { data: companies, error: companiesError } = await client
+                .from('opoint_companies')
+                .select('table_name')
+                .not('table_name', 'is', null);
+                
+            if (companiesError) {
+                return { data: null, error: 'Failed to fetch companies' };
+            }
+            
+            // Try each company table
+            for (const company of companies) {
+                if (company.table_name) {
+                    const { data: user, error } = await client
+                        .from(company.table_name)
+                        .select('*')
+                        .ilike('email', email)
+                        .eq('is_active', true)
+                        .single();
+                    
+                    if (user && !error) {
+                        // Set the company context for this user
+                        const { data: companyData } = await client
+                            .from('opoint_companies')
+                            .select('*')
+                            .eq('table_name', company.table_name)
+                            .single();
+                        
+                        if (companyData) {
+                            currentCompanyId = companyData.id;
+                            currentCompanyTable = companyData.table_name;
+                            currentCompanyName = companyData.name;
+                            currentCompanyAdminEmail = companyData.admin_email;
+                        }
+                        
+                        return { data: user, error: null };
+                    }
+                }
+            }
+            
+            return { data: null, error: 'User not found' };
+        }
+        
+        if (!table) return { data: null, error: 'No table specified' };
+        
         const { data, error } = await client
-            .from(getCurrentCompanyTable())
+            .from(table)
             .select('*')
-            .eq('email', email)
+            .ilike('email', email)  // Case-insensitive email match
             .eq('is_active', true)
             .single();
         
@@ -348,11 +426,12 @@ export const db = {
     },
 
     async updateUserPassword(userId, passwordHash) {
-        const client = getSupabaseClient();
+        const client = getSupabaseAdminClient(); // Use admin client to bypass RLS
         if (!client) return { data: null, error: 'Database not configured' };
         
+        const table = getCurrentCompanyTable() || 'P360-Opoint_User';
         const { data, error } = await client
-            .from(getCurrentCompanyTable())
+            .from(table)
             .update({ 
                 password_hash: passwordHash,
                 temporary_password: null, // Clear temporary password
@@ -371,8 +450,9 @@ export const db = {
         const client = getSupabaseClient();
         if (!client) return { data: null, error: 'Database not configured' };
         
+        const table = getCurrentCompanyTable() || 'P360-Opoint_User';
         const { data, error } = await client
-            .from(getCurrentCompanyTable())
+            .from(table)
             .update({ 
                 last_login: new Date().toISOString(),
                 updated_at: new Date().toISOString()

@@ -7,22 +7,22 @@ import { COMPANIES } from './constants';
 const Login = lazy(() => import('./components/Login'));
 const InitialLogin = lazy(() => import('./components/InitialLogin'));
 const TimeClock = lazy(() => import('./components/TimeClock'));
-const ManagerDashboard = lazy(() => import('./components/ManagerDashboard'));
 const LeaveManagement = lazy(() => import('./components/LeaveManagement'));
-const Approvals = lazy(() => import('./components/Approvals'));
-const EmployeeManagement = lazy(() => import('./components/EmployeeManagement'));
 const Payslips = lazy(() => import('./components/Payslips'));
-const Reports = lazy(() => import('./components/Reports'));
 const Announcements = lazy(() => import('./components/Announcements'));
+const EmployeeManagement = lazy(() => import('./components/EmployeeManagement'));
+const Reports = lazy(() => import('./components/Reports'));
 const Expenses = lazy(() => import('./components/Expenses'));
 const Profile = lazy(() => import('./components/Profile'));
+const Approvals = lazy(() => import('./components/Approvals'));
 const MobileMoneyPayroll = lazy(() => import('./components/MobileMoneyPayroll'));
 const Settings = lazy(() => import('./components/Settings'));
-const AddCompanyPage = lazy(() => import('./components/AddCompanyPage'));
-const ProtectedRoute = lazy(() => import('./components/ProtectedRoute')); // Correctly import ProtectedRoute
+import ManagerDashboard from './components/ManagerDashboard';
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Import Services
 import { authService } from './services/authService';
+import { getCurrentCompanyId, getCurrentCompanyName } from './services/database';
 
 // Import Icons
 import { LogoIcon, LogOutIcon, LayoutDashboardIcon, BriefcaseIcon, CheckSquareIcon, UsersIcon, DollarSignIcon, MenuIcon, XIcon, FileTextIcon, MegaphoneIcon, ReceiptIcon, UserCircleIcon, SmartphoneIcon, CogIcon } from './components/Icons';
@@ -46,11 +46,6 @@ const App = () => {
     const [currentCompany, setCurrentCompany] = useState<Company | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    console.log('--- App Render ---');
-    console.log('isLoading:', isLoading);
-    console.log('currentUser:', currentUser);
-    console.log('currentCompany:', currentCompany);
-
     useEffect(() => {
         setIsLoading(true);
         console.log('[useEffect] Checking session...');
@@ -61,6 +56,8 @@ const App = () => {
                 // Normalize role string
                 let role = userFromCookie.role;
                 if (role === 'SuperAdmin') role = 'Super Admin';
+                // Capitalize first letter to match UserRole enum
+                role = role.charAt(0).toUpperCase() + role.slice(1);
                 const isSuperAdmin = role === 'Super Admin';
                 // Use only valid User fields
                 const appUser: User = {
@@ -96,10 +93,11 @@ const App = () => {
     }, []);
 
     const handleLogin = (userFromApi: any) => {
-        console.log('[handleLogin] User from API:', userFromApi);
         // Normalize role string
         let role = userFromApi.role;
         if (role === 'SuperAdmin') role = 'Super Admin';
+        // Capitalize first letter to match UserRole enum
+        role = role.charAt(0).toUpperCase() + role.slice(1);
         const isSuperAdmin = role === 'Super Admin';
         // Use only valid User fields
         const user: any = userFromApi;
@@ -115,13 +113,10 @@ const App = () => {
             hireDate: user?.hire_date ? new Date(user?.hire_date) : new Date(),
         };
         console.log('[handleLogin] Mapped appUser:', appUser);
-
-        if (isSuperAdmin) {
-            setCurrentUser(appUser);
-        } else {
+        setCurrentUser(appUser);
+        if (!isSuperAdmin) {
             const company = COMPANIES.find(c => c.id === appUser.companyId);
             console.log('[handleLogin] Found company:', company);
-            setCurrentUser(appUser);
             setCurrentCompany(company || null);
         }
         setIsLoading(false);

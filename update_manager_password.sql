@@ -69,3 +69,6 @@ WHERE email = 'manager-test@vpena.com';
 -- SELECT id, name FROM "P360-Opoint_Company" WHERE name = 'Vpena Teck';
 -- SELECT company_id FROM "P360-Opoint_User" WHERE email = 'manager-test@vpena.com';
 -- ============================================================
+
+
+select * from  company_vpena_teck_users;
