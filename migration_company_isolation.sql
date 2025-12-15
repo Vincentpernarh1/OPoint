@@ -1,17 +1,111 @@
 -- =====================================================
 -- COMPANY-SPECIFIC TABLE SETUP
 -- =====================================================
--- Creates company-isolated tables using Row Level Security (RLS)
--- Each company will only see their own data
+-- Creates company-specific tables for data isolation
+-- Each company has its own set of tables
 -- =====================================================
 
--- Enable RLS on existing tables
-ALTER TABLE "P360-Opoint_User" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "P360-Opoint_Employees" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "P360-Opoint_LeaveRequest" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "P360-Opoint_Attendance" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "P360-Opoint_PayrollHistory" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "P360-Opoint_Expenses" ENABLE ROW LEVEL SECURITY;
+-- Create company-specific tables for Vpena Teck
+-- Users table
+CREATE TABLE IF NOT EXISTS company_vpena_teck_users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id UUID NOT NULL,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT,
+    role TEXT DEFAULT 'Employee',
+    basic_salary DECIMAL(10, 2) DEFAULT 0,
+    mobile_money_number TEXT,
+    date_of_birth DATE,
+    hire_date DATE DEFAULT CURRENT_DATE,
+    department TEXT,
+    position TEXT,
+    status TEXT DEFAULT 'active',
+    is_active BOOLEAN DEFAULT true,
+    requires_password_change BOOLEAN DEFAULT false,
+    has_temporary_password BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Employees table
+CREATE TABLE IF NOT EXISTS company_vpena_teck_employees (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES company_vpena_teck_users(id) ON DELETE CASCADE,
+    company_id UUID NOT NULL,
+    name TEXT NOT NULL,
+    email TEXT,
+    department TEXT,
+    position TEXT,
+    basic_salary DECIMAL(10, 2) DEFAULT 0,
+    hire_date DATE,
+    status TEXT DEFAULT 'active',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Leave Requests table
+CREATE TABLE IF NOT EXISTS company_vpena_teck_leaverequest (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employee_id UUID REFERENCES company_vpena_teck_employees(id) ON DELETE CASCADE,
+    company_id UUID NOT NULL,
+    leave_type TEXT NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    reason TEXT,
+    status TEXT DEFAULT 'Pending',
+    approved_by UUID,
+    approved_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Attendance table
+CREATE TABLE IF NOT EXISTS company_vpena_teck_attendance (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employee_id UUID REFERENCES company_vpena_teck_employees(id) ON DELETE CASCADE,
+    company_id UUID NOT NULL,
+    date DATE NOT NULL,
+    clock_in TIME,
+    clock_out TIME,
+    total_hours DECIMAL(5, 2),
+    status TEXT DEFAULT 'present',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Payroll History table
+CREATE TABLE IF NOT EXISTS company_vpena_teck_payrollhistory (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES company_vpena_teck_users(id) ON DELETE CASCADE,
+    company_id UUID NOT NULL,
+    month INTEGER NOT NULL,
+    year INTEGER NOT NULL,
+    basic_salary DECIMAL(10, 2),
+    allowances DECIMAL(10, 2) DEFAULT 0,
+    deductions DECIMAL(10, 2) DEFAULT 0,
+    net_salary DECIMAL(10, 2),
+    payment_status TEXT DEFAULT 'pending',
+    payment_date DATE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Expenses table
+CREATE TABLE IF NOT EXISTS company_vpena_teck_expenses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES company_vpena_teck_users(id) ON DELETE CASCADE,
+    company_id UUID NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    description TEXT,
+    category TEXT,
+    date DATE NOT NULL,
+    status TEXT DEFAULT 'pending',
+    approved_by UUID,
+    approved_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
 -- =====================================================
 -- RLS POLICIES FOR USERS
@@ -165,3 +259,9 @@ CREATE INDEX IF NOT EXISTS idx_payroll_employee_period ON "P360-Opoint_PayrollHi
 --    // Will only return employees from user's company
 --
 -- =====================================================
+
+
+
+SELECT * FROM opoint_companies WHERE id = '4b7e93eb-91f7-49e4-9ab4-536a8487a3dc';
+
+SELECT * from company_vpena_teck_users;

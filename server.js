@@ -353,7 +353,7 @@ app.get('/api/test/check-user/:email', async (req, res) => {
 // --- AUTHENTICATION ENDPOINTS ---
 app.post('/api/auth/login', async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, password, company_id } = req.body;
 
         if (!email || !password) {
             return res.status(400).json({ 
@@ -367,6 +367,12 @@ app.post('/api/auth/login', async (req, res) => {
                 success: false, 
                 error: 'Invalid email format' 
             });
+        }
+
+        // Set company context for RLS before querying user
+        if (company_id) {
+            await setCompanyContext(company_id, null); // user_id not known yet
+            console.log('✅ Company context set for login:', company_id);
         }
 
         // Get user from database
@@ -498,6 +504,12 @@ app.post('/api/auth/change-password', async (req, res) => {
                 success: false, 
                 error: 'User not found' 
             });
+        }
+
+        // Set company context for RLS
+        if (user.company_id) {
+            await setCompanyContext(user.company_id, user.id);
+            console.log('✅ Company context set for password change:', user.company_id);
         }
 
         // Verify current password (either temporary or hashed)

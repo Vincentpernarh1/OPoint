@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { LogoIcon, MailIcon, LockIcon } from './Icons';
 import { api } from '../services/api';
-import { setCompanyContextByEncryptedId, getCurrentCompanyName } from '../services/database';
+import { setCompanyContextByEncryptedId, getCurrentCompanyName, getCurrentCompanyId } from '../services/database';
 import './Login.css';
 
 interface LoginProps {
@@ -131,7 +131,7 @@ const Login = ({ onLogin }: LoginProps) => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email, password }),
+                body: JSON.stringify({ email, password, company_id: getCurrentCompanyId() }),
             });
             const data = await response.json();
 
