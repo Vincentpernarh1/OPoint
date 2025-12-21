@@ -31,16 +31,73 @@ const groupPayslipsByYear = (payslips: Partial<Payslip>[]) => {
 
 
 const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: User, onViewChange: (view: View) => void, isManager: boolean }) => {
-    const userPayslipHistory = useMemo(() => {
-        return PAYSCLIP_HISTORY.filter(p => p.userId === employee.id)
-            .sort((a, b) => new Date(b.payDate!).getTime() - new Date(a.payDate!).getTime());
-    }, [employee.id]);
+    const [userPayslipHistory, setUserPayslipHistory] = useState<Partial<Payslip>[]>([]);
+    const [loadingHistory, setLoadingHistory] = useState(true);
+    const [historyError, setHistoryError] = useState<string | null>(null);
     
-    const [selectedPayslipId, setSelectedPayslipId] = useState<Partial<Payslip> | null>(userPayslipHistory[0] || null);
+    const [selectedPayslipId, setSelectedPayslipId] = useState<Partial<Payslip> | null>(null);
     const [payslipData, setPayslipData] = useState<Payslip | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
+
+    // Fetch payslip history on component mount
+    useEffect(() => {
+        const fetchPayslipHistory = async () => {
+            setLoadingHistory(true);
+            setHistoryError(null);
+            try {
+                const history = await api.getPayslipHistory(employee.id, employee.tenantId || '');
+                
+                // If no payroll history exists, generate a current month payslip
+                let payslipHistory = history.map(record => ({
+                    id: record.id,
+                    userId: record.user_id,
+                    payDate: record.created_at,
+                    payPeriodStart: new Date(record.created_at), // Approximate
+                    payPeriodEnd: new Date(record.created_at),
+                    basicSalary: record.amount, // This is net pay, but we'll use it as reference
+                })).sort((a, b) => new Date(b.payDate).getTime() - new Date(a.payDate).getTime());
+                
+                // If no history, create a current month entry
+                if (payslipHistory.length === 0) {
+                    const currentDate = new Date();
+                    const currentMonthEntry = {
+                        id: `${employee.id}_${currentDate.toISOString().split('T')[0]}`,
+                        userId: employee.id,
+                        payDate: currentDate.toISOString(),
+                        payPeriodStart: new Date(currentDate.getFullYear(), currentDate.getMonth(), 1),
+                        payPeriodEnd: currentDate,
+                        basicSalary: employee.basicSalary || 0,
+                    };
+                    payslipHistory = [currentMonthEntry];
+                }
+                
+                setUserPayslipHistory(payslipHistory);
+                if (payslipHistory.length > 0) {
+                    setSelectedPayslipId(payslipHistory[0]);
+                }
+            } catch (err) {
+                setHistoryError(err instanceof Error ? err.message : 'Failed to load payslip history');
+                // Fallback: create a current month entry with employee data
+                const currentDate = new Date();
+                const fallbackEntry = {
+                    id: `${employee.id}_${currentDate.toISOString().split('T')[0]}`,
+                    userId: employee.id,
+                    payDate: currentDate.toISOString(),
+                    payPeriodStart: new Date(currentDate.getFullYear(), currentDate.getMonth(), 1),
+                    payPeriodEnd: currentDate,
+                    basicSalary: employee.basicSalary || 0,
+                };
+                setUserPayslipHistory([fallbackEntry]);
+                setSelectedPayslipId(fallbackEntry);
+            } finally {
+                setLoadingHistory(false);
+            }
+        };
+
+        fetchPayslipHistory();
+    }, [employee.id, employee.tenantId, employee.basicSalary]);
 
     useEffect(() => {
         if (!selectedPayslipId) return;
@@ -52,10 +109,15 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                 // Use query param for date to prevent URL encoding issues with ISO strings
                 const dateParam = new Date(selectedPayslipId.payDate!).toISOString();
                 // CHANGED: Use local API service instead of fetch
-                const data = await api.getPayslip(selectedPayslipId.userId!, dateParam);
+                const data = await api.getPayslip(selectedPayslipId.userId!, dateParam, employee.tenantId || '');
                 setPayslipData(data);
             } catch (err) {
-                setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+                // Check if this is a salary setup error
+                if (err instanceof Error && err.message.includes('salary not set')) {
+                    setError('Employee salary not set. Please contact an administrator to set the salary.');
+                } else {
+                    setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+                }
             } finally {
                 setIsLoading(false);
             }
@@ -98,6 +160,28 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
         link.click();
         document.body.removeChild(link);
     };
+
+    if (loadingHistory) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                    <LogoIcon className="h-12 w-12 mx-auto animate-pulse text-primary" />
+                    <p className="mt-4 text-gray-600 font-medium">Loading Payslip History...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (historyError && userPayslipHistory.length === 0) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                    <h2 className="text-2xl font-bold text-gray-800">Error Loading Payslips</h2>
+                    <p className="text-gray-500 mt-2">{historyError}</p>
+                </div>
+            </div>
+        );
+    }
 
     if (userPayslipHistory.length === 0) {
         return (
@@ -227,6 +311,38 @@ const Payslips = ({ currentUser, onViewChange }: PayslipsProps) => {
     const [selectedEmployee, setSelectedEmployee] = useState<User | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+    const [employees, setEmployees] = useState<User[]>([]);
+    const [loadingEmployees, setLoadingEmployees] = useState(true);
+
+    // Helper function to get user initials
+    const getUserInitials = (name: string) => {
+        return name
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase())
+            .slice(0, 2)
+            .join('');
+    };
+
+    // Fetch employees on component mount
+    useEffect(() => {
+        const fetchEmployees = async () => {
+            setLoadingEmployees(true);
+            try {
+                const data = await api.getUsers(currentUser.tenantId || '');
+                setEmployees(data);
+            } catch (error) {
+                console.error('Failed to fetch employees:', error);
+                // Fallback to mock data
+                setEmployees(USERS.filter(u => u.tenantId === currentUser.tenantId));
+            } finally {
+                setLoadingEmployees(false);
+            }
+        };
+
+        if (isManager) {
+            fetchEmployees();
+        }
+    }, [currentUser.tenantId, isManager]);
 
     // Debounce search query with 300ms delay
     useEffect(() => {
@@ -240,7 +356,7 @@ const Payslips = ({ currentUser, onViewChange }: PayslipsProps) => {
     // Filter employees based on debounced search query and current user's company
     const filteredEmployees = useMemo(() => {
         // Filter by company first
-        const companyEmployees = USERS.filter(u => u.tenantId === currentUser.tenantId);
+        const companyEmployees = employees;
         
         // Then filter by search query
         if (!debouncedSearchQuery.trim()) return companyEmployees;
@@ -250,9 +366,20 @@ const Payslips = ({ currentUser, onViewChange }: PayslipsProps) => {
             user.team.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
             user.role.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
         );
-    }, [debouncedSearchQuery, currentUser.tenantId]);
+    }, [debouncedSearchQuery, employees]);
 
     if (isManager && !selectedEmployee) {
+        if (loadingEmployees) {
+            return (
+                <div className="bg-white p-6 rounded-xl shadow-lg">
+                    <div className="text-center py-12">
+                        <LogoIcon className="h-12 w-12 mx-auto animate-pulse text-primary" />
+                        <p className="mt-4 text-gray-600 font-medium">Loading Employees...</p>
+                    </div>
+                </div>
+            );
+        }
+
         return (
             <div className="bg-white p-6 rounded-xl shadow-lg">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
@@ -272,7 +399,13 @@ const Payslips = ({ currentUser, onViewChange }: PayslipsProps) => {
                     {filteredEmployees.length > 0 ? (
                         filteredEmployees.map(user => (
                             <button key={user.id} onClick={() => setSelectedEmployee(user)} className="p-4 border rounded-lg text-center hover:shadow-lg hover:border-primary transition-all duration-200">
-                                <img src={user.avatarUrl} alt={user.name} className="w-16 h-16 rounded-full mx-auto mb-3" />
+                                {user.avatarUrl ? (
+                                    <img src={user.avatarUrl} alt={user.name} className="w-16 h-16 rounded-full mx-auto mb-3" />
+                                ) : (
+                                    <div className="w-16 h-16 rounded-full mx-auto mb-3 bg-primary text-white flex items-center justify-center text-lg font-bold">
+                                        {getUserInitials(user.name)}
+                                    </div>
+                                )}
                                 <p className="font-semibold text-gray-800">{user.name}</p>
                                 <p className="text-sm text-gray-500">{user.team}</p>
                             </button>

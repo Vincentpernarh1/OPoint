@@ -13,7 +13,7 @@ const EditEmployeeModal = ({ user, currentUser, onClose, onSubmit }: EditEmploye
     const [name, setName] = useState(user.name);
     const [team, setTeam] = useState(user.team);
     const [role, setRole] = useState(user.role);
-    const [basicSalary, setBasicSalary] = useState(user.basicSalary.toString());
+    const [basicSalary, setBasicSalary] = useState(user.basicSalary && user.basicSalary > 0 ? user.basicSalary.toString() : "1");
     const [mobileMoneyNumber, setMobileMoneyNumber] = useState(user.mobileMoneyNumber || '');
     const [error, setError] = useState('');
 

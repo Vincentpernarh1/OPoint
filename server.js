@@ -859,6 +859,8 @@ app.put('/api/users/:id', async (req, res) => {
         const updates = req.body;
         const userId = req.params.id;
 
+        console.log('User update request:', { userId, updates });
+
         // Validation
         if (updates.email && !validators.isValidEmail(updates.email)) {
             return res.status(400).json({ 
@@ -878,6 +880,8 @@ app.put('/api/users/:id', async (req, res) => {
             ...updates,
             updated_at: new Date().toISOString()
         });
+
+        console.log('User update result:', { data, error });
 
         if (error) {
             return res.status(400).json({ 
@@ -925,7 +929,6 @@ app.delete('/api/users/:id', async (req, res) => {
     }
 });
 
-// --- PAYROLL ENDPOINTS ---
 // --- PAYROLL ENDPOINTS ---
 app.get('/api/payroll/payable-employees', async (req, res) => {
     try {
@@ -1029,6 +1032,144 @@ app.get('/api/payroll/history', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: "Failed to fetch payroll history" 
+        });
+    }
+});
+
+
+app.get('/api/payslips/:userId/:date', async (req, res) => {
+    try {
+        const { userId, date } = req.params;
+        const tenantId = req.headers['x-tenant-id'];
+
+        console.log('Payslip request:', { userId, date, tenantId });
+
+        if (!tenantId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Tenant ID required'
+            });
+        }
+
+        // Parse the date (expected format: ISO string)
+        const payDate = new Date(date);
+        if (isNaN(payDate.getTime())) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid date format'
+            });
+        }
+
+        // Get employee data from opoint_users table using database service
+        console.log('Fetching user:', userId);
+        const { data: employee, error: employeeError } = await db.getUserById(userId);
+
+        console.log('User fetch result:', { employee, error: employeeError });
+
+        if (employeeError || !employee) {
+            return res.status(404).json({
+                success: false,
+                error: 'Employee not found'
+            });
+        }
+
+        const basicSalary = parseFloat(employee.basicSalary) || 0;
+
+        console.log('Employee salary:', basicSalary);
+
+        // Check if employee has salary set
+        if (basicSalary === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Employee salary not set. Please set a salary for this employee before generating payslip.',
+                requiresSalarySetup: true,
+                defaultSalary: 1
+            });
+        }
+
+        // Calculate pay period (assuming monthly, last day of previous month to current date)
+        const payPeriodEnd = new Date(payDate);
+        const payPeriodStart = new Date(payPeriodEnd.getFullYear(), payPeriodEnd.getMonth() - 1, payPeriodEnd.getDate() + 1);
+
+        // Calculate SSNIT contributions
+        const ssnitEmployee = basicSalary * 0.055; // 5.5%
+        const ssnitEmployer = basicSalary * 0.13;  // 13%
+
+        // SSNIT tiers (for reporting)
+        const applicableSalary = Math.min(basicSalary, 1500); // SSNIT ceiling
+        const ssnitTier1 = applicableSalary * 0.135; // 13.5% to SSNIT
+        const ssnitTier2 = applicableSalary * 0.05;  // 5% to private fund
+
+        // Calculate PAYE tax (Ghana tax brackets)
+        let paye = 0;
+        const taxableIncome = basicSalary; // Assuming no other deductions for simplicity
+
+        if (taxableIncome <= 3828) {
+            paye = 0;
+        } else if (taxableIncome <= 4828) {
+            paye = (taxableIncome - 3828) * 0.05;
+        } else if (taxableIncome <= 5828) {
+            paye = 1000 * 0.05 + (taxableIncome - 4828) * 0.10;
+        } else if (taxableIncome <= 6828) {
+            paye = 1000 * 0.05 + 1000 * 0.10 + (taxableIncome - 5828) * 0.175;
+        } else {
+            paye = 1000 * 0.05 + 1000 * 0.10 + 1000 * 0.175 + (taxableIncome - 6828) * 0.25;
+        }
+
+        // Get other deductions from payroll history for this pay period
+        const { data: payrollHistory, error: historyError } = await db.getPayrollHistory({
+            userId: userId,
+            month: payDate.getMonth() + 1,
+            year: payDate.getFullYear()
+        });
+
+        const otherDeductions = [];
+        if (!historyError && payrollHistory) {
+            // Filter for deduction entries (negative amounts or specific reasons)
+            payrollHistory.forEach(record => {
+                if (record.amount < 0 || record.reason?.toLowerCase().includes('deduction')) {
+                    otherDeductions.push({
+                        description: record.reason || 'Other Deduction',
+                        amount: Math.abs(record.amount)
+                    });
+                }
+            });
+        }
+
+        // Calculate totals
+        const totalDeductions = ssnitEmployee + paye + otherDeductions.reduce((sum, d) => sum + d.amount, 0);
+        const grossPay = basicSalary;
+        const netPay = grossPay - totalDeductions;
+
+        // Build payslip object
+        const payslip = {
+            id: `${userId}_${payDate.toISOString().split('T')[0]}`,
+            userId: userId,
+            payPeriodStart: payPeriodStart.toISOString(),
+            payPeriodEnd: payDate.toISOString(),
+            payDate: payDate.toISOString(),
+            basicSalary: basicSalary,
+            grossPay: grossPay,
+            netPay: netPay,
+            totalDeductions: totalDeductions,
+            ssnitEmployee: ssnitEmployee,
+            paye: paye,
+            otherDeductions: otherDeductions,
+            ssnitEmployer: ssnitEmployer,
+            ssnitTier1: ssnitTier1,
+            ssnitTier2: ssnitTier2
+        };
+
+        res.json({
+            success: true,
+            data: payslip
+        });
+
+    } catch (error) {
+        console.error('Error generating payslip:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to generate payslip'
         });
     }
 });

@@ -32,16 +32,15 @@ const EmployeeManagement = ({ currentUser }: EmployeeManagementProps) => {
             setError(null);
             const data = await api.getUsers(currentUser.tenantId!);
             
-            // Map database fields to component fields
+            console.log('Raw user data from API:', data);
+            
+            // Transform dates and ensure proper types
             const mappedUsers = data.map((user: any) => ({
                 ...user,
-                basicSalary: user.basic_salary || 0,
-                hireDate: user.hire_date ? new Date(user.hire_date) : new Date(),
-                avatarUrl: user.avatar_url || undefined,
-                tenantId: user.tenant_id,
-                companyName: user.company_name,
-                mobileMoneyNumber: user.mobile_money_number,
+                hireDate: user.hireDate ? new Date(user.hireDate) : new Date(),
             }));
+            
+            console.log('Mapped users:', mappedUsers);
             setUsers(mappedUsers);
         } catch (err) {
             console.error('Error fetching users:', err);
@@ -146,13 +145,14 @@ const EmployeeManagement = ({ currentUser }: EmployeeManagementProps) => {
                                     <th scope="col" className="px-6 py-3">Name</th>
                                     <th scope="col" className="px-6 py-3">Role</th>
                                     <th scope="col" className="px-6 py-3">Team</th>
+                                    <th scope="col" className="px-6 py-3">Salary</th>
                                     <th scope="col" className="px-6 py-3">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {users.length === 0 ? (
                                     <tr>
-                                        <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                                        <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                                             No employees found
                                         </td>
                                     </tr>
@@ -165,6 +165,13 @@ const EmployeeManagement = ({ currentUser }: EmployeeManagementProps) => {
                                             </td>
                                             <td className="px-6 py-4">{user.role}</td>
                                             <td className="px-6 py-4">{user.team || 'General'}</td>
+                                            <td className="px-6 py-4">
+                                                {user.basicSalary > 0 ? (
+                                                    <span className="text-green-600 font-medium">GHS {user.basicSalary.toLocaleString()}</span>
+                                                ) : (
+                                                    <span className="text-red-600 font-medium bg-red-50 px-2 py-1 rounded">Not Set</span>
+                                                )}
+                                            </td>
                                             <td className="px-6 py-4 space-x-4">
                                                 <button onClick={() => setViewingUserLog(user)} className="font-medium text-primary hover:underline">
                                                     View Log
