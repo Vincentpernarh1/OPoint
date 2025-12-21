@@ -16,6 +16,7 @@ const statusStyles: Record<RequestStatus, { bg: string; text: string }> = {
   [RequestStatus.PENDING]: { bg: 'bg-yellow-100', text: 'text-yellow-800' },
   [RequestStatus.APPROVED]: { bg: 'bg-green-100', text: 'text-green-800' },
   [RequestStatus.REJECTED]: { bg: 'bg-red-100', text: 'text-red-800' },
+  [RequestStatus.CANCELLED]: { bg: 'bg-gray-100', text: 'text-gray-800' },
 };
 
 const Calendar = ({ requests, displayedDate, setDisplayedDate, startDate, endDate, onDateClick }: CalendarProps) => {
@@ -74,8 +75,11 @@ const Calendar = ({ requests, displayedDate, setDisplayedDate, startDate, endDat
       
       // Precedence: Status > Selection > Today
       if (status) {
-        dayCellClasses += ` ${statusStyles[status].bg} font-medium`;
-        dayNumberContainerClasses += ` ${statusStyles[status].text}`;
+        const statusStyle = statusStyles[status];
+        if (statusStyle) {
+          dayCellClasses += ` ${statusStyle.bg} font-medium`;
+          dayNumberContainerClasses += ` ${statusStyle.text}`;
+        }
       } else if (isStartDate || isInRange) {
          if (isStartDate) {
            dayNumberContainerClasses += ' bg-primary text-white rounded-full';
@@ -103,13 +107,13 @@ const Calendar = ({ requests, displayedDate, setDisplayedDate, startDate, endDat
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <button onClick={handlePrevMonth} className="p-2 rounded-full hover:bg-gray-100">
+        <button  title="Previous Month" onClick={handlePrevMonth} className="p-2 rounded-full hover:bg-gray-100">
           <ChevronLeftIcon className="h-5 w-5 text-gray-600" />
         </button>
         <h3 className="text-lg font-semibold text-gray-800">
           {displayedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
         </h3>
-        <button onClick={handleNextMonth} className="p-2 rounded-full hover:bg-gray-100">
+        <button title="Next Month" onClick={handleNextMonth} className="p-2 rounded-full hover:bg-gray-100">
           <ChevronRightIcon className="h-5 w-5 text-gray-600" />
         </button>
       </div>

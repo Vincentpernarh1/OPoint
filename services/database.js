@@ -256,33 +256,48 @@ export const db = {
         const tenantId = getCurrentTenantId();
         if (!tenantId) return { data: null, error: 'No tenant context set' };
 
+        // Map user_id to employee_id for database compatibility and include employee_name
+        const dbData = {
+            employee_id: leaveData.user_id,
+            leave_type: leaveData.leave_type,
+            start_date: leaveData.start_date,
+            end_date: leaveData.end_date,
+            reason: leaveData.reason,
+            status: leaveData.status || 'pending',
+            employee_name: leaveData.employee_name,
+            tenant_id: tenantId
+        };
+
         const { data, error } = await client
             .from('opoint_leave_logs')
-            .insert([{ ...leaveData, tenant_id: tenantId }])
+            .insert([dbData])
             .select()
             .single();
 
         return { data, error };
     },
 
-    async getLeaveRequests(filters = {}) {
+    async getLeaveRequests(filters = {}, tenantIdOverride = null) {
         const client = getSupabaseClient();
         if (!client) return { data: [], error: 'Database not configured' };
 
-        const tenantId = getCurrentTenantId();
-        if (!tenantId) return { data: [], error: 'No tenant context set' };
-
+        const tenantId = tenantIdOverride || getCurrentTenantId();
+        
         let query = client
             .from('opoint_leave_logs')
-            .select('*, opoint_users(name, email)')
-            .eq('tenant_id', tenantId);
+            .select('*');
+
+        // Only filter by tenant if tenantId is provided
+        if (tenantId) {
+            query = query.eq('tenant_id', tenantId);
+        }
 
         if (filters.status) {
             query = query.eq('status', filters.status);
         }
 
         if (filters.userId) {
-            query = query.eq('user_id', filters.userId);
+            query = query.eq('employee_id', filters.userId);
         }
 
         query = query.order('created_at', { ascending: false });
@@ -291,20 +306,23 @@ export const db = {
         return { data, error };
     },
 
-    async updateLeaveRequest(leaveId, updates) {
+    async updateLeaveRequest(leaveId, updates, tenantIdOverride = null) {
         const client = getSupabaseClient();
         if (!client) return { data: null, error: 'Database not configured' };
 
-        const tenantId = getCurrentTenantId();
-        if (!tenantId) return { data: null, error: 'No tenant context set' };
+        const tenantId = tenantIdOverride || getCurrentTenantId();
 
-        const { data, error } = await client
+        let query = client
             .from('opoint_leave_logs')
             .update({ ...updates, updated_at: new Date().toISOString() })
-            .eq('id', leaveId)
-            .eq('tenant_id', tenantId)
-            .select()
-            .single();
+            .eq('id', leaveId);
+
+        // Only filter by tenant if tenantId is provided
+        if (tenantId) {
+            query = query.eq('tenant_id', tenantId);
+        }
+
+        const { data, error } = await query.select().single();
 
         return { data, error };
     },

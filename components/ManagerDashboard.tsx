@@ -1,18 +1,41 @@
-import React, { useMemo } from 'react';
-import { User, View, RequestStatus } from '../types';
+import React, { useMemo, useState, useEffect } from 'react';
+import { User, View, RequestStatus, Announcement } from '../types';
 import { USERS, LEAVE_REQUESTS, ADJUSTMENT_REQUESTS, EXPENSE_REQUESTS, PROFILE_UPDATE_REQUESTS, ANNOUNCEMENTS } from '../constants';
 import { UsersGroupIcon, CheckSquareIcon, MegaphoneIcon } from './Icons';
+import { api } from '../services/api';
 
 interface ManagerDashboardProps {
     currentUser: User;
     onViewChange: (view: View) => void;
+    announcements: Announcement[];
 }
 
-const ManagerDashboard = ({ currentUser, onViewChange }: ManagerDashboardProps) => {
+const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerDashboardProps) => {
+    const [employeeCount, setEmployeeCount] = useState(0);
+    const [loadingEmployees, setLoadingEmployees] = useState(true);
     
     const companyUsers = useMemo(() => {
         return USERS.filter(u => u.tenantId === currentUser.tenantId);
     }, [currentUser.tenantId]);
+
+    // Fetch real employee count from API
+    useEffect(() => {
+        const fetchEmployeeCount = async () => {
+            try {
+                setLoadingEmployees(true);
+                const users = await api.getUsers(currentUser.tenantId);
+                setEmployeeCount(users.length);
+            } catch (error) {
+                console.error('Failed to fetch employee count:', error);
+                // Fallback to mock data
+                setEmployeeCount(companyUsers.length);
+            } finally {
+                setLoadingEmployees(false);
+            }
+        };
+
+        fetchEmployeeCount();
+    }, [currentUser.tenantId, companyUsers.length]);
 
     const pendingApprovalsCount = useMemo(() => {
         const leave = LEAVE_REQUESTS.filter(r => r.status === RequestStatus.PENDING).length;
@@ -23,8 +46,9 @@ const ManagerDashboard = ({ currentUser, onViewChange }: ManagerDashboardProps) 
     }, []);
     
     const latestAnnouncement = useMemo(() => {
-        return ANNOUNCEMENTS.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
-    }, []);
+        if (announcements.length === 0) return null;
+        return announcements.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+    }, [announcements]);
 
     const StatCard = ({ title, value, icon: Icon, linkTo }: { title: string, value: string | number, icon: React.FC<{className?: string}>, linkTo: View }) => (
         <button onClick={() => onViewChange(linkTo)} className="bg-white p-6 rounded-xl shadow-lg w-full text-left hover:shadow-xl hover:border-primary border-2 border-transparent transition-all">
@@ -48,7 +72,7 @@ const ManagerDashboard = ({ currentUser, onViewChange }: ManagerDashboardProps) 
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <StatCard title="Total Employees" value={companyUsers.length} icon={UsersGroupIcon} linkTo="employees" />
+                <StatCard title="Total Employees" value={loadingEmployees ? '...' : employeeCount} icon={UsersGroupIcon} linkTo="employees" />
                 <StatCard title="Pending Approvals" value={pendingApprovalsCount} icon={CheckSquareIcon} linkTo="approvals" />
             </div>
             

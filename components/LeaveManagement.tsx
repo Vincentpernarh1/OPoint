@@ -16,10 +16,11 @@ const statusColorMap: Record<RequestStatus, string> = {
     [RequestStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
     [RequestStatus.APPROVED]: 'bg-green-100 text-green-800',
     [RequestStatus.REJECTED]: 'bg-red-100 text-red-800',
+    [RequestStatus.CANCELLED]: 'bg-gray-100 text-gray-800',
 };
 
 const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
-    const [requests, setRequests] = useState<LeaveRequest[]>(LEAVE_REQUESTS.filter(r => r.userId === currentUser.id));
+    const [requests, setRequests] = useState<LeaveRequest[]>([]);
     const [leaveType, setLeaveType] = useState<LeaveType>(LeaveType.ANNUAL);
     const [startDate, setStartDate] = useState<Date | null>(null);
     const [endDate, setEndDate] = useState<Date | null>(null);
@@ -28,13 +29,19 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
     const [notification, setNotification] = useState<string | null>(null);
     const [displayedDate, setDisplayedDate] = useState(new Date());
     const [editingRequest, setEditingRequest] = useState<LeaveRequest | null>(null);
+    const [loading, setLoading] = useState(true);
 
     const userBalance = useMemo(() => {
         return LEAVE_BALANCES.find(b => b.userId === currentUser.id) || { userId: currentUser.id, annual: 0, maternity: 0, sick: 0 };
     }, [currentUser.id]);
 
     const monthsOfService = useMemo(() => {
-        const diff = new Date().getTime() - new Date(currentUser.hireDate).getTime();
+        const hireDate = new Date(currentUser.hireDate);
+        if (isNaN(hireDate.getTime())) {
+            console.warn('Invalid hire date for user:', currentUser.hireDate);
+            return 0; // Default to 0 if invalid
+        }
+        const diff = new Date().getTime() - hireDate.getTime();
         return diff / (1000 * 60 * 60 * 24 * 30.44); // Average days in month
     }, [currentUser.hireDate]);
 
@@ -143,38 +150,166 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
         }
     };
 
+    // Fetch leave requests for current user
+    useEffect(() => {
+        const fetchLeaveRequests = async () => {
+            try {
+                setLoading(true);
+                const data = await api.getLeaveRequests(currentUser.tenantId, { userId: currentUser.id });
+                // Transform the data to match the LeaveRequest interface
+                const transformedData: LeaveRequest[] = data.map((item: any) => {
+                    const startDate = new Date(item.start_date);
+                    const endDate = new Date(item.end_date);
+                    
+                    // Validate dates
+                    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                        console.warn('Invalid date in leave request:', item);
+                        return null; // Skip invalid requests
+                    }
+                    
+                    return {
+                        id: item.id,
+                        userId: item.employee_id, // Database uses employee_id
+                        employeeName: item.employee_name, // Include employee name
+                        leaveType: item.leave_type as LeaveType,
+                        startDate: startDate,
+                        endDate: endDate,
+                        reason: item.reason,
+                        status: item.status as RequestStatus
+                    };
+                }).filter(Boolean) as LeaveRequest[]; // Remove null entries
+                setRequests(transformedData);
+            } catch (error) {
+                console.error('Failed to fetch leave requests:', error);
+                setNotification('Failed to load leave requests');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (currentUser.tenantId) {
+            fetchLeaveRequests();
+        }
+    }, [currentUser.tenantId, currentUser.id]);
+
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!startDate || !endDate) return;
-        
-        const newRequest: LeaveRequest = {
-            id: `lr-${Date.now()}`,
-            userId: currentUser.id,
-            leaveType,
-            startDate,
-            endDate,
-            reason,
-            status: RequestStatus.PENDING,
+
+        console.log('Submitting leave request for user:', currentUser.id, 'tenant:', currentUser.tenantId, 'role:', currentUser.role);
+
+        if (!currentUser.tenantId) {
+            console.error('No tenantId for user:', currentUser);
+            setNotification('Error: No tenant context. Please log out and log back in.');
+            return;
+        }
+
+        const submitLeaveRequest = async () => {
+            try {
+                if (!startDate || !endDate) {
+                    throw new Error('Start date and end date are required');
+                }
+
+                // Validate dates are not in the past
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                if (startDate < today) {
+                    throw new Error('Start date cannot be in the past');
+                }
+
+                if (endDate < startDate) {
+                    throw new Error('End date must be after start date');
+                }
+
+                if (!reason.trim()) {
+                    throw new Error('Reason is required');
+                }
+
+                const leaveData = {
+                    user_id: currentUser.id,
+                    leave_type: leaveType,
+                    start_date: startDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
+                    end_date: endDate.toISOString().split('T')[0],
+                    reason: reason.trim(),
+                    employee_name: currentUser.name
+                };
+
+                console.log('Sending leave data:', JSON.stringify(leaveData, null, 2));
+
+                await api.createLeaveRequest(currentUser.tenantId, leaveData);
+
+                // Refresh the leave requests
+                const data = await api.getLeaveRequests(currentUser.tenantId, { userId: currentUser.id });
+                const transformedData: LeaveRequest[] = data.map((item: any) => ({
+                    id: item.id,
+                    userId: item.employee_id,
+                    leaveType: item.leave_type as LeaveType,
+                    startDate: new Date(item.start_date),
+                    endDate: new Date(item.end_date),
+                    reason: item.reason,
+                    status: item.status as RequestStatus
+                }));
+                setRequests(transformedData);
+
+                // Reset form
+                setStartDate(null);
+                setEndDate(null);
+                setReason('');
+                setNumDays('');
+
+                setNotification('Leave request submitted successfully!');
+            } catch (error: any) {
+                console.error('Failed to submit leave request:', error);
+                console.error('Error details:', error.message);
+                console.error('Error stack:', error.stack);
+                
+                // Try to get more details from the response
+                let errorMessage = 'Failed to submit leave request';
+                if (error.message && error.message.includes('Failed to create leave request')) {
+                    errorMessage = 'Server rejected the request. Check console for details.';
+                }
+                
+                setNotification(`${errorMessage}: ${error.message || 'Unknown error'}`);
+            }
         };
-        setRequests(prev => [newRequest, ...prev].sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()));
-        
-        // Notify HR/Admin
-        const message = `New Leave Request: ${currentUser.name} requested ${leaveType} from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}.`;
-        api.sendNotification(message, [UserRole.ADMIN, UserRole.HR]);
 
-        // Reset form
-        setStartDate(null);
-        setEndDate(null);
-        setReason('');
-        setNumDays('');
-
-        setNotification('Leave request submitted successfully!');
+        submitLeaveRequest();
     };
     
-    const handleCancelRequest = (requestId: string) => {
+    const handleCancelRequest = async (requestId: string) => {
         if(window.confirm('Are you sure you want to cancel this leave request?')) {
-            setRequests(prev => prev.filter(req => req.id !== requestId));
-            setNotification('Leave request cancelled.');
+            try {
+                await api.updateLeaveRequest(currentUser.tenantId, requestId, { status: 'cancelled' });
+                
+                // Refresh the leave requests
+                const data = await api.getLeaveRequests(currentUser.tenantId, { userId: currentUser.id });
+                const transformedData: LeaveRequest[] = data.map((item: any) => {
+                    const startDate = new Date(item.start_date);
+                    const endDate = new Date(item.end_date);
+                    
+                    // Validate dates
+                    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                        console.warn('Invalid date in refreshed leave request:', item);
+                        return null; // Skip invalid requests
+                    }
+                    
+                    return {
+                        id: item.id,
+                        userId: item.employee_id,
+                        leaveType: item.leave_type as LeaveType,
+                        startDate: startDate,
+                        endDate: endDate,
+                        reason: item.reason,
+                        status: item.status as RequestStatus
+                    };
+                }).filter(Boolean) as LeaveRequest[]; // Remove null entries
+                setRequests(transformedData);
+                
+                setNotification('Leave request cancelled.');
+            } catch (error) {
+                console.error('Failed to cancel leave request:', error);
+                setNotification('Failed to cancel leave request');
+            }
         }
     };
 
@@ -279,7 +414,9 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                 <div className="bg-white p-6 rounded-xl shadow-lg">
                     <h3 className="text-xl font-bold text-gray-800 mb-4">My Requests</h3>
                     <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-                        {requests.length > 0 ? requests.map(req => (
+                        {loading ? (
+                            <p className="text-gray-500 text-center py-8">Loading leave requests...</p>
+                        ) : requests.length > 0 ? requests.map(req => (
                             <div key={req.id} className="p-3 border rounded-lg flex items-center space-x-3 bg-slate-50 hover:bg-slate-100 transition-colors">
                                 <div className="bg-primary-light p-2.5 rounded-full">
                                     <BriefcaseIcon className="h-5 w-5 text-primary" />
@@ -287,7 +424,7 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                                 <div className="flex-1">
                                     <div className="flex justify-between items-center">
                                         <p className="font-semibold text-gray-700">{req.leaveType}</p>
-                                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColorMap[req.status]}`}>
+                                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColorMap[req.status] || 'bg-gray-100 text-gray-800'}`}>
                                             {req.status}
                                         </span>
                                     </div>
@@ -298,10 +435,10 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                                 </div>
                                 {req.status === RequestStatus.PENDING && (
                                      <div className="flex space-x-2">
-                                        <button onClick={() => setEditingRequest(req)} className="p-2 text-gray-500 rounded-full hover:bg-gray-200 hover:text-primary transition-colors">
+                                        <button  title="Edit" onClick={() => setEditingRequest(req)} className="p-2 text-gray-500 rounded-full hover:bg-gray-200 hover:text-primary transition-colors">
                                             <PencilIcon className="h-4 w-4" />
                                         </button>
-                                        <button onClick={() => handleCancelRequest(req.id)} className="p-2 text-gray-500 rounded-full hover:bg-gray-200 hover:text-red-500 transition-colors">
+                                        <button title="Cancel" onClick={() => handleCancelRequest(req.id)} className="p-2 text-gray-500 rounded-full hover:bg-gray-200 hover:text-red-500 transition-colors">
                                             <TrashIcon className="h-4 w-4" />
                                         </button>
                                     </div>

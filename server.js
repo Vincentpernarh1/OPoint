@@ -24,16 +24,14 @@ const app = express();
 
 // --- MIDDLEWARE ---
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://192.168.0.93:5173',
+    origin: ['http://192.168.0.93:5173', 'http://192.168.0.93:5174', 'http://localhost:5173', 'http://localhost:5174'],
     credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
 
 // Tenant context middleware
 app.use((req, res, next) => {
-    console.log('MIDDLEWARE EXECUTED');
     const tenantId = req.headers['x-tenant-id'];
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - Tenant ID:`, tenantId);
     if (tenantId) {
         setTenantContext(tenantId);
     }
@@ -1099,12 +1097,13 @@ app.post('/api/payroll/pay', async (req, res) => {
 app.get('/api/leave/requests', async (req, res) => {
     try {
         const { status, userId } = req.query;
+        const tenantId = req.headers['x-tenant-id'];
         
         const filters = {};
         if (status) filters.status = status;
         if (userId) filters.userId = userId;
 
-        const { data, error } = await db.getLeaveRequests(filters);
+        const { data, error } = await db.getLeaveRequests(filters, tenantId);
 
         if (error) {
             return res.status(500).json({ 
@@ -1130,9 +1129,24 @@ app.get('/api/leave/requests', async (req, res) => {
 app.post('/api/leave/requests', async (req, res) => {
     try {
         const leaveData = req.body;
+        const tenantId = req.headers['x-tenant-id'];
+
+        console.log('Creating leave request:', { leaveData, tenantId });
+
+        // Set tenant context
+        if (tenantId) {
+            setTenantContext(tenantId);
+            console.log('Tenant context set to:', tenantId);
+        }
 
         // Validation
         if (!leaveData.user_id || !leaveData.start_date || !leaveData.end_date || !leaveData.reason) {
+            console.log('Validation failed - missing fields:', {
+                user_id: !!leaveData.user_id,
+                start_date: !!leaveData.start_date,
+                end_date: !!leaveData.end_date,
+                reason: !!leaveData.reason
+            });
             return res.status(400).json({ 
                 success: false, 
                 error: 'Missing required fields' 
@@ -1146,12 +1160,15 @@ app.post('/api/leave/requests', async (req, res) => {
         });
 
         if (error) {
+            console.log('Database error:', error);
             return res.status(400).json({ 
                 success: false, 
-                error: error.message 
+                error: `Database error: ${error.message}`,
+                details: error
             });
         }
 
+        console.log('Leave request created successfully:', data.id);
         res.status(201).json({ 
             success: true, 
             data 
@@ -1170,8 +1187,9 @@ app.put('/api/leave/requests/:id', async (req, res) => {
     try {
         const updates = req.body;
         const leaveId = req.params.id;
+        const tenantId = req.headers['x-tenant-id'];
 
-        const { data, error } = await db.updateLeaveRequest(leaveId, updates);
+        const { data, error } = await db.updateLeaveRequest(leaveId, updates, tenantId);
 
         if (error) {
             return res.status(400).json({ 

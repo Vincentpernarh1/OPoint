@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect, lazy, Suspense } from 'react';
-import { Routes, Route, Link, Navigate, useLocation, Outlet, useParams } from 'react-router-dom';
-import { User, UserRole, Company, Announcement } from './types';
+import { Routes, Route, Link, Navigate, useLocation, Outlet, useParams, useNavigate } from 'react-router-dom';
+import { User, UserRole, Company, Announcement, View } from './types';
 import { COMPANIES, ANNOUNCEMENTS } from './constants';
 
 // Import Components with lazy loading
@@ -43,6 +43,7 @@ const PERMISSIONS: Record<string, UserRole[]> = {
 };
 
 const App = () => {
+    const navigate = useNavigate();
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -81,6 +82,10 @@ const App = () => {
         }
     }, [currentUser?.tenantId, currentUser?.id, fetchAnnouncements]);
 
+    const handleViewChange = useCallback((view: View) => {
+        navigate(`/${view}`);
+    }, [navigate]);
+
     useEffect(() => {
         const init = async () => {
             setIsLoading(true);
@@ -92,10 +97,10 @@ const App = () => {
                 if (userFromCookie && userFromCookie.id && userFromCookie.email) {
                     // Normalize role string
                     let role = userFromCookie.role;
-                    if (role === 'SuperAdmin') role = 'Super Admin';
+                    if (role === 'SuperAdmin') role = 'Admin';
                     // Capitalize first letter to match UserRole enum
                     role = role.charAt(0).toUpperCase() + role.slice(1);
-                    const isSuperAdmin = role === 'Super Admin';
+                    const isSuperAdmin = userFromCookie.role === 'SuperAdmin';
                     // Validate that we have the required fields
                     if (!userFromCookie.id || !userFromCookie.email) {
                         console.log('[useEffect] Invalid user data, clearing session');
@@ -109,7 +114,7 @@ const App = () => {
                         name: userFromCookie?.name || userFromCookie?.full_name || '',
                         email: userFromCookie?.email || '',
                         role: role as UserRole,
-                        tenantId: isSuperAdmin ? undefined : userFromCookie?.tenantId || userFromCookie?.tenant_id,
+                        tenantId: userFromCookie?.tenantId || userFromCookie?.tenant_id,
                         companyName: userFromCookie?.companyName || userFromCookie?.company_name || '',
                         team: userFromCookie?.team || '',
                         avatarUrl: userFromCookie?.avatar_url || '',
@@ -155,10 +160,10 @@ const App = () => {
     const handleLogin = async (userFromApi: any) => {
         // Normalize role string
         let role = userFromApi.role;
-        if (role === 'SuperAdmin') role = 'Super Admin';
+        if (role === 'SuperAdmin') role = 'Admin';
         // Capitalize first letter to match UserRole enum
         role = role.charAt(0).toUpperCase() + role.slice(1);
-        const isSuperAdmin = role === 'Super Admin';
+        const isSuperAdmin = userFromApi.role === 'SuperAdmin';
         // Use only valid User fields
         const user: any = userFromApi;
         const appUser: User = {
@@ -166,7 +171,7 @@ const App = () => {
             name: user?.name || user?.full_name || '',
             email: user?.email || '',
             role: role as UserRole,
-            tenantId: isSuperAdmin ? undefined : user?.tenant_id,
+            tenantId: isSuperAdmin ? user?.tenant_id : user?.tenant_id,
             companyName: user?.company_name || '',
             team: user?.team || '',
             avatarUrl: user?.avatar_url || '',
@@ -249,13 +254,13 @@ const App = () => {
                         </ProtectedRoute>
                     }
                 >
-                    <Route path="dashboard" element={ currentUser && [UserRole.ADMIN, UserRole.HR].includes(currentUser.role) ? <ManagerDashboard currentUser={currentUser} onViewChange={() => {}} /> : <TimeClock currentUser={currentUser!} isOnline={true} /> } />
+                    <Route path="dashboard" element={ currentUser && [UserRole.ADMIN, UserRole.HR].includes(currentUser.role) ? <ManagerDashboard currentUser={currentUser} onViewChange={handleViewChange} announcements={announcements} /> : <TimeClock currentUser={currentUser!} isOnline={true} /> } />
                     <Route path="leave" element={<LeaveManagement currentUser={currentUser!} />} />
-                    <Route path="payslips" element={<Payslips currentUser={currentUser!} onViewChange={() => {}} />} />
+                    <Route path="payslips" element={<Payslips currentUser={currentUser!} onViewChange={handleViewChange} />} />
                     <Route path="expenses" element={<Expenses currentUser={currentUser!} />} />
                     <Route path="profile" element={<Profile currentUser={currentUser!} />} />
                     <Route path="announcements" element={<Announcements currentUser={currentUser!} announcements={announcements} onPost={handlePostAnnouncement} onDelete={() => {}} onMarkAsRead={handleMarkAnnouncementsAsRead} />} />
-                    <Route path="approvals" element={<Approvals />} />
+                    <Route path="approvals" element={<Approvals currentUser={currentUser!} />} />
                     <Route path="employees" element={<EmployeeManagement currentUser={currentUser!} />} />
                     <Route path="payroll" element={<MobileMoneyPayroll />} />
                     <Route path="reports" element={<Reports />} />

@@ -229,4 +229,116 @@ export const api = {
     // Mock implementation
     return {};
   },
+
+  // Users API
+  getUsers: async (tenantId: string): Promise<User[]> => {
+    const response = await fetch(`${API_BASE}/api/users`, {
+      headers: getHeaders(tenantId),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch users');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch users');
+    }
+    return result.data || [];
+  },
+
+  createUser: async (tenantId: string, userData: any): Promise<User> => {
+    const response = await fetch(`${API_BASE}/api/users`, {
+      method: 'POST',
+      headers: getHeaders(tenantId),
+      body: JSON.stringify(userData),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to create user');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to create user');
+    }
+    return result.data;
+  },
+
+  updateUser: async (tenantId: string, userId: string, userData: any): Promise<User> => {
+    const response = await fetch(`${API_BASE}/api/users/${userId}`, {
+      method: 'PUT',
+      headers: getHeaders(tenantId),
+      body: JSON.stringify(userData),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update user');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to update user');
+    }
+    return result.data;
+  },
+
+  deleteUser: async (tenantId: string, userId: string): Promise<void> => {
+    const response = await fetch(`${API_BASE}/api/users/${userId}`, {
+      method: 'DELETE',
+      headers: getHeaders(tenantId),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete user');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to delete user');
+    }
+  },
+
+  // Leave Requests API
+  getLeaveRequests: async (tenantId: string, filters?: { status?: string; userId?: string }): Promise<any[]> => {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.userId) params.append('userId', filters.userId);
+
+    const response = await fetch(`${API_BASE}/api/leave/requests?${params}`, {
+      headers: getHeaders(tenantId),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch leave requests');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch leave requests');
+    }
+    return result.data || [];
+  },
+
+  updateLeaveRequest: async (tenantId: string, leaveId: string, updates: any): Promise<any> => {
+    const response = await fetch(`${API_BASE}/api/leave/requests/${leaveId}`, {
+      method: 'PUT',
+      headers: getHeaders(tenantId),
+      body: JSON.stringify(updates),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update leave request');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to update leave request');
+    }
+    return result.data;
+  },
+
+  createLeaveRequest: async (tenantId: string, leaveData: any): Promise<any> => {
+    const response = await fetch(`${API_BASE}/api/leave/requests`, {
+      method: 'POST',
+      headers: getHeaders(tenantId),
+      body: JSON.stringify(leaveData),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to create leave request');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to create leave request');
+    }
+    return result.data;
+  },
 };

@@ -40,7 +40,7 @@ const AddCompanyModal = ({ onClose, onSubmit, isLoading, error }: AddCompanyModa
             <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl relative" onClick={e => e.stopPropagation()}>
                 <form onSubmit={handleSubmit}>
                     <div className="p-8">
-                        <button onClick={onClose} disabled={isLoading} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 disabled:opacity-50"><XIcon className="h-6 w-6"/></button>
+                        <button title="Close" onClick={onClose} disabled={isLoading} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 disabled:opacity-50"><XIcon className="h-6 w-6"/></button>
                         <div className="flex flex-col">
                             <h3 className="text-2xl font-bold text-gray-800 mb-2">Onboard New Company</h3>
                             <p className="text-gray-500 mb-6">Enter company details and create the initial administrator account.</p>

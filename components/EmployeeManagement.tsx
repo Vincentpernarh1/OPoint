@@ -5,6 +5,7 @@ import { User, UserRole } from '../types';
 import EmployeeLogModal from './EmployeeLogModal';
 import AddEmployeeModal from './AddEmployeeModal';
 import EditEmployeeModal from './EditEmployeeModal';
+import { api } from '../services/api';
 
 interface EmployeeManagementProps {
     currentUser: User;
@@ -29,28 +30,19 @@ const EmployeeManagement = ({ currentUser }: EmployeeManagementProps) => {
         try {
             setLoading(true);
             setError(null);
-            const response = await fetch('/api/users', {
-                headers: {
-                    'X-Tenant-ID': currentUser.tenantId || '',
-                },
-            });
-            const data = await response.json();
+            const data = await api.getUsers(currentUser.tenantId!);
             
-            if (data.success) {
-                // Map database fields to component fields and filter users by tenant
-                const mappedUsers = (data.data || []).map((user: any) => ({
-                    ...user,
-                    basicSalary: user.basic_salary || 0,
-                    hireDate: user.hire_date ? new Date(user.hire_date) : new Date(),
-                    avatarUrl: user.avatar_url || undefined,
-                    tenantId: user.tenant_id,
-                    companyName: user.company_name,
-                    mobileMoneyNumber: user.mobile_money_number,
-                }));
-                setUsers(mappedUsers);
-            } else {
-                setError(data.error || 'Failed to fetch users');
-            }
+            // Map database fields to component fields
+            const mappedUsers = data.map((user: any) => ({
+                ...user,
+                basicSalary: user.basic_salary || 0,
+                hireDate: user.hire_date ? new Date(user.hire_date) : new Date(),
+                avatarUrl: user.avatar_url || undefined,
+                tenantId: user.tenant_id,
+                companyName: user.company_name,
+                mobileMoneyNumber: user.mobile_money_number,
+            }));
+            setUsers(mappedUsers);
         } catch (err) {
             console.error('Error fetching users:', err);
             setError('Failed to load users');
@@ -75,24 +67,11 @@ const EmployeeManagement = ({ currentUser }: EmployeeManagementProps) => {
                 requires_password_change: true
             };
 
-            const response = await fetch('/api/users', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Tenant-ID': currentUser.tenantId || '',
-                },
-                body: JSON.stringify(userData),
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                // Refresh users list
-                await fetchUsers();
-                setIsAddModalOpen(false);
-            } else {
-                setError(result.error || 'Failed to add employee');
-            }
+            await api.createUser(currentUser.tenantId!, userData);
+            
+            // Refresh users list
+            await fetchUsers();
+            setIsAddModalOpen(false);
         } catch (err) {
             console.error('Error adding employee:', err);
             setError('Failed to add employee');
@@ -103,29 +82,16 @@ const EmployeeManagement = ({ currentUser }: EmployeeManagementProps) => {
         try {
             setError(null);
             
-            const response = await fetch(`/api/users/${updatedUser.id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Tenant-ID': currentUser.tenantId || '',
-                },
-                body: JSON.stringify({
-                    name: updatedUser.name,
-                    email: updatedUser.email,
-                    role: updatedUser.role,
-                    basic_salary: updatedUser.basicSalary,
-                }),
+            await api.updateUser(currentUser.tenantId!, updatedUser.id, {
+                name: updatedUser.name,
+                email: updatedUser.email,
+                role: updatedUser.role,
+                basic_salary: updatedUser.basicSalary,
             });
-
-            const result = await response.json();
-
-            if (result.success) {
-                // Refresh users list
-                await fetchUsers();
-                setEditingUser(null);
-            } else {
-                setError(result.error || 'Failed to update employee');
-            }
+            
+            // Refresh users list
+            await fetchUsers();
+            setEditingUser(null);
         } catch (err) {
             console.error('Error updating employee:', err);
             setError('Failed to update employee');
@@ -138,21 +104,10 @@ const EmployeeManagement = ({ currentUser }: EmployeeManagementProps) => {
         try {
             setError(null);
             
-            const response = await fetch(`/api/users/${userId}`, {
-                method: 'DELETE',
-                headers: {
-                    'X-Tenant-ID': currentUser.tenantId || '',
-                },
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                // Refresh users list
-                await fetchUsers();
-            } else {
-                setError(result.error || 'Failed to delete employee');
-            }
+            await api.deleteUser(currentUser.tenantId!, userId);
+            
+            // Refresh users list
+            await fetchUsers();
         } catch (err) {
             console.error('Error deleting employee:', err);
             setError('Failed to delete employee');
