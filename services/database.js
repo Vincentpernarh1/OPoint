@@ -340,6 +340,130 @@ export const db = {
         return { data, error };
     },
 
+    // --- TIME ADJUSTMENT REQUESTS (using clock_logs table) ---
+    async createTimeAdjustmentRequest(adjustmentData) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: null, error: 'No tenant context set' };
+
+        // Find existing clock log for the date, or create new one
+        const startOfDay = new Date(adjustmentData.date);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(adjustmentData.date);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const { data: existingLog, error: findError } = await client
+            .from('opoint_clock_logs')
+            .select('*')
+            .eq('employee_id', adjustmentData.userId)
+            .eq('tenant_id', tenantId)
+            .gte('clock_in', startOfDay.toISOString())
+            .lte('clock_in', endOfDay.toISOString())
+            .single();
+
+        if (findError && findError.code !== 'PGRST116') { // PGRST116 = no rows found
+            return { data: null, error: findError };
+        }
+
+        if (existingLog) {
+            // Update existing log with adjustment request
+            const { data, error } = await client
+                .from('opoint_clock_logs')
+                .update({
+                    requested_clock_in: adjustmentData.requestedClockIn,
+                    requested_clock_out: adjustmentData.requestedClockOut,
+                    adjustment_reason: adjustmentData.reason,
+                    adjustment_status: 'Pending',
+                    adjustment_requested_at: new Date().toISOString()
+                })
+                .eq('id', existingLog.id)
+                .select()
+                .single();
+
+            return { data, error };
+        } else {
+            // Create new log entry with adjustment request
+            const { data, error } = await client
+                .from('opoint_clock_logs')
+                .insert({
+                    tenant_id: tenantId,
+                    employee_id: adjustmentData.userId,
+                    employee_name: adjustmentData.employeeName,
+                    requested_clock_in: adjustmentData.requestedClockIn,
+                    requested_clock_out: adjustmentData.requestedClockOut,
+                    adjustment_reason: adjustmentData.reason,
+                    adjustment_status: 'Pending',
+                    adjustment_requested_at: new Date().toISOString()
+                })
+                .select()
+                .single();
+
+            return { data, error };
+        }
+    },
+
+    async getTimeAdjustmentRequests(filters = {}, tenantIdOverride = null) {
+        const client = getSupabaseClient();
+        if (!client) return { data: [], error: 'Database not configured' };
+
+        const tenantId = tenantIdOverride || getCurrentTenantId();
+
+        let query = client
+            .from('opoint_clock_logs')
+            .select('*')
+            .not('adjustment_status', 'is', null); // Only get entries with adjustment requests
+
+        if (tenantId) {
+            query = query.eq('tenant_id', tenantId);
+        }
+
+        if (filters.status) {
+            query = query.eq('adjustment_status', filters.status);
+        }
+
+        if (filters.userId) {
+            query = query.eq('employee_id', filters.userId);
+        }
+
+        query = query.order('adjustment_requested_at', { ascending: false });
+
+        const { data, error } = await query;
+        return { data, error };
+    },
+
+    async updateTimeAdjustmentRequest(logId, updates, tenantIdOverride = null) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const tenantId = tenantIdOverride || getCurrentTenantId();
+
+        const updateData = {
+            adjustment_status: updates.status,
+            adjustment_reviewed_by: updates.reviewed_by,
+            adjustment_reviewed_at: updates.status !== 'Pending' ? new Date().toISOString() : null
+        };
+
+        // If approved, update the actual clock times and clear requested times
+        if (updates.status === 'Approved') {
+            updateData.clock_in = updates.requested_clock_in;
+            updateData.clock_out = updates.requested_clock_out;
+            updateData.requested_clock_in = null;
+            updateData.requested_clock_out = null;
+        }
+
+        const { data, error } = await client
+            .from('opoint_clock_logs')
+            .update(updateData)
+            .eq('id', logId)
+            .eq('tenant_id', tenantId)
+            .select()
+            .single();
+
+        return { data, error };
+    },
+
     // --- AUTHENTICATION ---
     async getUserByEmail(email) {
         const client = getSupabaseAdminClient(); // Use admin client to bypass RLS

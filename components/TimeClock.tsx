@@ -10,6 +10,7 @@ import Notification from './Notification';
 import { offlineStorage } from '../services/offlineStorage';
 import { api } from '../services/api';
 
+
 interface TimeClockProps {
     currentUser: User;
     isOnline: boolean;
@@ -103,7 +104,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
     
     // Changed to store both date and entries for the adjustment modal
-    const [adjustmentTarget, setAdjustmentTarget] = useState<{date: string, entries: TimeEntry[]} | null>(null);
+    const [adjustmentTarget, setAdjustmentTarget] = useState<{date: string, clockIn?: Date, clockOut?: Date} | null>(null);
     
     const [notification, setNotification] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -171,22 +172,22 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
         return Object.keys(entriesByDate)
             .map(dateKey => {
                 const dayEntries = entriesByDate[dateKey].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+                
+                // Find earliest clock-in and latest clock-out
+                const clockIns = dayEntries.filter(e => e.type === TimeEntryType.CLOCK_IN).map(e => new Date(e.timestamp));
+                const clockOuts = dayEntries.filter(e => e.type === TimeEntryType.CLOCK_OUT).map(e => new Date(e.timestamp));
+                
                 let totalWorkedMs = 0;
-                let clockInTime: Date | null = null;
-                for (const entry of dayEntries) {
-                    if (entry.type === TimeEntryType.CLOCK_IN) {
-                        if (!clockInTime) clockInTime = new Date(entry.timestamp);
-                    } else if (entry.type === TimeEntryType.CLOCK_OUT && clockInTime) {
-                        totalWorkedMs += new Date(entry.timestamp).getTime() - clockInTime.getTime();
-                        clockInTime = null;
-                    }
+                if (clockIns.length > 0 && clockOuts.length > 0) {
+                    const earliestIn = new Date(Math.min(...clockIns.map(d => d.getTime())));
+                    const latestOut = new Date(Math.max(...clockOuts.map(d => d.getTime())));
+                    totalWorkedMs = latestOut.getTime() - earliestIn.getTime();
+                } else if (clockIns.length > 0 && dateKey === time.toDateString()) {
+                    // Current day, clocked in but not out yet
+                    const earliestIn = new Date(Math.min(...clockIns.map(d => d.getTime())));
+                    totalWorkedMs = time.getTime() - earliestIn.getTime();
                 }
                 
-                // Use 'time' state to calculate active time for current session
-                if (clockInTime && dateKey === time.toDateString()) {
-                     const currentSession = Math.max(0, time.getTime() - clockInTime.getTime());
-                     totalWorkedMs += currentSession;
-                }
                 const requiredMs = 8 * 60 * 60 * 1000;
                 const balanceMs = totalWorkedMs - requiredMs;
 
@@ -251,6 +252,11 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
         };
         syncUnsyncedPunches();
     }, [isOnline, currentUser.tenantId]);
+
+    useEffect(() => {
+        const timer = setInterval(() => setTime(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
 
     const handleClockAction = (type: TimeEntryType) => {
         setCurrentActionType(type);
@@ -415,20 +421,25 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
         }
     };
 
-    const handleAdjustmentSubmit = (adjustments: Array<{ date: string, time: string, type: TimeEntryType, reason: string, document?: File | null }>) => {
-        // Create new adjustment requests object
-        const newRequests: AdjustmentRequest[] = adjustments.map((data, index) => ({
-            id: `adj-${Date.now()}-${index}`,
-            userId: currentUser.id,
-            date: new Date(data.date),
-            adjustedTime: `${data.time} ${data.type}`,
-            reason: data.reason,
-            status: RequestStatus.PENDING
-        }));
+    const handleAdjustmentSubmit = async (adjustment: Omit<AdjustmentRequest, 'id' | 'userId' | 'status'>) => {
+        try {
+            // Create new adjustment request via API
+            await api.createTimeAdjustmentRequest(currentUser.tenantId || '', {
+                userId: currentUser.id,
+                date: adjustment.date.toISOString().split('T')[0], // YYYY-MM-DD
+                originalClockIn: adjustment.originalClockIn?.toISOString(),
+                originalClockOut: adjustment.originalClockOut?.toISOString(),
+                requestedClockIn: adjustment.requestedClockIn.toISOString(),
+                requestedClockOut: adjustment.requestedClockOut.toISOString(),
+                reason: adjustment.reason
+            });
 
-        setAdjustmentRequests(prev => [...prev, ...newRequests]);
-        setAdjustmentTarget(null);
-        setNotification(`${newRequests.length} manual adjustment request(s) submitted successfully!`);
+            setAdjustmentTarget(null);
+            setNotification('Time adjustment request submitted successfully!');
+        } catch (error) {
+            console.error('Failed to submit adjustment request:', error);
+            setNotification('Failed to submit time adjustment request. Please try again.');
+        }
     };
     
     const handleCancelAdjustment = (requestId: string) => {
@@ -447,9 +458,12 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     
     const progressPercentage = useMemo(() => {
         const total = 8 * 3600 * 1000;
-        const worked = todaySummary.worked || 0;
+        const isCurrentlyClockedIn = timeEntries.length > 0 && timeEntries[0].type === TimeEntryType.CLOCK_IN;
+        const lastClockIn = isCurrentlyClockedIn ? timeEntries[0] : null;
+        const currentSession = lastClockIn ? Math.max(0, time.getTime() - lastClockIn.timestamp.getTime()) : 0;
+        const worked = todaySummary.worked + currentSession;
         return Math.min(100, Math.max(0, (worked / total) * 100));
-    }, [todaySummary.worked]);
+    }, [todaySummary.worked, time, timeEntries]);
 
     // Determines if a specific day needs an adjustment button based on 10 min tolerance
     const isAdjustmentNeeded = (summary: { worked: number, balance: number }, entries: TimeEntry[], date: Date) => {
@@ -495,7 +509,8 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                     onClose={() => setAdjustmentTarget(null)} 
                     onSubmit={handleAdjustmentSubmit} 
                     date={adjustmentTarget.date} 
-                    existingEntries={adjustmentTarget.entries}
+                    existingClockIn={adjustmentTarget.clockIn}
+                    existingClockOut={adjustmentTarget.clockOut}
                 />
             )}
             {notification && <Notification message={notification} type="success" onClose={() => setNotification(null)} />}
@@ -553,7 +568,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                         <h3 className="text-xl font-bold text-gray-800 border-b pb-3">Today's Summary</h3>
                         <div className='text-center'>
                             <p className="text-sm text-gray-500 uppercase tracking-wider">Worked Today</p>
-                            <p className={`text-4xl font-bold ${currentStatus.textColor}`}>{formatDuration(todaySummary.worked)}</p>
+                            <p className={`text-4xl font-bold ${currentStatus.textColor}`}>{formatDuration(todaySummary.worked + (timeEntries.length > 0 && timeEntries[0].type === TimeEntryType.CLOCK_IN ? Math.max(0, time.getTime() - timeEntries[0].timestamp.getTime()) : 0))}</p>
                         </div>
                         <div className='text-center'>
                             <p className="text-sm text-gray-500 uppercase tracking-wider">Hour Bank</p>
@@ -645,11 +660,18 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                                         ) : needed ? (
                                             <div className="text-right">
                                                 <button 
-                                                    onClick={() => setAdjustmentTarget({
-                                                        // Construct local date string YYYY-MM-DD
-                                                        date: `${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, '0')}-${String(day.date.getDate()).padStart(2, '0')}`,
-                                                        entries: day.entries
-                                                    })} 
+                                                    onClick={() => {
+                                                        const dayEntries = day.entries.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+                                                        const clockIns = dayEntries.filter(e => e.type === TimeEntryType.CLOCK_IN).map(e => new Date(e.timestamp));
+                                                        const clockOuts = dayEntries.filter(e => e.type === TimeEntryType.CLOCK_OUT).map(e => new Date(e.timestamp));
+                                                        const clockIn = clockIns.length > 0 ? new Date(Math.min(...clockIns.map(d => d.getTime()))) : undefined;
+                                                        const clockOut = clockOuts.length > 0 ? new Date(Math.max(...clockOuts.map(d => d.getTime()))) : undefined;
+                                                        setAdjustmentTarget({
+                                                            date: `${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, '0')}-${String(day.date.getDate()).padStart(2, '0')}`,
+                                                            clockIn,
+                                                            clockOut
+                                                        });
+                                                    }} 
                                                     className="text-sm bg-red-100 text-red-800 font-semibold py-2 px-4 rounded-lg hover:bg-red-200 transition-colors flex items-center justify-center ml-auto"
                                                 >
                                                     <span>Request Adjustment</span>

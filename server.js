@@ -1155,7 +1155,7 @@ app.post('/api/leave/requests', async (req, res) => {
 
         const { data, error } = await db.createLeaveRequest({
             ...leaveData,
-            status: 'pending',
+            status: 'Pending',
             created_at: new Date().toISOString()
         });
 
@@ -1208,6 +1208,108 @@ app.put('/api/leave/requests/:id', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: 'Failed to update leave request' 
+        });
+    }
+});
+
+// --- TIME ADJUSTMENT ENDPOINTS ---
+app.get('/api/time-adjustments', async (req, res) => {
+    try {
+        const { status } = req.query;
+        const tenantId = req.headers['x-tenant-id'];
+
+        const filters = {};
+        if (status) filters.status = status;
+
+        const { data, error } = await db.getTimeAdjustmentRequests(filters, tenantId);
+
+        if (error) {
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Failed to fetch time adjustment requests' 
+            });
+        }
+
+        res.json({ 
+            success: true, 
+            data 
+        });
+
+    } catch (error) {
+        console.error('Error fetching time adjustment requests:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to fetch time adjustment requests' 
+        });
+    }
+});
+
+app.post('/api/time-adjustments', async (req, res) => {
+    try {
+        const adjustmentData = req.body;
+        const tenantId = req.headers['x-tenant-id'];
+
+        // Set tenant context
+        if (tenantId) {
+            setTenantContext(tenantId);
+        }
+
+        // Validation
+        if (!adjustmentData.userId || !adjustmentData.requestedClockIn || !adjustmentData.requestedClockOut || !adjustmentData.reason) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Missing required fields' 
+            });
+        }
+
+        const { data, error } = await db.createTimeAdjustmentRequest(adjustmentData);
+
+        if (error) {
+            return res.status(400).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+
+        res.status(201).json({ 
+            success: true, 
+            data 
+        });
+
+    } catch (error) {
+        console.error('Error creating time adjustment request:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to create time adjustment request' 
+        });
+    }
+});
+
+app.put('/api/time-adjustments/:id', async (req, res) => {
+    try {
+        const updates = req.body;
+        const adjustmentId = req.params.id;
+        const tenantId = req.headers['x-tenant-id'];
+
+        const { data, error } = await db.updateTimeAdjustmentRequest(adjustmentId, updates, tenantId);
+
+        if (error) {
+            return res.status(400).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+
+        res.json({ 
+            success: true, 
+            data 
+        });
+
+    } catch (error) {
+        console.error('Error updating time adjustment request:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to update time adjustment request' 
         });
     }
 });
@@ -1566,6 +1668,134 @@ app.post('/api/time-punches', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: 'Failed to save time punch' 
+        });
+    }
+});
+
+// --- TIME ADJUSTMENT REQUESTS ENDPOINTS ---
+app.get('/api/time-adjustments', async (req, res) => {
+    try {
+        const { status } = req.query;
+        const tenantId = req.headers['x-tenant-id'];
+        
+        console.log('Fetching time adjustments for tenant:', tenantId, 'status:', status);
+        
+        const filters = {};
+        if (status) filters.status = status;
+
+        const { data, error } = await db.getTimeAdjustmentRequests(filters, tenantId);
+
+        console.log('Time adjustments result:', { data: data?.length, error });
+
+        if (error) {
+            console.error('Database error fetching time adjustments:', error);
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Failed to fetch time adjustment requests',
+                details: error.message
+            });
+        }
+
+        res.json({ 
+            success: true, 
+            data 
+        });
+
+    } catch (error) {
+        console.error('Error fetching time adjustment requests:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to fetch time adjustment requests',
+            details: error.message
+        });
+    }
+});
+
+app.post('/api/time-adjustments', async (req, res) => {
+    try {
+        const { userId, date, originalClockIn, originalClockOut, requestedClockIn, requestedClockOut, reason } = req.body;
+        const tenantId = req.headers['x-tenant-id'];
+
+        if (!userId || !date || !requestedClockIn || !requestedClockOut || !reason) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Missing required fields' 
+            });
+        }
+
+        const adjustmentData = {
+            tenant_id: tenantId,
+            user_id: userId,
+            date: date,
+            original_clock_in: originalClockIn || null,
+            original_clock_out: originalClockOut || null,
+            requested_clock_in: requestedClockIn,
+            requested_clock_out: requestedClockOut,
+            reason: reason,
+            status: 'Pending'
+        };
+
+        const { data, error } = await db.createTimeAdjustmentRequest(adjustmentData);
+
+        if (error) {
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Failed to create time adjustment request' 
+            });
+        }
+
+        res.json({ 
+            success: true, 
+            data 
+        });
+
+    } catch (error) {
+        console.error('Error creating time adjustment request:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to create time adjustment request' 
+        });
+    }
+});
+
+app.put('/api/time-adjustments/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status, reviewedBy } = req.body;
+        const tenantId = req.headers['x-tenant-id'];
+
+        if (!id || !status) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Missing required fields' 
+            });
+        }
+
+        const updates = {
+            status: status,
+            reviewed_by: reviewedBy || null,
+            reviewed_at: status !== 'Pending' ? new Date().toISOString() : null
+        };
+
+        const { data, error } = await db.updateTimeAdjustmentRequest(id, updates, tenantId);
+
+        if (error) {
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Failed to update time adjustment request' 
+            });
+        }
+
+        res.json({ 
+            success: true, 
+            data 
+        });
+
+    } catch (error) {
+        console.error('Error updating time adjustment request:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to update time adjustment request' 
         });
     }
 });

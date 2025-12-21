@@ -89,10 +89,16 @@ export interface LeaveRequest {
 export interface AdjustmentRequest {
   id: string;
   userId: string;
+  employeeName?: string;
   date: Date;
-  adjustedTime: string;
+  originalClockIn?: Date;
+  originalClockOut?: Date;
+  requestedClockIn: Date;
+  requestedClockOut: Date;
   reason: string;
   status: RequestStatus;
+  reviewedBy?: string;
+  reviewedAt?: Date;
 }
 
 export interface Earning {
