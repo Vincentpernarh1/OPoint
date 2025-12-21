@@ -406,20 +406,94 @@ export const db = {
     },
 
     // --- ANNOUNCEMENTS ---
-    async getAnnouncements() {
+    async getAnnouncements(userId) {
         const client = getSupabaseClient();
         if (!client) return { data: [], error: 'Database not configured' };
 
         const tenantId = getCurrentTenantId();
         if (!tenantId) return { data: [], error: 'No tenant context set' };
 
-        const { data, error } = await client
-            .from('opoint_announcements')
-            .select('*')
-            .eq('tenant_id', tenantId)
-            .order('created_at', { ascending: false });
+        try {
+            // Get all announcements for this tenant
+            const { data: announcements, error: announcementsError } = await client
+                .from('opoint_announcements')
+                .select('*')
+                .eq('tenant_id', tenantId)
+                .order('created_at', { ascending: false });
 
-        return { data, error };
+            if (announcementsError) return { data: [], error: announcementsError };
+
+            // Get read status for this user
+            const { data: notifications, error: notificationsError } = await client
+                .from('opoint_notifications')
+                .select('announcement_id, is_read')
+                .eq('user_id', userId)
+                .eq('tenant_id', tenantId)
+                .eq('is_read', true);
+
+            if (notificationsError) {
+                // If notifications query fails, return announcements as unread
+                console.log('DEBUG: notifications query failed, returning unread');
+                return {
+                    data: announcements.map(ann => ({ ...ann, readBy: [] })),
+                    error: null
+                };
+            }
+
+            // Create a map of read announcements
+            const readAnnouncementIds = new Set(
+                notifications
+                    .filter(n => n.is_read)
+                    .map(n => n.announcement_id)
+            );
+
+            // Format announcements with read status
+            const formattedData = announcements.map(ann => ({
+                ...ann,
+                readBy: readAnnouncementIds.has(ann.id) ? [userId] : []
+            }));
+
+            return { data: formattedData, error: null };
+
+        } catch (error) {
+            // Fallback: return announcements without read status
+            const { data: announcementsData, error: announcementsError } = await client
+                .from('opoint_announcements')
+                .select('*')
+                .eq('tenant_id', tenantId)
+                .order('created_at', { ascending: false });
+
+            if (announcementsError) return { data: [], error: announcementsError };
+
+            return {
+                data: announcementsData.map(ann => ({ ...ann, readBy: [] })),
+                error: null
+            };
+        }
+    },
+
+    async markAnnouncementsAsRead(userId) {
+        const client = getSupabaseClient();
+        if (!client) return { error: 'Database not configured' };
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { error: 'No tenant context set' };
+
+        try {
+            // Update all unread notifications for this user to read
+            const { error } = await client
+                .from('opoint_notifications')
+                .update({ is_read: true })
+                .eq('user_id', userId)
+                .eq('tenant_id', tenantId)
+                .eq('is_read', false); // Only update unread ones
+
+            return { error };
+
+        } catch (error) {
+            console.error('Error in markAnnouncementsAsRead:', error);
+            return { error: error.message };
+        }
     },
 
     async createAnnouncement(announcementData) {
