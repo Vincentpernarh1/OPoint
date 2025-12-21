@@ -254,7 +254,7 @@ const App = () => {
                         </ProtectedRoute>
                     }
                 >
-                    <Route path="dashboard" element={ currentUser && [UserRole.ADMIN, UserRole.HR].includes(currentUser.role) ? <ManagerDashboard currentUser={currentUser} onViewChange={handleViewChange} announcements={announcements} /> : <TimeClock currentUser={currentUser!} isOnline={true} /> } />
+                    <Route path="dashboard" element={ currentUser && [UserRole.ADMIN, UserRole.HR].includes(currentUser.role) ? <ManagerDashboard currentUser={currentUser} onViewChange={handleViewChange} announcements={announcements} /> : <TimeClock currentUser={currentUser!} isOnline={true} announcements={announcements} /> } />
                     <Route path="leave" element={<LeaveManagement currentUser={currentUser!} />} />
                     <Route path="payslips" element={<Payslips currentUser={currentUser!} onViewChange={handleViewChange} />} />
                     <Route path="expenses" element={<Expenses currentUser={currentUser!} />} />
