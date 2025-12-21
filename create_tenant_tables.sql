@@ -68,8 +68,20 @@ CREATE TABLE IF NOT EXISTS opoint_clock_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID REFERENCES opoint_companies(id),
     employee_id UUID,
+    employee_name VARCHAR(255),
+    company_name VARCHAR(255),
     clock_in TIMESTAMP WITH TIME ZONE,
     clock_out TIMESTAMP WITH TIME ZONE,
+    location TEXT,
+    photo_url TEXT,
+    -- Time adjustment fields
+    requested_clock_in TIMESTAMP WITH TIME ZONE,
+    requested_clock_out TIMESTAMP WITH TIME ZONE,
+    adjustment_reason TEXT,
+    adjustment_status VARCHAR(50), -- 'Pending', 'Approved', 'Rejected'
+    adjustment_requested_at TIMESTAMP WITH TIME ZONE,
+    adjustment_reviewed_by UUID,
+    adjustment_reviewed_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

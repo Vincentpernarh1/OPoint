@@ -26,7 +26,7 @@ import { getCurrentTenantId, setTenantContext } from './services/database';
 import db from './services/database';
 import { api } from './services/api';
 
-import { LogoIcon, LogOutIcon, LayoutDashboardIcon, BriefcaseIcon, CheckSquareIcon, UsersIcon, DollarSignIcon, MenuIcon, XIcon, FileTextIcon, MegaphoneIcon, ReceiptIcon, UserCircleIcon, SmartphoneIcon, CogIcon } from './components/Icons';
+import { LogoIcon, LogOutIcon, LayoutDashboardIcon, BriefcaseIcon, CheckSquareIcon, UsersIcon, DollarSignIcon, MenuIcon, XIcon, FileTextIcon, MegaphoneIcon, ReceiptIcon, UserCircleIcon, SmartphoneIcon, CogIcon, ChevronLeftIcon, ChevronRightIcon } from './components/Icons';
 
 const PERMISSIONS: Record<string, UserRole[]> = {
     '/dashboard': [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
@@ -292,7 +292,7 @@ const CompanyLayout = ({
     onMarkAnnouncementsAsRead: () => void,
     unreadNotificationCount: number
 }) => {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const location = useLocation();
 
     // Default modules for tenant-based system
@@ -328,38 +328,50 @@ const CompanyLayout = ({
         return item ? item.name : 'Dashboard';
     }, [location.pathname, navigationItems]);
 
-     const SidebarContent = () => (
+     const SidebarContent = ({ isCollapsed }: { isCollapsed: boolean }) => (
          <>
-            <div className="h-16 flex items-center justify-center border-b shrink-0 px-4">
-                 <div className="flex items-center space-x-2">
-                    <LogoIcon className="h-8 w-8" />
-                    <span className="text-xl font-bold text-gray-800 truncate">{currentUser.companyName || 'OPoint-P360'}</span>
+            <div className={`h-16 flex items-center justify-center border-b shrink-0 ${isCollapsed ? 'px-2' : 'px-4'}`}>
+                 <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-2'}`}>
+                    {isCollapsed ? (
+                        <LogoIcon className="h-6 w-6" />
+                    ) : (
+                        <>
+                            <LogoIcon className="h-8 w-8" />
+                            <span className="text-xl font-bold text-gray-800 truncate">{currentUser.companyName || 'OPoint-P360'}</span>
+                        </>
+                    )}
                 </div>
+                <button
+                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                    className={`absolute ${isCollapsed ? 'right-1' : 'right-2'} top-4 p-1 rounded-lg hover:bg-gray-100 transition-colors`}
+                >
+                    {isCollapsed ? <ChevronRightIcon className="h-4 w-4" /> : <ChevronLeftIcon className="h-4 w-4" />}
+                </button>
             </div>
-            <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+            <nav className={`flex-1 ${isCollapsed ? 'px-2' : 'px-4'} py-6 space-y-2 overflow-y-auto`}>
                 {navigationItems.map(item => (
                     <Link
                         key={item.name}
                         to={item.path}
-                        onClick={() => setIsSidebarOpen(false)}
-                        className={`w-full flex items-center justify-between px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        className={`w-full flex items-center ${isCollapsed ? 'justify-center px-2' : 'justify-between px-4'} py-2 text-sm font-medium rounded-lg transition-colors ${
                             location.pathname === item.path
                                 ? 'bg-primary-light text-primary'
                                 : 'text-gray-600 hover:bg-gray-100'
                         }`}
+                        title={isCollapsed ? item.name : undefined}
                     >
-                        <div className="flex items-center">
-                            <item.icon className="h-5 w-5 mr-3" />
-                            {item.name}
+                        <div className={`flex items-center ${isCollapsed ? '' : 'mr-3'}`}>
+                            <item.icon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
+                            {!isCollapsed && item.name}
                         </div>
-                        {item.badge && item.badge > 0 && <span className="bg-primary text-white text-xs font-bold rounded-full h-5 w-5">{item.badge}</span>}
+                        {!isCollapsed && item.badge && item.badge > 0 && <span className="bg-primary text-white text-xs font-bold rounded-full h-5 w-5">{item.badge}</span>}
                     </Link>
                 ))}
             </nav>
-            <div className="px-4 py-4 border-t shrink-0">
-                <button onClick={onLogout} className="w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
-                    <LogOutIcon className="h-5 w-5 mr-3" />
-                    Logout
+            <div className={`${isCollapsed ? 'px-2' : 'px-4'} py-4 border-t shrink-0`}>
+                <button onClick={onLogout} className={`w-full flex items-center ${isCollapsed ? 'justify-center px-2' : 'px-4'} py-2 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100`}>
+                    <LogOutIcon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
+                    {!isCollapsed && 'Logout'}
                 </button>
             </div>
         </>
@@ -368,26 +380,20 @@ const CompanyLayout = ({
     return (
         <div className="flex h-screen bg-slate-100 font-sans">
             {/* Mobile backdrop */}
-            {isSidebarOpen && (
+            {!isSidebarCollapsed && (
                 <div
                     className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
-                    onClick={() => setIsSidebarOpen(false)}
+                    onClick={() => setIsSidebarCollapsed(true)}
                 />
             )}
-            <aside className={`w-64 bg-white border-r flex-col shrink-0 fixed md:relative z-50 md:z-auto transform transition-transform duration-300 ease-in-out ${
-                isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-            } ${isSidebarOpen ? 'flex' : 'hidden md:flex'}`}>
-                <SidebarContent/>
+            <aside className={`bg-white border-r flex-col shrink-0 fixed md:relative z-50 md:z-auto transform transition-all duration-300 ease-in-out ${
+                isSidebarCollapsed ? 'w-16 md:w-16' : 'w-64'
+            } ${isSidebarCollapsed ? '-translate-x-full md:translate-x-0' : 'translate-x-0'} ${isSidebarCollapsed ? 'hidden md:flex' : 'flex'}`}>
+                <SidebarContent isCollapsed={isSidebarCollapsed}/>
             </aside>
             <div className="flex-1 flex flex-col overflow-hidden">
                 <header className="h-16 bg-white border-b flex justify-between items-center px-6 shrink-0">
                     <div className="flex items-center space-x-4">
-                        <button
-                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                            className="md:hidden p-2 rounded-lg hover:bg-gray-100"
-                        >
-                            {isSidebarOpen ? <XIcon className="h-6 w-6" /> : <MenuIcon className="h-6 w-6" />}
-                        </button>
                         <h1 className="text-xl font-semibold text-gray-800 capitalize">{pageTitle}</h1>
                     </div>
                     <div className="flex items-center space-x-6">
