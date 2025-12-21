@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { LeaveRequest, User, RequestStatus, LeaveType, LeaveBalance, UserRole } from '../types';
-import { LEAVE_REQUESTS, LEAVE_BALANCES } from '../constants';
+import { LeaveRequest, User, RequestStatus, LeaveType, UserRole } from '../types';
 import { BriefcaseIcon, PencilIcon, TrashIcon } from './Icons';
 import Notification from './Notification';
 import Calendar from './Calendar';
@@ -30,10 +29,11 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
     const [displayedDate, setDisplayedDate] = useState(new Date());
     const [editingRequest, setEditingRequest] = useState<LeaveRequest | null>(null);
     const [loading, setLoading] = useState(true);
-
-    const userBalance = useMemo(() => {
-        return LEAVE_BALANCES.find(b => b.userId === currentUser.id) || { userId: currentUser.id, annual: 0, maternity: 0, sick: 0 };
-    }, [currentUser.id]);
+    const [userBalance, setUserBalance] = useState({ 
+        annual: { remaining: 0, used: 0 }, 
+        maternity: { remaining: 0, used: 0 }, 
+        sick: { remaining: 0, used: 0 } 
+    });
 
     const monthsOfService = useMemo(() => {
         const hireDate = new Date(currentUser.hireDate);
@@ -140,6 +140,14 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
         const clickedDate = new Date(date);
         clickedDate.setHours(0, 0, 0, 0);
 
+        // Prevent selecting dates in the past
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (clickedDate < today) {
+            setNotification('Cannot select dates in the past');
+            return;
+        }
+
         if (!startDate || clickedDate < startDate || (startDate && endDate)) {
             setStartDate(clickedDate);
             setEndDate(null);
@@ -150,11 +158,13 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
         }
     };
 
-    // Fetch leave requests for current user
+    // Fetch leave requests and balances for current user
     useEffect(() => {
-        const fetchLeaveRequests = async () => {
+        const fetchData = async () => {
             try {
                 setLoading(true);
+                
+                // Fetch leave requests
                 const data = await api.getLeaveRequests(currentUser.tenantId, { userId: currentUser.id });
                 // Transform the data to match the LeaveRequest interface
                 const transformedData: LeaveRequest[] = data.map((item: any) => {
@@ -179,16 +189,51 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                     };
                 }).filter(Boolean) as LeaveRequest[]; // Remove null entries
                 setRequests(transformedData);
+
+                // Fetch leave balances
+                try {
+                    const balances = await api.getLeaveBalances(currentUser.tenantId, currentUser.id);
+                    const balanceMap = { 
+                        annual: { remaining: 0, used: 0 }, 
+                        maternity: { remaining: 0, used: 0 }, 
+                        sick: { remaining: 0, used: 0 } 
+                    };
+                    balances.forEach((balance: any) => {
+                        if (balance.leave_type === 'annual') {
+                            balanceMap.annual.remaining = balance.remaining_days || 0;
+                            balanceMap.annual.used = balance.used_days || 0;
+                        }
+                        if (balance.leave_type === 'maternity') {
+                            balanceMap.maternity.remaining = balance.remaining_days || 0;
+                            balanceMap.maternity.used = balance.used_days || 0;
+                        }
+                        if (balance.leave_type === 'sick') {
+                            balanceMap.sick.remaining = balance.remaining_days || 0;
+                            balanceMap.sick.used = balance.used_days || 0;
+                        }
+                    });
+                    setUserBalance(balanceMap);
+                } catch (balanceError) {
+                    console.warn('Could not load leave balances, using defaults:', balanceError);
+                    // Use default balances based on eligibility
+                    const defaultBalances = {
+                        annual: { remaining: isEligibleForAnnualLeave ? 30 : 0, used: 0 },
+                        maternity: { remaining: 180, used: 0 }, // 6 months
+                        sick: { remaining: 30, used: 0 }
+                    };
+                    setUserBalance(defaultBalances);
+                }
+
             } catch (error) {
-                console.error('Failed to fetch leave requests:', error);
-                setNotification('Failed to load leave requests');
+                console.error('Failed to fetch data:', error);
+                setNotification('Failed to load leave data');
             } finally {
                 setLoading(false);
             }
         };
 
         if (currentUser.tenantId) {
-            fetchLeaveRequests();
+            fetchData();
         }
     }, [currentUser.tenantId, currentUser.id]);
 
@@ -337,15 +382,18 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                          <div className="bg-white p-4 rounded-xl shadow-lg text-center">
                             <p className="text-sm font-medium text-gray-500">Annual Leave</p>
-                            <p className="text-3xl font-bold text-primary">{userBalance.annual} days</p>
+                            <p className="text-3xl font-bold text-primary">{userBalance.annual.remaining} days</p>
+                            <p className="text-xs text-gray-500 mt-1">Used: {userBalance.annual.used} days</p>
                         </div>
                         <div className="bg-white p-4 rounded-xl shadow-lg text-center">
                             <p className="text-sm font-medium text-gray-500">Maternity Leave</p>
-                            <p className="text-3xl font-bold text-pink-500">{userBalance.maternity} weeks</p>
+                            <p className="text-3xl font-bold text-pink-500">{Math.floor(userBalance.maternity.remaining / 30)} months</p>
+                            <p className="text-xs text-gray-500 mt-1">Used: {userBalance.maternity.used} days</p>
                         </div>
                         <div className="bg-white p-4 rounded-xl shadow-lg text-center">
                             <p className="text-sm font-medium text-gray-500">Sick Leave</p>
-                            <p className="text-3xl font-bold text-amber-500">{userBalance.sick} days</p>
+                            <p className="text-3xl font-bold text-amber-500">{userBalance.sick.remaining} days</p>
+                            <p className="text-xs text-gray-500 mt-1">Used: {userBalance.sick.used} days</p>
                         </div>
                     </div>
                 </div>

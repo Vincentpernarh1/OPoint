@@ -340,6 +340,164 @@ export const db = {
         return { data, error };
     },
 
+    // --- LEAVE BALANCES ---
+    async getLeaveBalances(employeeId, tenantIdOverride = null) {
+        const client = getSupabaseClient();
+        if (!client) return { data: [], error: 'Database not configured' };
+
+        const tenantId = tenantIdOverride || getCurrentTenantId();
+
+        let query = client
+            .from('opoint_leave_balances')
+            .select('*')
+            .eq('employee_id', employeeId)
+            .eq('year', new Date().getFullYear());
+
+        if (tenantId) {
+            query = query.eq('tenant_id', tenantId);
+        }
+
+        const { data, error } = await query;
+
+        // If table doesn't exist, return empty array
+        if (error && error.code === 'PGRST205') {
+            console.warn('Leave balances table does not exist yet. Returning empty balances.');
+            return { data: [], error: null };
+        }
+
+        return { data: data || [], error };
+    },
+
+    async updateLeaveBalance(employeeId, leaveType, usedDays, tenantIdOverride = null) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const tenantId = tenantIdOverride || getCurrentTenantId();
+        const year = new Date().getFullYear();
+
+        // First, get current balance
+        const { data: currentBalance, error: fetchError } = await client
+            .from('opoint_leave_balances')
+            .select('*')
+            .eq('employee_id', employeeId)
+            .eq('leave_type', leaveType)
+            .eq('year', year)
+            .eq('tenant_id', tenantId)
+            .single();
+
+        if (fetchError && fetchError.code !== 'PGRST116' && fetchError.code !== 'PGRST205') {
+            return { data: null, error: fetchError };
+        }
+
+        // If table doesn't exist, return error
+        if (fetchError && fetchError.code === 'PGRST205') {
+            return { data: null, error: { message: 'Leave balances table does not exist yet' } };
+        }
+
+        if (currentBalance) {
+            // Update existing balance
+            const newUsedDays = currentBalance.used_days + usedDays;
+            const newRemainingDays = currentBalance.total_days - newUsedDays;
+
+            const { data, error } = await client
+                .from('opoint_leave_balances')
+                .update({
+                    used_days: newUsedDays,
+                    remaining_days: newRemainingDays,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', currentBalance.id)
+                .select()
+                .single();
+
+            return { data, error };
+        } else {
+            // Create new balance entry (assume 0 total days initially)
+            const { data, error } = await client
+                .from('opoint_leave_balances')
+                .insert({
+                    tenant_id: tenantId,
+                    employee_id: employeeId,
+                    leave_type: leaveType,
+                    total_days: 0,
+                    used_days: usedDays,
+                    remaining_days: -usedDays,
+                    year: year
+                })
+                .select()
+                .single();
+
+            // If table doesn't exist, this will also fail
+            if (error && error.code === 'PGRST205') {
+                return { data: null, error: { message: 'Leave balances table does not exist yet' } };
+            }
+
+            return { data, error };
+        }
+    },
+
+    async initializeLeaveBalance(employeeId, leaveType, totalDays, tenantIdOverride = null) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const tenantId = tenantIdOverride || getCurrentTenantId();
+        const year = new Date().getFullYear();
+
+        // Check if balance already exists
+        const { data: existing, error: checkError } = await client
+            .from('opoint_leave_balances')
+            .select('*')
+            .eq('employee_id', employeeId)
+            .eq('leave_type', leaveType)
+            .eq('year', year)
+            .eq('tenant_id', tenantId)
+            .single();
+
+        // If table doesn't exist, return error
+        if (checkError && checkError.code === 'PGRST205') {
+            return { data: null, error: { message: 'Leave balances table does not exist yet' } };
+        }
+
+        if (existing) {
+            // Update total days and recalculate remaining
+            const newRemainingDays = totalDays - existing.used_days;
+            const { data, error } = await client
+                .from('opoint_leave_balances')
+                .update({
+                    total_days: totalDays,
+                    remaining_days: newRemainingDays,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', existing.id)
+                .select()
+                .single();
+
+            return { data, error };
+        } else {
+            // Create new balance
+            const { data, error } = await client
+                .from('opoint_leave_balances')
+                .insert({
+                    tenant_id: tenantId,
+                    employee_id: employeeId,
+                    leave_type: leaveType,
+                    total_days: totalDays,
+                    used_days: 0,
+                    remaining_days: totalDays,
+                    year: year
+                })
+                .select()
+                .single();
+
+            // If table doesn't exist, this will also fail
+            if (error && error.code === 'PGRST205') {
+                return { data: null, error: { message: 'Leave balances table does not exist yet' } };
+            }
+
+            return { data, error };
+        }
+    },
+
     // --- TIME ADJUSTMENT REQUESTS (using clock_logs table) ---
     async createTimeAdjustmentRequest(adjustmentData) {
         const client = getSupabaseClient();

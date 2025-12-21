@@ -1212,6 +1212,93 @@ app.put('/api/leave/requests/:id', async (req, res) => {
     }
 });
 
+// --- LEAVE BALANCE ENDPOINTS ---
+app.get('/api/leave/balances/:employeeId', async (req, res) => {
+    try {
+        const { employeeId } = req.params;
+        const tenantId = req.headers['x-tenant-id'];
+
+        const { data, error } = await db.getLeaveBalances(employeeId, tenantId);
+
+        if (error) {
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to fetch leave balances'
+            });
+        }
+
+        res.json({
+            success: true,
+            data
+        });
+
+    } catch (error) {
+        console.error('Error fetching leave balances:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch leave balances'
+        });
+    }
+});
+
+app.put('/api/leave/balances/:employeeId', async (req, res) => {
+    try {
+        const { employeeId } = req.params;
+        const { leaveType, usedDays } = req.body;
+        const tenantId = req.headers['x-tenant-id'];
+
+        const { data, error } = await db.updateLeaveBalance(employeeId, leaveType, usedDays, tenantId);
+
+        if (error) {
+            return res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        res.json({
+            success: true,
+            data
+        });
+
+    } catch (error) {
+        console.error('Error updating leave balance:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to update leave balance'
+        });
+    }
+});
+
+app.post('/api/leave/balances/:employeeId/initialize', async (req, res) => {
+    try {
+        const { employeeId } = req.params;
+        const { leaveType, totalDays } = req.body;
+        const tenantId = req.headers['x-tenant-id'];
+
+        const { data, error } = await db.initializeLeaveBalance(employeeId, leaveType, totalDays, tenantId);
+
+        if (error) {
+            return res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        res.json({
+            success: true,
+            data
+        });
+
+    } catch (error) {
+        console.error('Error initializing leave balance:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to initialize leave balance'
+        });
+    }
+});
+
 // --- TIME ADJUSTMENT ENDPOINTS ---
 app.get('/api/time-adjustments', async (req, res) => {
     try {
