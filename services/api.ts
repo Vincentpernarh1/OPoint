@@ -208,14 +208,34 @@ export const api = {
   },
 
   // Payroll API
-  getPayableEmployees: async (): Promise<any[]> => {
-    // Mock implementation
-    return [];
+  getPayableEmployees: async (tenantId: string): Promise<any[]> => {
+    const response = await fetch(`${API_BASE}/api/payroll/payable-employees`, {
+      headers: getHeaders(tenantId),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch payable employees');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch payable employees');
+    }
+    return result.data || [];
   },
 
-  processPayroll: async (payload: any, password: string): Promise<any> => {
-    // Mock implementation
-    return { success: true };
+  processPayroll: async (payload: any, password: string, tenantId: string): Promise<any> => {
+    const response = await fetch(`${API_BASE}/api/payroll/pay`, {
+      method: 'POST',
+      headers: getHeaders(tenantId),
+      body: JSON.stringify({ payments: payload, password }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to process payroll');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to process payroll');
+    }
+    return result.data;
   },
 
   // Reports API
