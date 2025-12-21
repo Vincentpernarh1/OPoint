@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { User, ExpenseRequest, RequestStatus } from '../types';
 import { EXPENSE_REQUESTS } from '../constants';
-import { ReceiptIcon, CheckCircleIcon, ClockIcon } from './Icons';
+import { ReceiptIcon, CheckCircleIcon, ClockIcon, XIcon } from './Icons';
 import Notification from './Notification';
 
 interface ExpensesProps {
@@ -12,6 +12,7 @@ const statusInfo: Record<RequestStatus, { icon: React.FC<{className?: string}>, 
     [RequestStatus.PENDING]: { icon: ClockIcon, color: 'text-yellow-500' },
     [RequestStatus.APPROVED]: { icon: CheckCircleIcon, color: 'text-green-500' },
     [RequestStatus.REJECTED]: { icon: ClockIcon, color: 'text-red-500' }, // Using ClockIcon as a placeholder
+    [RequestStatus.CANCELLED]: { icon: XIcon, color: 'text-gray-500' },
 };
 
 const formatCurrency = (amount: number) => new Intl.NumberFormat('en-GH', { style: 'currency', currency: 'GHS' }).format(amount);

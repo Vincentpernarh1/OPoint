@@ -178,6 +178,11 @@ class OfflineStorageService {
         }
     }
 
+    async deleteLeaveRequest(id: string) {
+        const db = await this.init();
+        await db.delete('leaveRequests', id);
+    }
+
     // ===== EXPENSES =====
     async saveExpense(expense: OfflineDB['expenses']['value']) {
         if (this.isOnline) {
@@ -203,6 +208,11 @@ class OfflineStorageService {
             await db.put('expenses', expense);
             console.log('✅ Expense marked as synced:', id);
         }
+    }
+
+    async deleteExpense(id: string) {
+        const db = await this.init();
+        await db.delete('expenses', id);
     }
 
     // ===== SYNC STATUS =====

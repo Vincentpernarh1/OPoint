@@ -66,6 +66,7 @@ export enum RequestStatus {
   PENDING = 'Pending',
   APPROVED = 'Approved',
   REJECTED = 'Rejected',
+  CANCELLED = 'Cancelled',
 }
 
 export enum LeaveType {
@@ -77,6 +78,7 @@ export enum LeaveType {
 export interface LeaveRequest {
   id: string;
   userId: string;
+  employeeName?: string; // Optional for backward compatibility
   leaveType: LeaveType;
   startDate: Date;
   endDate: Date;
