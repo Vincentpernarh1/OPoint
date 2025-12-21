@@ -225,9 +225,32 @@ export const api = {
   },
 
   // Payslips API
-  getPayslip: async (userId: string, date: string): Promise<any> => {
-    // Mock implementation
-    return {};
+  getPayslip: async (userId: string, date: string, tenantId: string): Promise<any> => {
+    const response = await fetch(`${API_BASE}/api/payslips/${userId}/${encodeURIComponent(date)}`, {
+      headers: getHeaders(tenantId),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch payslip');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch payslip');
+    }
+    return result.data;
+  },
+
+  getPayslipHistory: async (userId: string, tenantId: string): Promise<any[]> => {
+    const response = await fetch(`${API_BASE}/api/payroll/history?userId=${userId}`, {
+      headers: getHeaders(tenantId),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch payslip history');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch payslip history');
+    }
+    return result.data || [];
   },
 
   // Users API

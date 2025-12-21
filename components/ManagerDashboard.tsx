@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { User, View, RequestStatus, Announcement } from '../types';
 import { USERS, LEAVE_REQUESTS, ADJUSTMENT_REQUESTS, EXPENSE_REQUESTS, PROFILE_UPDATE_REQUESTS, ANNOUNCEMENTS } from '../constants';
-import { UsersGroupIcon, CheckSquareIcon, MegaphoneIcon } from './Icons';
+import { UsersGroupIcon, CheckSquareIcon, MegaphoneIcon, DollarSignIcon } from './Icons';
 import { api } from '../services/api';
 
 interface ManagerDashboardProps {
@@ -15,6 +15,8 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
     const [loadingEmployees, setLoadingEmployees] = useState(true);
     const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
     const [loadingApprovals, setLoadingApprovals] = useState(true);
+    const [totalMonthlyPayout, setTotalMonthlyPayout] = useState(0);
+    const [loadingPayout, setLoadingPayout] = useState(true);
     
     const companyUsers = useMemo(() => {
         return USERS.filter(u => u.tenantId === currentUser.tenantId);
@@ -64,7 +66,44 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
 
         fetchPendingApprovalsCount();
     }, [currentUser.tenantId]);
-    
+
+    // Fetch total monthly payout
+    useEffect(() => {
+        const fetchTotalMonthlyPayout = async () => {
+            try {
+                setLoadingPayout(true);
+                const users = await api.getUsers(currentUser.tenantId);
+                
+                console.log('ManagerDashboard users data:', users);
+                console.log('Total users:', users.length);
+                console.log('Users with salaries:', users.filter(u => u.basicSalary > 0));
+                
+                // Calculate total monthly payroll (sum of all basic salaries)
+                const totalPayout = users.reduce((sum, user) => {
+                    const basicSalary = user.basicSalary || 0;
+                    console.log(`User ${user.name}: basicSalary = ${basicSalary}`);
+                    return sum + basicSalary;
+                }, 0);
+                
+                console.log('Calculated total payout:', totalPayout);
+                setTotalMonthlyPayout(totalPayout);
+            } catch (error) {
+                console.error('Failed to fetch total monthly payout:', error);
+                // Fallback calculation using mock data
+                const mockUsers = USERS.filter(u => u.tenantId === currentUser.tenantId);
+                const mockPayout = mockUsers.reduce((sum, user) => {
+                    const basicSalary = user.basicSalary || 0;
+                    return sum + basicSalary;
+                }, 0);
+                setTotalMonthlyPayout(mockPayout);
+            } finally {
+                setLoadingPayout(false);
+            }
+        };
+
+        fetchTotalMonthlyPayout();
+    }, [currentUser.tenantId]);
+
     const latestAnnouncement = useMemo(() => {
         if (announcements.length === 0) return null;
         return announcements.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
@@ -75,7 +114,7 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
             <div className="flex items-center justify-between">
                 <div>
                     <p className="text-sm font-medium text-gray-500">{title}</p>
-                    <p className="text-4xl font-bold text-gray-800">{value}</p>
+                    <p className="text-3xl font-bold text-gray-800">{value}</p>
                 </div>
                 <div className="bg-primary-light text-primary p-3 rounded-full">
                     <Icon className="h-7 w-7" />
@@ -94,6 +133,7 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <StatCard title="Total Employees" value={loadingEmployees ? '...' : employeeCount} icon={UsersGroupIcon} linkTo="employees" />
                 <StatCard title="Pending Approvals" value={loadingApprovals ? '...' : pendingApprovalsCount} icon={CheckSquareIcon} linkTo="approvals" />
+                <StatCard title="Monthly Payout" value={loadingPayout ? '...' : `GHS ${totalMonthlyPayout.toLocaleString()}`} icon={DollarSignIcon} linkTo="payslips" />
             </div>
             
              {latestAnnouncement && (

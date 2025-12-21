@@ -69,7 +69,26 @@ export const db = {
             .eq('tenant_id', tenantId)
             .order('created_at', { ascending: false });
 
-        return { data, error };
+        // Transform snake_case to camelCase
+        const transformedData = data ? data.map(user => ({
+            ...user,
+            tenantId: user.tenant_id,
+            basicSalary: user.basic_salary,
+            hireDate: user.hire_date,
+            avatarUrl: user.avatar_url,
+            mobileMoneyNumber: user.mobile_money_number,
+            is_active: user.is_active,
+            temporary_password: user.temporary_password,
+            requires_password_change: user.requires_password_change,
+            // Remove snake_case versions
+            tenant_id: undefined,
+            basic_salary: undefined,
+            hire_date: undefined,
+            avatar_url: undefined,
+            mobile_money_number: undefined
+        })) : data;
+
+        return { data: transformedData, error };
     },
 
     async getUserById(userId) {
@@ -86,7 +105,26 @@ export const db = {
             .eq('tenant_id', tenantId)
             .single();
 
-        return { data, error };
+        // Transform snake_case to camelCase
+        const transformedData = data ? {
+            ...data,
+            tenantId: data.tenant_id,
+            basicSalary: data.basic_salary,
+            hireDate: data.hire_date,
+            avatarUrl: data.avatar_url,
+            mobileMoneyNumber: data.mobile_money_number,
+            is_active: data.is_active,
+            temporary_password: data.temporary_password,
+            requires_password_change: data.requires_password_change,
+            // Remove snake_case versions
+            tenant_id: undefined,
+            basic_salary: undefined,
+            hire_date: undefined,
+            avatar_url: undefined,
+            mobile_money_number: undefined
+        } : data;
+
+        return { data: transformedData, error };
     },
 
     async createUser(userData) {
