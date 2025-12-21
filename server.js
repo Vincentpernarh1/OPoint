@@ -1261,28 +1261,40 @@ app.post('/api/companies', async (req, res) => {
 // --- ANNOUNCEMENTS ENDPOINTS ---
 app.get('/api/announcements', async (req, res) => {
     try {
-        const { data, error } = await db.getAnnouncements();
+        const { userId } = req.query;
+
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                error: 'userId is required'
+            });
+        }
+
+        const { data, error } = await db.getAnnouncements(userId);
 
         if (error) {
-            return res.status(500).json({ 
-                success: false, 
-                error: 'Failed to fetch announcements' 
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to fetch announcements'
             });
         }
 
         // If no data from database, fall back to constants for development
         let announcementsData = data;
         if (!data || data.length === 0) {
-            announcementsData = MOCK_ANNOUNCEMENTS;
+            announcementsData = MOCK_ANNOUNCEMENTS.map(ann => ({
+                ...ann,
+                readBy: [] // Add empty readBy for mock data
+            }));
         }
 
         res.json({ success: true, data: announcementsData });
 
     } catch (error) {
         console.error('Error fetching announcements:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Failed to fetch announcements' 
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch announcements'
         });
     }
 });
@@ -1331,6 +1343,37 @@ app.post('/api/announcements', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: 'Failed to create announcement' 
+        });
+    }
+});
+
+app.post('/api/announcements/mark-read', async (req, res) => {
+    try {
+        const { userId } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                error: 'userId is required'
+            });
+        }
+
+        const { error } = await db.markAnnouncementsAsRead(userId);
+
+        if (error) {
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to mark announcements as read'
+            });
+        }
+
+        res.json({ success: true });
+
+    } catch (error) {
+        console.error('Error marking announcements as read:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to mark announcements as read'
         });
     }
 });

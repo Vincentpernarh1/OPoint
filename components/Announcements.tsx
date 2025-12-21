@@ -9,9 +9,10 @@ interface AnnouncementsProps {
     announcements: Announcement[];
     onPost: (newAnnouncement: Announcement) => void;
     onDelete?: (announcementId: string) => void;
+    onMarkAsRead?: () => void;
 }
 
-const Announcements = memo(({ currentUser, announcements, onPost, onDelete }: AnnouncementsProps) => {
+const Announcements = memo(({ currentUser, announcements, onPost, onDelete, onMarkAsRead }: AnnouncementsProps) => {
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -21,6 +22,20 @@ const Announcements = memo(({ currentUser, announcements, onPost, onDelete }: An
     const fileRef = useRef<HTMLInputElement>(null);
     
     const canPost = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.HR;
+
+    const hasMarkedAsRead = useRef(false);
+
+    // Mark announcements as read when component mounts (only once)
+    useEffect(() => {
+        if (onMarkAsRead && announcements.length > 0 && !hasMarkedAsRead.current) {
+            hasMarkedAsRead.current = true;
+            onMarkAsRead();
+        }
+    }, []); // Empty dependency array to run only once
+
+    const isUnread = useCallback((announcement: Announcement) => {
+        return !announcement.readBy || !announcement.readBy.includes(currentUser.id);
+    }, [currentUser.id]);
 
     const fileToBase64 = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
@@ -169,12 +184,19 @@ const Announcements = memo(({ currentUser, announcements, onPost, onDelete }: An
                         <h3 className="text-xl font-bold text-gray-800 mb-4">Company Announcements</h3>
                         <div className="space-y-6 max-h-[75vh] overflow-y-auto pr-2">
                             {announcements.map(ann => (
-                                <div key={ann.id} className="p-4 border rounded-lg bg-slate-50">
+                                <div key={ann.id} className={`p-4 border rounded-lg bg-slate-50 ${isUnread(ann) ? 'border-l-4 border-l-primary bg-blue-50' : ''}`}>
                                     <div className="flex flex-col lg:flex-row lg:items-start lg:space-x-4 space-y-4 lg:space-y-0">
                                         <div className="flex-1 min-w-0">
                                             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-3">
                                                 <div className="flex-1 min-w-0">
-                                                    <h4 className="font-bold text-gray-800 text-lg leading-tight break-words">{ann.title}</h4>
+                                                    <div className="flex items-center space-x-2 mb-2">
+                                                        <h4 className="font-bold text-gray-800 text-lg leading-tight break-words">{ann.title}</h4>
+                                                        {isUnread(ann) && (
+                                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary text-white">
+                                                                NEW
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <p className="text-sm text-gray-600 mt-2 whitespace-pre-wrap leading-relaxed break-words">{ann.content}</p>
                                                 </div>
                                                 
@@ -233,9 +255,15 @@ const Announcements = memo(({ currentUser, announcements, onPost, onDelete }: An
         prevProps.currentUser.role === nextProps.currentUser.role &&
         prevProps.currentUser.tenantId === nextProps.currentUser.tenantId &&
         prevProps.announcements.length === nextProps.announcements.length &&
-        prevProps.announcements.every((ann, i) => ann.id === nextProps.announcements[i]?.id) &&
+        prevProps.announcements.every((ann, i) => {
+            const prevAnn = prevProps.announcements[i];
+            const nextAnn = nextProps.announcements[i];
+            return prevAnn?.id === nextAnn?.id && 
+                   JSON.stringify(prevAnn?.readBy) === JSON.stringify(nextAnn?.readBy);
+        }) &&
         prevProps.onPost === nextProps.onPost &&
-        prevProps.onDelete === nextProps.onDelete
+        prevProps.onDelete === nextProps.onDelete &&
+        prevProps.onMarkAsRead === nextProps.onMarkAsRead
     );
 });
 

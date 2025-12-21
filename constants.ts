@@ -95,9 +95,9 @@ export const PAYSCLIP_HISTORY: Partial<Payslip>[] = USERS.flatMap(user => {
 
 
 export const ANNOUNCEMENTS: Announcement[] = [
-    { id: 'ann1', tenant_id: 'c1', title: 'Public Holiday Announcement', content: 'Please be reminded that this coming Friday is a public holiday. The office will be closed. Enjoy the long weekend!', author_id: '5', created_at: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(), updated_at: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(), isRead: false },
-    { id: 'ann2', tenant_id: 'c1', title: 'End of Year Party', content: 'Get ready for our annual end-of-year party! More details to follow next week.', author_id: '5', created_at: new Date('2023-12-01').toISOString(), updated_at: new Date('2023-12-01').toISOString(), isRead: true },
-    { id: 'ann3', tenant_id: 'c2', title: 'Company Meeting', content: 'There will be a company-wide meeting next Monday at 10 AM in the main conference room.', author_id: '3', created_at: new Date('2023-12-15').toISOString(), updated_at: new Date('2023-12-15').toISOString(), isRead: false },
+    { id: 'ann1', tenant_id: 'c1', title: 'Public Holiday Announcement', content: 'Please be reminded that this coming Friday is a public holiday. The office will be closed. Enjoy the long weekend!', author_id: '5', created_at: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(), updated_at: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString() },
+    { id: 'ann2', tenant_id: 'c1', title: 'End of Year Party', content: 'Get ready for our annual end-of-year party! More details to follow next week.', author_id: '5', created_at: new Date('2023-12-01').toISOString(), updated_at: new Date('2023-12-01').toISOString() },
+    { id: 'ann3', tenant_id: 'c2', title: 'Company Meeting', content: 'There will be a company-wide meeting next Monday at 10 AM in the main conference room.', author_id: '3', created_at: new Date('2023-12-15').toISOString(), updated_at: new Date('2023-12-15').toISOString() },
 ];
 
 export const EXPENSE_REQUESTS: ExpenseRequest[] = [

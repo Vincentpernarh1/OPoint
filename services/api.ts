@@ -61,8 +61,8 @@ export const api = {
   },
 
   // Announcements API
-  getAnnouncements: async (tenantId: string): Promise<Announcement[]> => {
-    const response = await fetch(`${API_BASE}/api/announcements`, {
+  getAnnouncements: async (tenantId: string, userId: string): Promise<Announcement[]> => {
+    const response = await fetch(`${API_BASE}/api/announcements?userId=${userId}`, {
       headers: getHeaders(tenantId),
     });
     if (!response.ok) {
@@ -73,6 +73,21 @@ export const api = {
       throw new Error(result.error || 'Failed to fetch announcements');
     }
     return result.data || [];
+  },
+
+  markAnnouncementsAsRead: async (tenantId: string, userId: string): Promise<void> => {
+    const response = await fetch(`${API_BASE}/api/announcements/mark-read`, {
+      method: 'POST',
+      headers: getHeaders(tenantId),
+      body: JSON.stringify({ userId }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to mark announcements as read');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to mark announcements as read');
+    }
   },
 
   createAnnouncement: async (data: { title: string; content: string; imageUrl?: string; created_by: string; tenant_id: string; author_name: string }): Promise<Announcement> => {

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Link, Navigate, useLocation, Outlet, useParams } from 'react-router-dom';
 import { User, UserRole, Company, Announcement } from './types';
-import { COMPANIES } from './constants';
+import { COMPANIES, ANNOUNCEMENTS } from './constants';
 
 // Import Components with lazy loading
 const Login = lazy(() => import('./components/Login'));
@@ -30,9 +30,9 @@ import { LogoIcon, LogOutIcon, LayoutDashboardIcon, BriefcaseIcon, CheckSquareIc
 
 const PERMISSIONS: Record<string, UserRole[]> = {
     '/dashboard': [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
-    '/leave': [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
+    '/leave': [UserRole.EMPLOYEE, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
     '/payslips': [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
-    '/expenses': [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
+    '/expenses': [UserRole.EMPLOYEE, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
     '/announcements': [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
     '/profile': [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
     '/approvals': [UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS],
@@ -48,9 +48,9 @@ const App = () => {
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
     const fetchAnnouncements = useCallback(async () => {
-        if (!currentUser?.tenantId) return;
+        if (!currentUser?.tenantId || !currentUser?.id) return;
         try {
-            const data = await api.getAnnouncements(currentUser.tenantId);
+            const data = await api.getAnnouncements(currentUser.tenantId, currentUser.id);
             if (data && data.length > 0) {
                 setAnnouncements(data);
             } else {
@@ -64,11 +64,22 @@ const App = () => {
             const mockData = ANNOUNCEMENTS.filter(ann => ann.tenant_id === currentUser.tenantId);
             setAnnouncements(mockData);
         }
-    }, [currentUser?.tenantId]);
+    }, [currentUser?.tenantId, currentUser?.id]);
 
     const handlePostAnnouncement = useCallback(async (newAnnouncement: Announcement) => {
         setAnnouncements(prev => [newAnnouncement, ...prev]);
     }, []);
+
+    const handleMarkAnnouncementsAsRead = useCallback(async () => {
+        if (!currentUser?.tenantId || !currentUser?.id) return;
+        try {
+            await api.markAnnouncementsAsRead(currentUser.tenantId, currentUser.id);
+            // Refetch announcements to get updated read status
+            await fetchAnnouncements();
+        } catch (error) {
+            console.error('Error marking announcements as read:', error);
+        }
+    }, [currentUser?.tenantId, currentUser?.id, fetchAnnouncements]);
 
     useEffect(() => {
         const init = async () => {
@@ -136,10 +147,10 @@ const App = () => {
     }, []);
 
     useEffect(() => {
-        if (currentUser?.tenantId) {
+        if (currentUser?.tenantId && currentUser?.id) {
             fetchAnnouncements();
         }
-    }, [currentUser?.tenantId, fetchAnnouncements]);
+    }, [currentUser?.tenantId, currentUser?.id, fetchAnnouncements]);
 
     const handleLogin = async (userFromApi: any) => {
         // Normalize role string
@@ -179,6 +190,16 @@ const App = () => {
         authService.logout();
         setCurrentUser(null);
     }, []);
+
+    const unreadNotificationCount = useMemo(() => {
+        if (!currentUser) return 0;
+        // Admins don't see unread announcement counts
+        if (currentUser.role === UserRole.ADMIN) return 0;
+        return announcements.filter(ann => 
+            ann.tenant_id === currentUser.tenantId && 
+            (!ann.readBy || !ann.readBy.includes(currentUser.id))
+        ).length;
+    }, [announcements, currentUser]);
 
     if (isLoading) {
         return <div className="h-screen w-screen flex items-center justify-center"><LogoIcon className="h-16 w-16 animate-pulse" /></div>;
@@ -222,7 +243,8 @@ const App = () => {
                                 onLogout={handleLogout}
                                 announcements={announcements}
                                 onPostAnnouncement={handlePostAnnouncement}
-                                unreadNotificationCount={0}
+                                onMarkAnnouncementsAsRead={handleMarkAnnouncementsAsRead}
+                                unreadNotificationCount={unreadNotificationCount}
                             />
                         </ProtectedRoute>
                     }
@@ -232,7 +254,7 @@ const App = () => {
                     <Route path="payslips" element={<Payslips currentUser={currentUser!} onViewChange={() => {}} />} />
                     <Route path="expenses" element={<Expenses currentUser={currentUser!} />} />
                     <Route path="profile" element={<Profile currentUser={currentUser!} />} />
-                    <Route path="announcements" element={<Announcements currentUser={currentUser!} announcements={announcements} onPost={handlePostAnnouncement} onDelete={() => {}} />} />
+                    <Route path="announcements" element={<Announcements currentUser={currentUser!} announcements={announcements} onPost={handlePostAnnouncement} onDelete={() => {}} onMarkAsRead={handleMarkAnnouncementsAsRead} />} />
                     <Route path="approvals" element={<Approvals />} />
                     <Route path="employees" element={<EmployeeManagement currentUser={currentUser!} />} />
                     <Route path="payroll" element={<MobileMoneyPayroll />} />
@@ -262,6 +284,7 @@ const CompanyLayout = ({
     onLogout: () => void,
     announcements: Announcement[],
     onPostAnnouncement: (announcement: Announcement) => void,
+    onMarkAnnouncementsAsRead: () => void,
     unreadNotificationCount: number
 }) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -284,7 +307,7 @@ const CompanyLayout = ({
             { name: 'Leave', path: '/leave', icon: BriefcaseIcon, enabled: modules.leave },
             { name: 'Payslips', path: '/payslips', icon: DollarSignIcon, enabled: modules.payroll },
             { name: 'Expenses', path: '/expenses', icon: ReceiptIcon, enabled: modules.expenses },
-            { name: 'Announcements', path: '/announcements', icon: MegaphoneIcon, enabled: modules.announcements },
+            { name: 'Announcements', path: '/announcements', icon: MegaphoneIcon, enabled: modules.announcements, badge: unreadNotificationCount },
             { name: 'My Profile', path: '/profile', icon: UserCircleIcon, enabled: true },
             { name: 'Approvals', path: '/approvals', icon: CheckSquareIcon, enabled: true },
             { name: 'Employees', path: '/employees', icon: UsersIcon, enabled: true },

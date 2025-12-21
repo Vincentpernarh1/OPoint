@@ -139,10 +139,11 @@ export interface Announcement {
     title: string;
     content: string;
     author_id: string;
+    author_name?: string;
     image_url?: string;
     created_at: string;
     updated_at: string;
-    isRead?: boolean;
+    readBy?: string[]; // Array of user IDs who have read this announcement
 }
 
 export interface ExpenseRequest {
