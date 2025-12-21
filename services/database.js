@@ -91,6 +91,75 @@ export const db = {
         return { data: transformedData, error };
     },
 
+    async updateUser(userId, updates) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: null, error: 'No tenant context set' };
+
+        // Transform camelCase to snake_case for database
+        const dbUpdates = {
+            ...updates,
+            tenant_id: updates.tenantId || tenantId,
+            basic_salary: updates.basicSalary,
+            hire_date: updates.hireDate,
+            avatar_url: updates.avatarUrl,
+            mobile_money_number: updates.mobileMoneyNumber,
+            is_active: updates.isActive,
+            temporary_password: updates.temporaryPassword,
+            requires_password_change: updates.requiresPasswordChange,
+            // Remove camelCase versions
+            tenantId: undefined,
+            basicSalary: undefined,
+            hireDate: undefined,
+            avatarUrl: undefined,
+            mobileMoneyNumber: undefined,
+            isActive: undefined,
+            temporaryPassword: undefined,
+            requiresPasswordChange: undefined
+        };
+
+        // Remove undefined values
+        Object.keys(dbUpdates).forEach(key => {
+            if (dbUpdates[key] === undefined) {
+                delete dbUpdates[key];
+            }
+        });
+
+        const { data, error } = await client
+            .from('opoint_users')
+            .update(dbUpdates)
+            .eq('id', userId)
+            .eq('tenant_id', tenantId)
+            .select()
+            .single();
+
+        // Transform response back to camelCase
+        const transformedData = data ? {
+            ...data,
+            tenantId: data.tenant_id,
+            basicSalary: data.basic_salary,
+            hireDate: data.hire_date,
+            avatarUrl: data.avatar_url,
+            mobileMoneyNumber: data.mobile_money_number,
+            isActive: data.is_active,
+            temporaryPassword: data.temporary_password,
+            requiresPasswordChange: data.requires_password_change,
+            // Remove snake_case versions
+            tenant_id: undefined,
+            basic_salary: undefined,
+            hire_date: undefined,
+            avatar_url: undefined,
+            mobile_money_number: undefined,
+            is_active: undefined,
+            temporary_password: undefined,
+            requires_password_change: undefined
+        } : data;
+
+        return { data: transformedData, error };
+    },
+
     async getUserById(userId) {
         const client = getSupabaseClient();
         if (!client) return { data: null, error: 'Database not configured' };
@@ -113,15 +182,87 @@ export const db = {
             hireDate: data.hire_date,
             avatarUrl: data.avatar_url,
             mobileMoneyNumber: data.mobile_money_number,
-            is_active: data.is_active,
-            temporary_password: data.temporary_password,
-            requires_password_change: data.requires_password_change,
+            isActive: data.is_active,
+            temporaryPassword: data.temporary_password,
+            requiresPasswordChange: data.requires_password_change,
             // Remove snake_case versions
             tenant_id: undefined,
             basic_salary: undefined,
             hire_date: undefined,
             avatar_url: undefined,
-            mobile_money_number: undefined
+            mobile_money_number: undefined,
+            is_active: undefined,
+            temporary_password: undefined,
+            requires_password_change: undefined
+        } : data;
+
+        return { data: transformedData, error };
+    },
+
+    async updateUser(userId, updates) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: null, error: 'No tenant context set' };
+
+        // Transform camelCase to snake_case for database
+        const dbUpdates = {
+            ...updates,
+            tenant_id: updates.tenantId || tenantId,
+            basic_salary: updates.basicSalary,
+            hire_date: updates.hireDate,
+            avatar_url: updates.avatarUrl,
+            mobile_money_number: updates.mobileMoneyNumber,
+            is_active: updates.isActive,
+            temporary_password: updates.temporaryPassword,
+            requires_password_change: updates.requiresPasswordChange,
+            // Remove camelCase versions
+            tenantId: undefined,
+            basicSalary: undefined,
+            hireDate: undefined,
+            avatarUrl: undefined,
+            mobileMoneyNumber: undefined,
+            isActive: undefined,
+            temporaryPassword: undefined,
+            requiresPasswordChange: undefined
+        };
+
+        // Remove undefined values
+        Object.keys(dbUpdates).forEach(key => {
+            if (dbUpdates[key] === undefined) {
+                delete dbUpdates[key];
+            }
+        });
+
+        const { data, error } = await client
+            .from('opoint_users')
+            .update(dbUpdates)
+            .eq('id', userId)
+            .eq('tenant_id', tenantId)
+            .select()
+            .single();
+
+        // Transform response back to camelCase
+        const transformedData = data ? {
+            ...data,
+            tenantId: data.tenant_id,
+            basicSalary: data.basic_salary,
+            hireDate: data.hire_date,
+            avatarUrl: data.avatar_url,
+            mobileMoneyNumber: data.mobile_money_number,
+            isActive: data.is_active,
+            temporaryPassword: data.temporary_password,
+            requiresPasswordChange: data.requires_password_change,
+            // Remove snake_case versions
+            tenant_id: undefined,
+            basic_salary: undefined,
+            hire_date: undefined,
+            avatar_url: undefined,
+            mobile_money_number: undefined,
+            is_active: undefined,
+            temporary_password: undefined,
+            requires_password_change: undefined
         } : data;
 
         return { data: transformedData, error };
@@ -672,7 +813,26 @@ export const db = {
             .eq('status', 'Active')
             .single();
 
-        return { data, error };
+        // Transform snake_case to camelCase
+        const transformedData = data ? {
+            ...data,
+            tenantId: data.tenant_id,
+            basicSalary: data.basic_salary,
+            hireDate: data.hire_date,
+            avatarUrl: data.avatar_url,
+            mobileMoneyNumber: data.mobile_money_number,
+            is_active: data.is_active,
+            temporary_password: data.temporary_password,
+            requires_password_change: data.requires_password_change,
+            // Remove snake_case versions
+            tenant_id: undefined,
+            basic_salary: undefined,
+            hire_date: undefined,
+            avatar_url: undefined,
+            mobile_money_number: undefined
+        } : data;
+
+        return { data: transformedData, error };
     },
 
     async updateUserPassword(userId, passwordHash) {
@@ -712,7 +872,20 @@ export const db = {
         return { data, error };
     },
 
-    // Legacy Supabase Auth (kept for backward compatibility)
+    // --- AUTHENTICATION ---
+    async getUserByEmail(email) {
+        const client = getSupabaseAdminClient(); // Use admin client to bypass RLS
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const { data, error } = await client
+            .from('opoint_users')
+            .select('*')
+            .ilike('email', email)
+            .eq('status', 'Active')
+            .single();
+
+        return { data, error };
+    },
     async signIn(email, password) {
         const client = getSupabaseClient();
         if (!client) return { data: null, error: 'Database not configured' };
@@ -1027,6 +1200,146 @@ export const db = {
             .is('clock_out', null)
             .order('created_at', { ascending: false })
             .limit(1)
+            .single();
+
+        return { data, error };
+    },
+
+    // --- PROFILE UPDATE REQUESTS ---
+    async createProfileUpdateRequest(requestData) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: null, error: 'No tenant context set' };
+
+        const { data, error } = await client
+            .from('opoint_profile_update_requests')
+            .insert([{ ...requestData, tenant_id: tenantId }])
+            .select()
+            .single();
+
+        return { data, error };
+    },
+
+    async getProfileUpdateRequests(filters = {}) {
+        const client = getSupabaseClient();
+        if (!client) return { data: [], error: 'Database not configured' };
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: [], error: 'No tenant context set' };
+
+        let query = client
+            .from('opoint_profile_update_requests')
+            .select('*')
+            .eq('tenant_id', tenantId);
+
+        if (filters.status) {
+            query = query.eq('status', filters.status);
+        }
+
+        if (filters.userId) {
+            query = query.eq('user_id', filters.userId);
+        }
+
+        query = query.order('requested_at', { ascending: false });
+
+        const { data, error } = await query;
+        return { data, error };
+    },
+
+    async updateProfileUpdateRequest(requestId, updates) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: null, error: 'No tenant context set' };
+
+        const { data, error } = await client
+            .from('opoint_profile_update_requests')
+            .update(updates)
+            .eq('id', requestId)
+            .eq('tenant_id', tenantId)
+            .select()
+            .single();
+
+        return { data, error };
+    },
+
+    async approveProfileUpdateRequest(requestId, reviewerId, reviewNotes = null) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: null, error: 'No tenant context set' };
+
+        // First get the request details
+        const { data: request, error: fetchError } = await client
+            .from('opoint_profile_update_requests')
+            .select('*')
+            .eq('id', requestId)
+            .eq('tenant_id', tenantId)
+            .single();
+
+        if (fetchError) return { data: null, error: fetchError };
+
+        // Update the request status
+        const updateData = {
+            status: 'Approved',
+            reviewed_by: reviewerId,
+            reviewed_at: new Date().toISOString(),
+            review_notes: reviewNotes,
+            updated_at: new Date().toISOString()
+        };
+
+        const { data: updatedRequest, error: updateError } = await client
+            .from('opoint_profile_update_requests')
+            .update(updateData)
+            .eq('id', requestId)
+            .eq('tenant_id', tenantId)
+            .select()
+            .single();
+
+        if (updateError) return { data: null, error: updateError };
+
+        // Apply the actual update to the user profile
+        if (request.field_name === 'mobile_money_number') {
+            const { error: userUpdateError } = await client
+                .from('opoint_users')
+                .update({ mobile_money_number: request.requested_value, updated_at: new Date().toISOString() })
+                .eq('id', request.user_id)
+                .eq('tenant_id', tenantId);
+
+            if (userUpdateError) {
+                console.error('Failed to update user profile:', userUpdateError);
+                // Don't return error here as the request was approved, just log it
+            }
+        }
+
+        return { data: updatedRequest, error: null };
+    },
+
+    async rejectProfileUpdateRequest(requestId, reviewerId, reviewNotes = null) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: null, error: 'No tenant context set' };
+
+        const updateData = {
+            status: 'Rejected',
+            reviewed_by: reviewerId,
+            reviewed_at: new Date().toISOString(),
+            review_notes: reviewNotes,
+            updated_at: new Date().toISOString()
+        };
+
+        const { data, error } = await client
+            .from('opoint_profile_update_requests')
+            .update(updateData)
+            .eq('id', requestId)
+            .eq('tenant_id', tenantId)
+            .select()
             .single();
 
         return { data, error };

@@ -508,4 +508,75 @@ export const api = {
     }
     return result.data;
   },
+
+  // Profile Update Requests
+  createProfileUpdateRequest: async (tenantId: string, requestData: {
+    user_id: string;
+    field_name: string;
+    requested_value: string;
+    current_value?: string;
+  }): Promise<any> => {
+    const response = await fetch(`${API_BASE}/api/profile-update-requests`, {
+      method: 'POST',
+      headers: getHeaders(tenantId),
+      body: JSON.stringify(requestData),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to create profile update request');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to create profile update request');
+    }
+    return result.data;
+  },
+
+  getProfileUpdateRequests: async (tenantId: string, filters?: { status?: string; userId?: string }): Promise<any[]> => {
+    const queryParams = filters ? new URLSearchParams(filters).toString() : '';
+    const url = `${API_BASE}/api/profile-update-requests${queryParams ? `?${queryParams}` : ''}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getHeaders(tenantId),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch profile update requests');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch profile update requests');
+    }
+    return result.data;
+  },
+
+  approveProfileUpdateRequest: async (tenantId: string, requestId: string, reviewerId: string, reviewNotes?: string): Promise<any> => {
+    const response = await fetch(`${API_BASE}/api/profile-update-requests/${requestId}/approve`, {
+      method: 'PUT',
+      headers: getHeaders(tenantId),
+      body: JSON.stringify({ reviewer_id: reviewerId, review_notes: reviewNotes }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to approve profile update request');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to approve profile update request');
+    }
+    return result.data;
+  },
+
+  rejectProfileUpdateRequest: async (tenantId: string, requestId: string, reviewerId: string, reviewNotes?: string): Promise<any> => {
+    const response = await fetch(`${API_BASE}/api/profile-update-requests/${requestId}/reject`, {
+      method: 'PUT',
+      headers: getHeaders(tenantId),
+      body: JSON.stringify({ reviewer_id: reviewerId, review_notes: reviewNotes }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to reject profile update request');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to reject profile update request');
+    }
+    return result.data;
+  },
 };

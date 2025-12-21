@@ -23,7 +23,8 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
     const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
     const [adjustmentRequests, setAdjustmentRequests] = useState<AdjustmentRequest[]>([]);
     const [expenseRequests, setExpenseRequests] = useState<ExpenseRequest[]>([]);
-    const [profileRequests, setProfileRequests] = useState<ProfileUpdateRequest[]>([]);
+    const [profileRequests, setProfileRequests] = useState<any[]>([]);
+    const [profileStatusFilter, setProfileStatusFilter] = useState<string>('Pending');
     
     const [activeTab, setActiveTab] = useState('leave');
     const [viewingLog, setViewingLog] = useState<ViewingLogState | null>(null);
@@ -158,7 +159,29 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
         }
     }, [adjustmentStatusFilter, currentUser.tenantId, activeTab]);
 
-    const handleAction = async (idOrSetter: string | ((prev: any[]) => any[]), actionOrId: 'approve' | 'reject' | 'cancel' | string, action?: 'approve' | 'reject' | 'cancel' | 'adjustment') => {
+    // Refetch when profile status filter changes
+    useEffect(() => {
+        if (activeTab === 'profile') {
+            const fetchProfileRequests = async () => {
+                try {
+                    setLoading(true);
+                    setError(null);
+                    const profileData = await api.getProfileUpdateRequests(currentUser.tenantId, {
+                        status: profileStatusFilter === 'All' ? undefined : profileStatusFilter
+                    });
+                    setProfileRequests(profileData);
+                } catch (err) {
+                    console.error('Failed to fetch profile update requests:', err);
+                    setProfileRequests([]);
+                } finally {
+                    setLoading(false);
+                }
+            };
+            fetchProfileRequests();
+        }
+    }, [profileStatusFilter, currentUser.tenantId, activeTab]);
+
+    const handleAction = async (idOrSetter: string | ((prev: any[]) => any[]), actionOrId: 'approve' | 'reject' | 'cancel' | string, action?: 'approve' | 'reject' | 'cancel' | 'adjustment' | 'profile') => {
         // Handle leave requests: handleAction(id, action)
         if (typeof idOrSetter === 'string' && typeof actionOrId === 'string' && (actionOrId === 'approve' || actionOrId === 'reject' || actionOrId === 'cancel')) {
             const id = idOrSetter;
@@ -224,6 +247,31 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
             } catch (err) {
                 console.error(`Failed to ${actionType} time adjustment request:`, err);
                 setError(`Failed to ${actionType} time adjustment request`);
+            }
+        }
+        // Handle profile update requests: handleAction(id, action, 'profile')
+        else if (typeof idOrSetter === 'string' && typeof actionOrId === 'string' && (actionOrId === 'approve' || actionOrId === 'reject') && action === 'profile') {
+            const id = idOrSetter;
+            const actionType = actionOrId;
+            try {
+                if (actionType === 'approve') {
+                    await api.approveProfileUpdateRequest(currentUser.tenantId, id, currentUser.id);
+                } else {
+                    await api.rejectProfileUpdateRequest(currentUser.tenantId, id, currentUser.id);
+                }
+
+                // Update status in local state
+                setProfileRequests(prev => prev.map(req =>
+                    req.id === id ? {
+                        ...req,
+                        status: actionType === 'approve' ? 'Approved' : 'Rejected',
+                        reviewed_by: currentUser.id,
+                        reviewed_at: new Date().toISOString()
+                    } : req
+                ));
+            } catch (err) {
+                console.error(`Failed to ${actionType} profile update request:`, err);
+                setError(`Failed to ${actionType} profile update request`);
             }
         }
         // Handle other requests: handleAction(setStateFunction, id)
@@ -451,26 +499,71 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                         </div>
                     )}
                     {activeTab === 'profile' && (
-                         <div className="space-y-4">
+                        <div className="space-y-4">
+                            <div className="flex justify-end space-x-4">
+                                <select
+                                    title="Filter by status"
+                                    value={profileStatusFilter}
+                                    onChange={(e) => setProfileStatusFilter(e.target.value)}
+                                    className="block pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md border"
+                                >
+                                    <option value="All">All Statuses</option>
+                                    <option value="Pending">Pending</option>
+                                    <option value="Approved">Approved</option>
+                                    <option value="Rejected">Rejected</option>
+                                </select>
+                            </div>
                             {profileRequests.map(req => (
-                                <div key={req.id} className="p-4 border rounded-lg flex justify-between items-center bg-slate-50">
-                                    <div>
-                                        <p className="font-semibold">{getUser(req.userId)?.name}</p>
-                                        <div className="text-sm text-gray-600 mt-1 space-y-1">{renderFieldChanges(req.fields)}</div>
-                                    </div>
-                                    <div className="flex space-x-2">
-                                        {currentUser.role === UserRole.ADMIN ? (
-                                            <>
-                                                <button title="Approve profile update" onClick={() => handleAction(setProfileRequests, req.id)} className="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200"><CheckIcon className="h-5 w-5"/></button>
-                                                <button title="Reject profile update" onClick={() => handleAction(setProfileRequests, req.id)} className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200"><XIcon className="h-5 w-5"/></button>
-                                            </>
-                                        ) : (
-                                            <button title="Cancel profile update" onClick={() => handleAction(setProfileRequests, req.id)} className="p-2 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200"><XIcon className="h-5 w-5"/></button>
-                                        )}
+                                <div key={req.id} className="p-4 border rounded-lg bg-slate-50">
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex-1">
+                                            <p className="font-semibold">{req.employee_name}</p>
+                                            <div className="text-sm text-gray-600 mt-1">
+                                                <p><span className="font-medium">Field:</span> {req.field_name === 'mobile_money_number' ? 'Mobile Money Number' : req.field_name}</p>
+                                                <p><span className="font-medium">Current:</span> {req.current_value || 'Not set'}</p>
+                                                <p><span className="font-medium">Requested:</span> {req.requested_value}</p>
+                                            </div>
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Requested on {new Date(req.requested_at).toLocaleDateString()}
+                                            </p>
+                                            {req.reviewed_at && (
+                                                <p className="text-xs text-gray-500">
+                                                    Reviewed on {new Date(req.reviewed_at).toLocaleDateString()}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div className="flex space-x-2 flex-shrink-0">
+                                            {currentUser.role === UserRole.ADMIN && req.status === 'Pending' ? (
+                                                <>
+                                                    <button
+                                                        title="Approve profile update"
+                                                        onClick={() => handleAction(req.id, 'approve', 'profile')}
+                                                        className="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200"
+                                                    >
+                                                        <CheckIcon className="h-5 w-5"/>
+                                                    </button>
+                                                    <button
+                                                        title="Reject profile update"
+                                                        onClick={() => handleAction(req.id, 'reject', 'profile')}
+                                                        className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200"
+                                                    >
+                                                        <XIcon className="h-5 w-5"/>
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <span className={`text-xs px-2 py-1 rounded ${
+                                                    req.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                                                    req.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                                                    'bg-yellow-100 text-yellow-800'
+                                                }`}>
+                                                    {req.status}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             ))}
-                            {profileRequests.length === 0 && <p className="text-gray-500 text-center py-8">No pending profile update requests.</p>}
+                            {profileRequests.length === 0 && <p className="text-gray-500 text-center py-8">No profile update requests found.</p>}
                         </div>
                     )}
                 </div>
