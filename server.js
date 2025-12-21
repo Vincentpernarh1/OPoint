@@ -1469,6 +1469,107 @@ app.delete('/api/announcements/:id', async (req, res) => {
     }
 });
 
+// --- TIME PUNCHES ENDPOINTS ---
+app.post('/api/time-punches', async (req, res) => {
+    try {
+        const { userId, companyId, type, timestamp, location, photoUrl } = req.body;
+
+        if (!userId || !companyId || !type || !timestamp) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Missing required fields' 
+            });
+        }
+
+        // Get user and company info
+        const { data: user, error: userError } = await db.getUserById(userId);
+        if (userError || !user) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'User not found' 
+            });
+        }
+
+        const { data: company, error: companyError } = await db.getCompanyById(companyId);
+        if (companyError || !company) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Company not found' 
+            });
+        }
+
+        const punchData = {
+            tenant_id: companyId,
+            company_name: company.name,
+            employee_id: userId,
+            employee_name: user.name,
+            clock_in: type === 'clock_in' ? timestamp : null,
+            clock_out: type === 'clock_out' ? timestamp : null,
+            location: location || null,
+            photo_url: photoUrl || null
+        };
+
+        if (type === 'clock_out') {
+            // For clock out, find the last clock in without clock out and update it
+            const { data: lastEntry, error: findError } = await db.getLastIncompleteClockLog(userId);
+            if (findError) {
+                console.error('Error finding last entry:', findError);
+                // If no last entry, create new
+                const { data, error } = await db.createClockLog(punchData);
+                if (error) {
+                    return res.status(500).json({ 
+                        success: false, 
+                        error: 'Failed to save clock out' 
+                    });
+                }
+                return res.json({ success: true, data });
+            }
+            if (lastEntry) {
+                // Update the existing entry with clock_out
+                const { error: updateError } = await db.updateClockLog(lastEntry.id, { 
+                    clock_out: timestamp,
+                    location: location || lastEntry.location,
+                    photo_url: photoUrl || lastEntry.photo_url
+                });
+                if (updateError) {
+                    return res.status(500).json({ 
+                        success: false, 
+                        error: 'Failed to update clock out' 
+                    });
+                }
+                return res.json({ success: true });
+            } else {
+                // No last entry, create new
+                const { data, error } = await db.createClockLog(punchData);
+                if (error) {
+                    return res.status(500).json({ 
+                        success: false, 
+                        error: 'Failed to save clock out' 
+                    });
+                }
+                return res.json({ success: true, data });
+            }
+        } else {
+            // For clock in, create new entry
+            const { data, error } = await db.createClockLog(punchData);
+            if (error) {
+                return res.status(500).json({ 
+                    success: false, 
+                    error: 'Failed to save clock in' 
+                });
+            }
+            res.json({ success: true, data });
+        }
+
+    } catch (error) {
+        console.error('Error saving time punch:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to save time punch' 
+        });
+    }
+});
+
 // --- NOTIFICATIONS ENDPOINTS ---
 app.get('/api/notifications', async (req, res) => {
     try {

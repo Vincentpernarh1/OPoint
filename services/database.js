@@ -170,6 +170,19 @@ export const db = {
         return { data, error };
     },
 
+    async getCompanyById(companyId) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+        
+        const { data, error } = await client
+            .from('opoint_companies')
+            .select('*')
+            .eq('id', companyId)
+            .single();
+        
+        return { data, error };
+    },
+
     async createCompany(companyData) {
         const client = getSupabaseClient();
         if (!client) return { data: null, error: 'Database not configured' };
@@ -649,6 +662,54 @@ export const db = {
             .eq('is_read', false);
 
         return { data: count || 0, error };
+    },
+
+    // Clock Logs
+    async createClockLog(logData) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const { data, error } = await client
+            .from('opoint_clock_logs')
+            .insert(logData)
+            .select()
+            .single();
+
+        return { data, error };
+    },
+
+    async updateClockLog(id, updates) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const { data, error } = await client
+            .from('opoint_clock_logs')
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+
+        return { data, error };
+    },
+
+    async getLastIncompleteClockLog(employeeId) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: null, error: 'No tenant context set' };
+
+        const { data, error } = await client
+            .from('opoint_clock_logs')
+            .select('*')
+            .eq('tenant_id', tenantId)
+            .eq('employee_id', employeeId)
+            .is('clock_out', null)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+        return { data, error };
     }
 };
 

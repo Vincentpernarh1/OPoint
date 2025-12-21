@@ -341,4 +341,21 @@ export const api = {
     }
     return result.data;
   },
+
+  // Time Punches
+  saveTimePunch: async (tenantId: string, punchData: any): Promise<any> => {
+    const response = await fetch(`${API_BASE}/api/time-punches`, {
+      method: 'POST',
+      headers: getHeaders(tenantId),
+      body: JSON.stringify(punchData),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to save time punch');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to save time punch');
+    }
+    return result.data;
+  },
 };

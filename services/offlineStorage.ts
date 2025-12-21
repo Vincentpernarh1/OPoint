@@ -121,13 +121,9 @@ class OfflineStorageService {
 
     // ===== TIME PUNCHES =====
     async saveTimePunch(punch: OfflineDB['timePunches']['value']) {
-        if (this.isOnline) {
-            console.log('🌐 Online - data will be synced immediately');
-            return; // Don't store locally when online
-        }
         const db = await this.init();
-        await db.add('timePunches', punch);
-        console.log('💾 Time punch saved offline:', punch.id);
+        await db.put('timePunches', punch); // Use put to allow updates
+        console.log('💾 Time punch saved:', punch.id, 'synced:', punch.synced);
     }
 
     async getUnsyncedTimePunches(companyId: string) {
@@ -144,6 +140,12 @@ class OfflineStorageService {
             await db.put('timePunches', punch);
             console.log('✅ Time punch marked as synced:', id);
         }
+    }
+
+    async getTimePunches(companyId: string, userId: string) {
+        const db = await this.init();
+        const allPunches = await db.getAllFromIndex('timePunches', 'by-company', companyId);
+        return allPunches.filter(p => p.userId === userId);
     }
 
     async deleteTimePunch(id: string) {
