@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogoIcon, ShieldCheckIcon, UsersIcon } from './Icons';
+import { LogoIcon, UsersIcon } from './Icons';
 
 const InitialLogin = () => {
     const navigate = useNavigate();
@@ -19,18 +19,8 @@ const InitialLogin = () => {
                     >
                         <UsersIcon className="h-8 w-8 text-primary mr-4" />
                         <div>
-                            <h2 className="font-semibold text-lg text-gray-800">Company Login</h2>
-                            <p className="text-sm text-gray-500">Sign in as an Employee or Manager.</p>
-                        </div>
-                    </button>
-                    <button
-                        onClick={() => navigate('/superadmin-login')}
-                        className="w-full flex items-center text-left p-4 rounded-lg border-2 border-transparent bg-slate-50 hover:bg-indigo-50 hover:border-primary transition-all duration-200"
-                    >
-                        <ShieldCheckIcon className="h-8 w-8 text-primary mr-4" />
-                        <div>
-                            <h2 className="font-semibold text-lg text-gray-800">Super Admin Login</h2>
-                            <p className="text-sm text-gray-500">Access the B2B management portal.</p>
+                            <h2 className="font-semibold text-lg text-gray-800">Login</h2>
+                            <p className="text-sm text-gray-500">Sign in to your account.</p>
                         </div>
                     </button>
                 </div>

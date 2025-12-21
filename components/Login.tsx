@@ -1,8 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
 import { LogoIcon, MailIcon, LockIcon } from './Icons';
-import { api } from '../services/api';
-import { setCompanyContextByEncryptedId, getCurrentCompanyName, getCurrentCompanyId } from '../services/database';
 import './Login.css';
 
 interface LoginProps {
@@ -22,7 +19,7 @@ const Login = ({ onLogin }: LoginProps) => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    
+
     // Password change state
     const [showPasswordChange, setShowPasswordChange] = useState(false);
     const [newPassword, setNewPassword] = useState('');
@@ -30,36 +27,6 @@ const Login = ({ onLogin }: LoginProps) => {
     const [currentUserEmail, setCurrentUserEmail] = useState('');
     const [passwordStrength, setPasswordStrength] = useState<PasswordStrength | null>(null);
     const [showPasswordRequirements, setShowPasswordRequirements] = useState(false);
-
-    const location = useLocation();
-    const [companyName, setCompanyName] = useState<string | null>(null);
-
-    // Set company context if encryptedId is present
-    useEffect(() => {
-        const path = location.pathname;
-        console.log('Path:', path);
-        let encryptedId = '';
-        if (path.startsWith('/login/')) {
-            encryptedId = path.replace('/login/', '');
-        } else if (path.endsWith('/login')) {
-            encryptedId = path.replace('/login', '');
-        }
-        console.log('Extracted encryptedId:', encryptedId);
-        if (encryptedId && encryptedId !== 'login') {  // avoid if just /login
-            const setContext = async () => {
-                console.log('Encrypted ID:', encryptedId);
-                const success = await setCompanyContextByEncryptedId(encryptedId);
-                console.log('Set context success:', success);
-                if (success) {
-                    setCompanyName(getCurrentCompanyName());
-                    console.log('Company name:', getCurrentCompanyName());
-                } else {
-                    setError('Invalid company link. Please check the URL.');
-                }
-            };
-            setContext();
-        }
-    }, [location.pathname]);
     useEffect(() => {
         const validatePassword = async () => {
             if (newPassword.length === 0) {
@@ -131,7 +98,7 @@ const Login = ({ onLogin }: LoginProps) => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email, password, company_id: getCurrentCompanyId() }),
+                body: JSON.stringify({ email, password }),
             });
             const data = await response.json();
 
@@ -347,7 +314,7 @@ const Login = ({ onLogin }: LoginProps) => {
             <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-xl animate-fade-in">
                 <div className="text-center mb-8">
                     <LogoIcon className="h-16 w-16 mx-auto mb-2" />
-                    <h1 className="text-3xl font-bold text-gray-800">{companyName || 'OPoint-P360'}</h1>
+                    <h1 className="text-3xl font-bold text-gray-800">OPoint-P360</h1>
                     <p className="text-gray-500">Sign in to your workspace</p>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -411,11 +378,6 @@ const Login = ({ onLogin }: LoginProps) => {
                         </button>
                     </div>
                 </form>
-                 <div className="mt-6 text-center text-sm text-gray-500 bg-slate-100 p-4 rounded-lg border border-slate-200">
-                    <p className='font-semibold text-gray-600 mb-2'>Test User</p>
-                    <p>Email: <span className="font-mono text-primary">vpernarh@gmail.com</span></p>
-                    <p>Password: <span className="font-mono text-primary">Vpernarh@20</span></p>
-                </div>
             </div>
         </div>
     );

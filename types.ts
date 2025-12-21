@@ -10,6 +10,7 @@ export enum UserRole {
 export interface Company {
   id: string;
   name: string;
+  encryptedId: string;
   licenseCount: number;
   modules: {
     payroll: boolean;
@@ -20,7 +21,7 @@ export interface Company {
   };
 }
 
-export type NewCompanyData = Omit<Company, 'id'> & {
+export type NewCompanyData = Omit<Company, 'id' | 'encryptedId'> & {
   adminName: string;
   adminEmail: string;
 };
@@ -31,12 +32,19 @@ export interface User {
   email: string;
   password?: string;
   role: UserRole;
-  avatarUrl: string;
-  team: string;
-  companyId?: string; // Link user to a company
-  basicSalary: number; // GHS
-  hireDate: Date;
-  mobileMoneyNumber?: string; // For MoMo Payroll
+  avatarUrl?: string; // Optional since it might not be in database
+  team: string; // Maps to department in database
+  tenantId?: string; // Link user to a tenant
+  companyName?: string; // Company name from user record
+  basicSalary: number; // GHS - maps to basic_salary in database
+  hireDate: Date | string; // Can be Date or string from database
+  mobileMoneyNumber?: string; // For MoMo Payroll - maps to mobile_money_number
+  department?: string; // Alternative to team
+  position?: string; // Job position
+  status?: string; // User status
+  is_active?: boolean; // Active status
+  temporary_password?: string; // For first-time login
+  requires_password_change?: boolean; // Password change requirement
 }
 
 export enum TimeEntryType {
@@ -126,12 +134,15 @@ export interface LeaveBalance {
 
 export interface Announcement {
     id: string;
+    tenant_id: string;
+    company_name?: string;
     title: string;
     content: string;
-    author: string;
-    date: Date;
+    author_id: string;
+    image_url?: string;
+    created_at: string;
+    updated_at: string;
     isRead?: boolean;
-    imageUrl?: string;
 }
 
 export interface ExpenseRequest {

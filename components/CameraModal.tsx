@@ -67,7 +67,7 @@ const CameraModal = ({ onClose, onCapture }: CameraModalProps) => {
     return (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md relative animate-fade-in-down">
-                <button onClick={onClose} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600">
+                <button title="Close camera modal" onClick={onClose} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600">
                     <XIcon className="h-6 w-6"/>
                 </button>
                 <h3 className="text-xl font-semibold mb-4 text-center">Take a Selfie</h3>
@@ -79,16 +79,21 @@ const CameraModal = ({ onClose, onCapture }: CameraModalProps) => {
                             ref={videoRef} 
                             autoPlay 
                             playsInline 
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover scale-x-[-1]"
                             // Mirror the video feed for a selfie experience
-                            style={{ transform: 'scaleX(-1)' }}
                         ></video>
                         <canvas ref={canvasRef} className="hidden"></canvas>
                     </div>
                 )}
                 <div className="flex justify-center space-x-4">
                     <button onClick={onClose} className="py-2 px-6 bg-gray-200 text-gray-800 rounded-lg font-medium">Cancel</button>
-                    <button onClick={handleCapture} disabled={!!error} className="py-2 px-6 bg-primary text-white rounded-lg font-bold disabled:bg-gray-400">Capture</button>
+                    {error ? (
+                        <button onClick={() => onCapture('')} className="py-2 px-6 bg-orange-500 text-white rounded-lg font-bold hover:bg-orange-600">
+                            Skip Photo
+                        </button>
+                    ) : (
+                        <button onClick={handleCapture} className="py-2 px-6 bg-primary text-white rounded-lg font-bold">Capture</button>
+                    )}
                 </div>
             </div>
         </div>

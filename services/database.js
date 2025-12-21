@@ -1,19 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
-import { decrypt } from '../utils/encryption.js';
 
 let supabase = null;
 let supabaseAdmin = null;
-let currentCompanyId = null;
+let currentTenantId = null;
 let currentUserId = null;
-let currentCompanyTable = null;
-let currentCompanyName = null;
-let currentCompanyAdminEmail = null;
 
 // Create Supabase client with error handling
 export function getSupabaseClient() {
     // Read environment variables inside the function to ensure dotenv has loaded
-    const supabaseUrl = import.meta?.env?.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-    const supabaseKey = import.meta?.env?.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
     
     if (!supabaseUrl || !supabaseKey) {
         console.warn('⚠️  Supabase credentials not found. Database features disabled.');
@@ -44,118 +40,16 @@ export function getSupabaseAdminClient() {
     return supabaseAdmin;
 }
 
-// Set company context for RLS (Row Level Security)
-export async function setCompanyContext(companyId, userId) {
-    const client = getSupabaseAdminClient(); // Use admin client to bypass RLS
-    
-    currentCompanyId = companyId;
+// Set tenant context
+export function setTenantContext(tenantId, userId = null) {
+    currentTenantId = tenantId;
     currentUserId = userId;
-    
-    // Also fetch company details to set table name
-    console.log('Fetching company details for context ID:', companyId);
-    const { data: company, error: fetchError } = await client
-        .from('opoint_companies')
-        .select('*')
-        .eq('id', companyId)
-        .single();
-
-    if (fetchError || !company) {
-        console.warn('⚠️  Could not fetch company details:', fetchError?.message);
-    } else {
-        currentCompanyTable = company.table_name || `company_${company.name.replace(/\s+/g, '_').toLowerCase()}_users`;
-        currentCompanyName = company.name;
-        currentCompanyAdminEmail = company.admin_email;
-        console.log('✅ Company table set:', currentCompanyTable);
-    }
-    
-    // Use regular client for RLS context
-    const rlsClient = getSupabaseClient();
-    try {
-        const { error } = await rlsClient.rpc('set_company_context', {
-            company_uuid: companyId,
-            user_uuid: userId
-        });
-        
-        if (error) {
-            console.warn('⚠️  Could not set company context (RLS may not be enabled):', error.message);
-            return false;
-        }
-        
-        console.log('✅ Company context set:', companyId);
-        return true;
-    } catch (err) {
-        console.warn('⚠️  Company context function not available:', err.message);
-        return false;
-    }
+    console.log('✅ Tenant context set:', tenantId);
 }
 
-// Get current company context
-export function getCurrentCompanyId() {
-    return currentCompanyId;
-}
-
-// Get dynamic table name for company-specific tables
-export function getTableName(tableType) {
-    if (!currentCompanyName) return `P360-Opoint_${tableType.charAt(0).toUpperCase() + tableType.slice(1)}`;
-    return `company_${currentCompanyName.replace(/\s+/g, '_').toLowerCase()}_${tableType}`;
-}
-
-// Set company context by decrypting encrypted company ID
-export async function setCompanyContextByEncryptedId(encryptedId, userId = null) {
-    try {
-        console.log('Decrypting:', encryptedId);
-        const companyId = decrypt(encryptedId);
-        console.log('Decrypted company ID:', companyId);
-        if (!companyId) {
-            console.error('Failed to decrypt company ID');
-            return false;
-        }
-        return await setCompanyContextById(companyId, userId);
-    } catch (err) {
-        console.error('Error decrypting company ID:', err);
-        return false;
-    }
-}
-
-// Set company context by company ID, fetching details
-export async function setCompanyContextById(companyId, userId = null) {
-    const client = getSupabaseClient();
-    if (!client) return false;
-
-    console.log('Fetching company details for ID:', companyId);
-    // Fetch company details
-    const { data: company, error } = await client
-        .from('opoint_companies')
-        .select('*')
-        .eq('id', companyId)
-        .single();
-
-    console.log('Company fetch result:', { company, error });
-    if (error || !company) {
-        console.error('Company not found:', error);
-        return false;
-    }
-
-    currentCompanyId = companyId;
-    currentUserId = userId;
-    currentCompanyTable = company.table_name || `company_${company.name.replace(/\s+/g, '_').toLowerCase()}_users`; // Company-specific table
-    currentCompanyName = company.name;
-    currentCompanyAdminEmail = company.admin_email;
-
-    console.log('✅ Company context set:', currentCompanyName, currentCompanyTable);
-    return true;
-}
-
-export function getCurrentCompanyTable() {
-    return currentCompanyTable;
-}
-
-export function getCurrentCompanyName() {
-    return currentCompanyName;
-}
-
-export function getCurrentCompanyAdminEmail() {
-    return currentCompanyAdminEmail;
+// Get current tenant context
+export function getCurrentTenantId() {
+    return currentTenantId;
 }
 
 
@@ -165,69 +59,101 @@ export const db = {
     async getUsers() {
         const client = getSupabaseClient();
         if (!client) return { data: [], error: 'Database not configured' };
-        
-        const table = getTableName('user');
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: [], error: 'No tenant context set' };
+
         const { data, error } = await client
-            .from(table)
+            .from('opoint_users')
             .select('*')
+            .eq('tenant_id', tenantId)
             .order('created_at', { ascending: false });
-        
+
         return { data, error };
     },
 
     async getUserById(userId) {
         const client = getSupabaseClient();
         if (!client) return { data: null, error: 'Database not configured' };
-        
-        const table = getTableName('user');
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: null, error: 'No tenant context set' };
+
         const { data, error } = await client
-            .from(table)
+            .from('opoint_users')
             .select('*')
             .eq('id', userId)
+            .eq('tenant_id', tenantId)
             .single();
-        
+
         return { data, error };
     },
 
     async createUser(userData) {
-        const client = getSupabaseClient();
-        if (!client) return { data: null, error: 'Database not configured' };
-        
-        const table = getTableName('user');
+        const client = getSupabaseAdminClient(); // Use admin client to bypass RLS
+        if (!client) {
+            console.error('Admin client not available');
+            return { data: null, error: 'Database not configured' };
+        }
+
+        // Use tenant_id from userData if provided, otherwise get from context
+        const tenantId = userData.tenant_id || getCurrentTenantId();
+        if (!tenantId) {
+            console.error('No tenant context set');
+            return { data: null, error: 'No tenant context set' };
+        }
+
+        // Remove tenant_id from userData if it exists to avoid duplication
+        const { tenant_id, ...dataToInsert } = userData;
+
+        console.log('Creating user with data:', { ...dataToInsert, tenant_id: tenantId });
+
         const { data, error } = await client
-            .from(table)
-            .insert([userData])
+            .from('opoint_users')
+            .insert([{ ...dataToInsert, tenant_id: tenantId }])
             .select()
             .single();
-        
+
+        if (error) {
+            console.error('Supabase insert error:', error);
+        } else {
+            console.log('User created successfully:', data);
+        }
+
         return { data, error };
     },
 
     async updateUser(userId, updates) {
         const client = getSupabaseClient();
         if (!client) return { data: null, error: 'Database not configured' };
-        
-        const table = getTableName('user');
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: null, error: 'No tenant context set' };
+
         const { data, error } = await client
-            .from(table)
+            .from('opoint_users')
             .update(updates)
             .eq('id', userId)
+            .eq('tenant_id', tenantId)
             .select()
             .single();
-        
+
         return { data, error };
     },
 
     async deleteUser(userId) {
         const client = getSupabaseClient();
         if (!client) return { data: null, error: 'Database not configured' };
-        
-        const table = getTableName('user');
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: null, error: 'No tenant context set' };
+
         const { data, error } = await client
-            .from(table)
+            .from('opoint_users')
             .delete()
-            .eq('id', userId);
-        
+            .eq('id', userId)
+            .eq('tenant_id', tenantId);
+
         return { data, error };
     },
 
@@ -261,23 +187,30 @@ export const db = {
     async createPayrollRecord(payrollData) {
         const client = getSupabaseClient();
         if (!client) return { data: null, error: 'Database not configured' };
-        
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: null, error: 'No tenant context set' };
+
         const { data, error } = await client
-            .from(getTableName('payrollhistory'))
-            .insert([payrollData])
+            .from('opoint_payroll_history')
+            .insert([{ ...payrollData, tenant_id: tenantId }])
             .select()
             .single();
-        
+
         return { data, error };
     },
 
     async getPayrollHistory(filters = {}) {
         const client = getSupabaseClient();
         if (!client) return { data: [], error: 'Database not configured' };
-        
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: [], error: 'No tenant context set' };
+
         let query = client
-            .from(getTableName('payrollhistory'))
-            .select(`*, ${getTableName('user')}(name, email, mobile_money_number)`);
+            .from('opoint_payroll_history')
+            .select('*, opoint_users(name, email)')
+            .eq('tenant_id', tenantId);
 
         if (filters.userId) {
             query = query.eq('user_id', filters.userId);
@@ -292,7 +225,7 @@ export const db = {
         }
 
         query = query.order('created_at', { ascending: false });
-        
+
         const { data, error } = await query;
         return { data, error };
     },
@@ -300,14 +233,18 @@ export const db = {
     async updatePayrollStatus(transactionId, status) {
         const client = getSupabaseClient();
         if (!client) return { data: null, error: 'Database not configured' };
-        
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: null, error: 'No tenant context set' };
+
         const { data, error } = await client
-            .from('P360-Opoint_PayrollHistory')
+            .from('opoint_payroll_history')
             .update({ status, updated_at: new Date().toISOString() })
             .eq('transaction_id', transactionId)
+            .eq('tenant_id', tenantId)
             .select()
             .single();
-        
+
         return { data, error };
     },
 
@@ -315,23 +252,30 @@ export const db = {
     async createLeaveRequest(leaveData) {
         const client = getSupabaseClient();
         if (!client) return { data: null, error: 'Database not configured' };
-        
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: null, error: 'No tenant context set' };
+
         const { data, error } = await client
-            .from(getTableName('leaverequest'))
-            .insert([leaveData])
+            .from('opoint_leave_logs')
+            .insert([{ ...leaveData, tenant_id: tenantId }])
             .select()
             .single();
-        
+
         return { data, error };
     },
 
     async getLeaveRequests(filters = {}) {
         const client = getSupabaseClient();
         if (!client) return { data: [], error: 'Database not configured' };
-        
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: [], error: 'No tenant context set' };
+
         let query = client
-            .from(getTableName('leaverequest'))
-            .select(`*, ${getTableName('user')}(name, email)`);
+            .from('opoint_leave_logs')
+            .select('*, opoint_users(name, email)')
+            .eq('tenant_id', tenantId);
 
         if (filters.status) {
             query = query.eq('status', filters.status);
@@ -350,89 +294,43 @@ export const db = {
     async updateLeaveRequest(leaveId, updates) {
         const client = getSupabaseClient();
         if (!client) return { data: null, error: 'Database not configured' };
-        
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: null, error: 'No tenant context set' };
+
         const { data, error } = await client
-            .from(getTableName('leaverequest'))
+            .from('opoint_leave_logs')
             .update({ ...updates, updated_at: new Date().toISOString() })
             .eq('id', leaveId)
+            .eq('tenant_id', tenantId)
             .select()
             .single();
-        
+
         return { data, error };
     },
 
     // --- AUTHENTICATION ---
-    async getUserByEmail(email, tableName = null) {
+    async getUserByEmail(email) {
         const client = getSupabaseAdminClient(); // Use admin client to bypass RLS
         if (!client) return { data: null, error: 'Database not configured' };
-        
-        let table = tableName || getCurrentCompanyTable();
-        
-        // If no specific table and no company context, search across all company tables
-        if (!table || table === 'P360-Opoint_User') {
-            // Get all companies
-            const { data: companies, error: companiesError } = await client
-                .from('opoint_companies')
-                .select('table_name')
-                .not('table_name', 'is', null);
-                
-            if (companiesError) {
-                return { data: null, error: 'Failed to fetch companies' };
-            }
-            
-            // Try each company table
-            for (const company of companies) {
-                if (company.table_name) {
-                    const { data: user, error } = await client
-                        .from(company.table_name)
-                        .select('*')
-                        .ilike('email', email)
-                        .eq('is_active', true)
-                        .single();
-                    
-                    if (user && !error) {
-                        // Set the company context for this user
-                        const { data: companyData } = await client
-                            .from('opoint_companies')
-                            .select('*')
-                            .eq('table_name', company.table_name)
-                            .single();
-                        
-                        if (companyData) {
-                            currentCompanyId = companyData.id;
-                            currentCompanyTable = companyData.table_name;
-                            currentCompanyName = companyData.name;
-                            currentCompanyAdminEmail = companyData.admin_email;
-                        }
-                        
-                        return { data: user, error: null };
-                    }
-                }
-            }
-            
-            return { data: null, error: 'User not found' };
-        }
-        
-        if (!table) return { data: null, error: 'No table specified' };
-        
+
         const { data, error } = await client
-            .from(table)
+            .from('opoint_users')
             .select('*')
-            .ilike('email', email)  // Case-insensitive email match
-            .eq('is_active', true)
+            .ilike('email', email)
+            .eq('status', 'Active')
             .single();
-        
+
         return { data, error };
     },
 
     async updateUserPassword(userId, passwordHash) {
         const client = getSupabaseAdminClient(); // Use admin client to bypass RLS
         if (!client) return { data: null, error: 'Database not configured' };
-        
-        const table = getCurrentCompanyTable() || 'P360-Opoint_User';
+
         const { data, error } = await client
-            .from(table)
-            .update({ 
+            .from('opoint_users')
+            .update({
                 password_hash: passwordHash,
                 temporary_password: null, // Clear temporary password
                 requires_password_change: false,
@@ -442,17 +340,16 @@ export const db = {
             .eq('id', userId)
             .select()
             .single();
-        
+
         return { data, error };
     },
 
     async updateLastLogin(userId) {
         const client = getSupabaseClient();
         if (!client) return { data: null, error: 'Database not configured' };
-        
-        const table = getCurrentCompanyTable() || 'P360-Opoint_User';
+
         const { data, error } = await client
-            .from(table)
+            .from('opoint_users')
             .update({ 
                 last_login: new Date().toISOString(),
                 updated_at: new Date().toISOString()
@@ -506,6 +403,160 @@ export const db = {
         
         const { data, error } = await client.auth.getUser();
         return { data, error };
+    },
+
+    // --- ANNOUNCEMENTS ---
+    async getAnnouncements() {
+        const client = getSupabaseClient();
+        if (!client) return { data: [], error: 'Database not configured' };
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: [], error: 'No tenant context set' };
+
+        const { data, error } = await client
+            .from('opoint_announcements')
+            .select('*')
+            .eq('tenant_id', tenantId)
+            .order('created_at', { ascending: false });
+
+        return { data, error };
+    },
+
+    async createAnnouncement(announcementData) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: null, error: 'No tenant context set' };
+
+        const { data, error } = await client
+            .from('opoint_announcements')
+            .insert([{ ...announcementData, tenant_id: tenantId }])
+            .select()
+            .single();
+
+        return { data, error };
+    },
+
+    async updateAnnouncement(announcementId, updates) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: null, error: 'No tenant context set' };
+
+        const { data, error } = await client
+            .from('opoint_announcements')
+            .update(updates)
+            .eq('id', announcementId)
+            .eq('tenant_id', tenantId)
+            .select()
+            .single();
+
+        return { data, error };
+    },
+
+    async deleteAnnouncement(announcementId) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: null, error: 'No tenant context set' };
+
+        const { data, error } = await client
+            .from('opoint_announcements')
+            .delete()
+            .eq('id', announcementId)
+            .eq('tenant_id', tenantId);
+
+        return { data, error };
+    },
+
+    // --- NOTIFICATIONS ---
+    async getNotifications(userId) {
+        const client = getSupabaseClient();
+        if (!client) return { data: [], error: 'Database not configured' };
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: [], error: 'No tenant context set' };
+
+        const { data, error } = await client
+            .from('opoint_notifications')
+            .select('*')
+            .eq('tenant_id', tenantId)
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        return { data, error };
+    },
+
+    async createNotification(notificationData) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: null, error: 'No tenant context set' };
+
+        const { data, error } = await client
+            .from('opoint_notifications')
+            .insert([{ ...notificationData, tenant_id: tenantId }])
+            .select()
+            .single();
+
+        return { data, error };
+    },
+
+    async markNotificationAsRead(notificationId, userId) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: null, error: 'No tenant context set' };
+
+        const { data, error } = await client
+            .from('opoint_notifications')
+            .update({ is_read: true })
+            .eq('id', notificationId)
+            .eq('user_id', userId)
+            .eq('tenant_id', tenantId)
+            .select()
+            .single();
+
+        return { data, error };
+    },
+
+    async markAllNotificationsAsRead(userId) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: null, error: 'No tenant context set' };
+
+        const { data, error } = await client
+            .from('opoint_notifications')
+            .update({ is_read: true })
+            .eq('user_id', userId)
+            .eq('tenant_id', tenantId)
+            .eq('is_read', false);
+
+        return { data, error };
+    },
+
+    async getUnreadNotificationCount(userId) {
+        const client = getSupabaseClient();
+        if (!client) return { data: 0, error: 'Database not configured' };
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: 0, error: 'No tenant context set' };
+
+        const { count, error } = await client
+            .from('opoint_notifications')
+            .select('*', { count: 'exact', head: true })
+            .eq('tenant_id', tenantId)
+            .eq('user_id', userId)
+            .eq('is_read', false);
+
+        return { data: count || 0, error };
     }
 };
 

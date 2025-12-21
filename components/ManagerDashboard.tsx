@@ -11,8 +11,8 @@ interface ManagerDashboardProps {
 const ManagerDashboard = ({ currentUser, onViewChange }: ManagerDashboardProps) => {
     
     const companyUsers = useMemo(() => {
-        return USERS.filter(u => u.companyId === currentUser.companyId);
-    }, [currentUser.companyId]);
+        return USERS.filter(u => u.tenantId === currentUser.tenantId);
+    }, [currentUser.tenantId]);
 
     const pendingApprovalsCount = useMemo(() => {
         const leave = LEAVE_REQUESTS.filter(r => r.status === RequestStatus.PENDING).length;
@@ -23,7 +23,7 @@ const ManagerDashboard = ({ currentUser, onViewChange }: ManagerDashboardProps) 
     }, []);
     
     const latestAnnouncement = useMemo(() => {
-        return ANNOUNCEMENTS.sort((a,b) => b.date.getTime() - a.date.getTime())[0];
+        return ANNOUNCEMENTS.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
     }, []);
 
     const StatCard = ({ title, value, icon: Icon, linkTo }: { title: string, value: string | number, icon: React.FC<{className?: string}>, linkTo: View }) => (

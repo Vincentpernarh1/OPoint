@@ -73,9 +73,20 @@ class OfflineStorageService {
     private db: IDBPDatabase<OfflineDB> | null = null;
     private readonly DB_NAME = 'vpena-onpoint-offline';
     private readonly DB_VERSION = 1;
+    private isOnline: boolean = navigator.onLine;
 
     async init() {
         if (this.db) return this.db;
+
+        // Set up online/offline listeners
+        window.addEventListener('online', () => {
+            this.isOnline = true;
+            console.log('🌐 Online - ready to sync');
+        });
+        window.addEventListener('offline', () => {
+            this.isOnline = false;
+            console.log('📴 Offline - data will be stored locally');
+        });
 
         this.db = await openDB<OfflineDB>(this.DB_NAME, this.DB_VERSION, {
             upgrade(db) {
@@ -110,6 +121,10 @@ class OfflineStorageService {
 
     // ===== TIME PUNCHES =====
     async saveTimePunch(punch: OfflineDB['timePunches']['value']) {
+        if (this.isOnline) {
+            console.log('🌐 Online - data will be synced immediately');
+            return; // Don't store locally when online
+        }
         const db = await this.init();
         await db.add('timePunches', punch);
         console.log('💾 Time punch saved offline:', punch.id);
@@ -138,6 +153,10 @@ class OfflineStorageService {
 
     // ===== LEAVE REQUESTS =====
     async saveLeaveRequest(request: OfflineDB['leaveRequests']['value']) {
+        if (this.isOnline) {
+            console.log('🌐 Online - data will be synced immediately');
+            return; // Don't store locally when online
+        }
         const db = await this.init();
         await db.add('leaveRequests', request);
         console.log('💾 Leave request saved offline:', request.id);
@@ -161,6 +180,10 @@ class OfflineStorageService {
 
     // ===== EXPENSES =====
     async saveExpense(expense: OfflineDB['expenses']['value']) {
+        if (this.isOnline) {
+            console.log('🌐 Online - data will be synced immediately');
+            return; // Don't store locally when online
+        }
         const db = await this.init();
         await db.add('expenses', expense);
         console.log('💾 Expense saved offline:', expense.id);
@@ -199,7 +222,12 @@ class OfflineStorageService {
 
     // ===== SYNC ALL =====
     async syncAll(companyId: string, syncFunction: (data: any) => Promise<void>) {
-        console.log('🔄 Starting offline sync for company:', companyId);
+        if (!this.isOnline) {
+            console.log('📴 Offline - skipping sync');
+            return await this.getUnsyncedCount(companyId);
+        }
+
+        console.log('🔄 Starting sync for company:', companyId);
         
         const punches = await this.getUnsyncedTimePunches(companyId);
         const leaves = await this.getUnsyncedLeaveRequests(companyId);
@@ -209,7 +237,7 @@ class OfflineStorageService {
         for (const punch of punches) {
             try {
                 await syncFunction({ type: 'timePunch', data: punch });
-                await this.markTimePunchSynced(punch.id);
+                await this.deleteTimePunch(punch.id); // Delete after sync
             } catch (error) {
                 console.error('Failed to sync time punch:', punch.id, error);
             }
@@ -219,7 +247,7 @@ class OfflineStorageService {
         for (const leave of leaves) {
             try {
                 await syncFunction({ type: 'leaveRequest', data: leave });
-                await this.markLeaveRequestSynced(leave.id);
+                await this.deleteLeaveRequest(leave.id); // Delete after sync
             } catch (error) {
                 console.error('Failed to sync leave request:', leave.id, error);
             }
@@ -229,14 +257,25 @@ class OfflineStorageService {
         for (const expense of expenses) {
             try {
                 await syncFunction({ type: 'expense', data: expense });
-                await this.markExpenseSynced(expense.id);
+                await this.deleteExpense(expense.id); // Delete after sync
             } catch (error) {
                 console.error('Failed to sync expense:', expense.id, error);
             }
         }
 
-        console.log('✅ Offline sync completed');
+        console.log('✅ Sync completed - local data cleared');
         return await this.getUnsyncedCount(companyId);
+    }
+
+    // ===== UTILITIES =====
+    isOnlineStatus() {
+        return this.isOnline;
+    }
+
+    async forceSync(companyId: string, syncFunction: (data: any) => Promise<void>) {
+        // Force sync regardless of online status (for manual sync)
+        console.log('🔄 Force syncing for company:', companyId);
+        return await this.syncAll(companyId, syncFunction);
     }
 
     // ===== CLEAR DATA =====

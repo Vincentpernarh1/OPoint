@@ -72,3 +72,7 @@ WHERE email = 'manager-test@vpena.com';
 
 
 select * from  company_vpena_teck_users;
+
+
+
+select * from  opoint_announcements;

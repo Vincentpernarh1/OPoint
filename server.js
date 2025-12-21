@@ -17,17 +17,28 @@ import express from 'express';
 import cors from 'cors';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
-import db, { getSupabaseClient, setCompanyContext } from './services/database.js';
+import db, { getSupabaseClient, getSupabaseAdminClient, setTenantContext, getCurrentTenantId } from './services/database.js';
 import { validatePasswordStrength } from './utils/passwordValidator.js';
 
 const app = express();
 
 // --- MIDDLEWARE ---
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: process.env.FRONTEND_URL || 'http://192.168.0.93:5173',
     credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+
+// Tenant context middleware
+app.use((req, res, next) => {
+    console.log('MIDDLEWARE EXECUTED');
+    const tenantId = req.headers['x-tenant-id'];
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - Tenant ID:`, tenantId);
+    if (tenantId) {
+        setTenantContext(tenantId);
+    }
+    next();
+});
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -59,6 +70,12 @@ const MOCK_USERS = [
     { id: '5', name: 'Eva Green', email: 'eva@vertex.com', role: 'HR', basic_salary: 12000, mobile_money_number: '0201112222', company_id: 'vertex' },
     { id: '6', name: 'Frank Miller', email: 'frank@vertex.com', role: 'Operations', basic_salary: 11000, mobile_money_number: '0543334444', company_id: 'vertex' },
     { id: '7', name: 'Grace Jones', email: 'grace@summit.inc', role: 'Payments', basic_salary: 15000, mobile_money_number: '0265556666', company_id: 'summit' },
+];
+
+const MOCK_ANNOUNCEMENTS = [
+    { id: 'ann1', tenant_id: 'c1', title: 'Public Holiday Announcement', content: 'Please be reminded that this coming Friday is a public holiday. The office will be closed. Enjoy the long weekend!', author_id: '5', created_at: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(), updated_at: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(), isRead: false },
+    { id: 'ann2', tenant_id: 'c1', title: 'End of Year Party', content: 'Get ready for our annual end-of-year party! More details to follow next week.', author_id: '5', created_at: new Date('2023-12-01').toISOString(), updated_at: new Date('2023-12-01').toISOString(), isRead: true },
+    { id: 'ann3', tenant_id: 'c2', title: 'Company Meeting', content: 'There will be a company-wide meeting next Monday at 10 AM in the main conference room.', author_id: '3', created_at: new Date('2023-12-15').toISOString(), updated_at: new Date('2023-12-15').toISOString(), isRead: false },
 ];
 
 // In-memory storage for transaction logs (Used when database not configured)
@@ -353,26 +370,20 @@ app.get('/api/test/check-user/:email', async (req, res) => {
 // --- AUTHENTICATION ENDPOINTS ---
 app.post('/api/auth/login', async (req, res) => {
     try {
-        const { email, password, company_id } = req.body;
+        const { email, password } = req.body;
 
         if (!email || !password) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Email and password are required' 
+            return res.status(400).json({
+                success: false,
+                error: 'Email and password are required'
             });
         }
 
         if (!validators.isValidEmail(email)) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Invalid email format' 
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid email format'
             });
-        }
-
-        // Set company context for RLS before querying user
-        if (company_id) {
-            await setCompanyContext(company_id, null); // user_id not known yet
-            console.log('✅ Company context set for login:', company_id);
         }
 
         // Get user from database
@@ -402,7 +413,7 @@ app.post('/api/auth/login', async (req, res) => {
             hasTemporaryPassword: !!user.temporary_password,
             hasPasswordHash: !!user.password_hash,
             requiresPasswordChange: user.requires_password_change,
-            isActive: user.is_active
+            status: user.status
         });
 
         let passwordMatch = false;
@@ -411,13 +422,13 @@ app.post('/api/auth/login', async (req, res) => {
         if (user.temporary_password && user.requires_password_change) {
             // Direct comparison for temporary password (plain text)
             passwordMatch = password === user.temporary_password;
-            
+
             if (passwordMatch) {
                 console.log(`✅ First-time login successful for: ${email}`);
             } else {
                 console.log(`❌ Temporary password mismatch for: ${email}`);
             }
-        } 
+        }
         // Regular login with hashed password
         else if (user.password_hash) {
             passwordMatch = await bcrypt.compare(password, user.password_hash);
@@ -426,37 +437,37 @@ app.post('/api/auth/login', async (req, res) => {
             } else {
                 console.log(`❌ Password hash mismatch for: ${email}`);
             }
-        } 
+        }
         // No password set at all
         else {
             console.log(`❌ No password configured for: ${email}`);
-            return res.status(401).json({ 
-                success: false, 
-                error: 'Account not properly configured. Please contact administrator.' 
+            return res.status(401).json({
+                success: false,
+                error: 'Account not properly configured. Please contact administrator.'
             });
         }
 
         if (!passwordMatch) {
-            return res.status(401).json({ 
-                success: false, 
-                error: 'Invalid credentials' 
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid credentials'
             });
         }
 
         // Update last login
         await db.updateLastLogin(user.id);
 
-        // Set company context for RLS (Row Level Security)
-        if (user.company_id) {
-            await setCompanyContext(user.company_id, user.id);
-            console.log('✅ Company context set for:', user.company_id);
+        // Set tenant context for the session
+        if (user.tenant_id) {
+            setTenantContext(user.tenant_id, user.id);
+            console.log('✅ Tenant context set for:', user.tenant_id);
         }
 
         // Remove sensitive data before sending response
         const { password_hash, temporary_password, ...userWithoutPassword } = user;
 
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             user: userWithoutPassword,
             requiresPasswordChange: user.requires_password_change || false,
             isFirstLogin: !!user.temporary_password
@@ -506,10 +517,10 @@ app.post('/api/auth/change-password', async (req, res) => {
             });
         }
 
-        // Set company context for RLS
-        if (user.company_id) {
-            await setCompanyContext(user.company_id, user.id);
-            console.log('✅ Company context set for password change:', user.company_id);
+        // Set tenant context for RLS
+        if (user.tenant_id) {
+            setTenantContext(user.tenant_id, user.id);
+            console.log('✅ Tenant context set for password change:', user.tenant_id);
         }
 
         // Verify current password (either temporary or hashed)
@@ -780,15 +791,53 @@ app.post('/api/users', async (req, res) => {
             });
         }
 
+        // Get tenant context (set by middleware)
+        const tenantId = getCurrentTenantId();
+        console.log('Tenant ID from context:', tenantId);
+        console.log('Headers received:', req.headers);
+        if (!tenantId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'No tenant context available' 
+            });
+        }
+
+        // Fetch company name based on tenant_id
+        let companyName = null;
+        console.log('Looking up company for tenant:', tenantId);
+        try {
+            const adminClient = getSupabaseAdminClient();
+            console.log('Admin client available:', !!adminClient);
+            if (adminClient) {
+                const { data: companyData, error: companyError } = await adminClient
+                    .from('opoint_companies')
+                    .select('name')
+                    .eq('id', tenantId)
+                    .single();
+                
+                console.log('Company lookup result:', { data: companyData, error: companyError });
+                if (!companyError && companyData) {
+                    companyName = companyData.name;
+                    console.log('Set company name to:', companyName);
+                }
+            }
+        } catch (error) {
+            console.log('Company lookup failed:', error.message);
+        }
+
         const { data, error } = await db.createUser({
             ...userData,
+            company_name: companyName,
+            tenant_id: tenantId,
             created_at: new Date().toISOString()
         });
 
         if (error) {
+            console.error('Database error creating user:', error);
             return res.status(400).json({ 
                 success: false, 
-                error: error.message 
+                error: `Database error: ${error.message || 'Unknown error'}`,
+                code: error.code || 'UNKNOWN'
             });
         }
 
@@ -801,7 +850,8 @@ app.post('/api/users', async (req, res) => {
         console.error('Error creating user:', error);
         res.status(500).json({ 
             success: false, 
-            error: 'Failed to create user' 
+            error: `Server error: ${error.message}`,
+            stack: error.stack
         });
     }
 });
@@ -1207,6 +1257,318 @@ app.post('/api/companies', async (req, res) => {
         });
     }
 });
+
+// --- ANNOUNCEMENTS ENDPOINTS ---
+app.get('/api/announcements', async (req, res) => {
+    try {
+        const { data, error } = await db.getAnnouncements();
+
+        if (error) {
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Failed to fetch announcements' 
+            });
+        }
+
+        // If no data from database, fall back to constants for development
+        let announcementsData = data;
+        if (!data || data.length === 0) {
+            announcementsData = MOCK_ANNOUNCEMENTS;
+        }
+
+        res.json({ success: true, data: announcementsData });
+
+    } catch (error) {
+        console.error('Error fetching announcements:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to fetch announcements' 
+        });
+    }
+});
+
+app.post('/api/announcements', async (req, res) => {
+    try {
+        const { title, content, imageUrl, author_id, author_name } = req.body;
+
+        // Validation
+        if (!title || !content) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Title and content are required' 
+            });
+        }
+
+        // Use author info from request body
+        const announcementData = {
+            title,
+            content,
+            author_id: author_id || 'system',
+            author_name: author_name || 'System',
+            image_url: imageUrl,
+            created_at: new Date().toISOString()
+        };
+
+        const { data, error } = await db.createAnnouncement(announcementData);
+
+        if (error) {
+            return res.status(400).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+
+        // Create notifications for all employees
+        await createNotificationsForAnnouncement(data);
+
+        res.status(201).json({ 
+            success: true, 
+            data 
+        });
+
+    } catch (error) {
+        console.error('Error creating announcement:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to create announcement' 
+        });
+    }
+});
+
+app.delete('/api/announcements/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { error } = await db.deleteAnnouncement(id);
+
+        if (error) {
+            return res.status(400).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+
+        res.json({ success: true });
+
+    } catch (error) {
+        console.error('Error deleting announcement:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to delete announcement' 
+        });
+    }
+});
+
+app.put('/api/announcements/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updates = req.body;
+
+        const { data, error } = await db.updateAnnouncement(id, updates);
+
+        if (error) {
+            return res.status(400).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+
+        res.json({ success: true, data });
+
+    } catch (error) {
+        console.error('Error updating announcement:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to update announcement' 
+        });
+    }
+});
+
+app.delete('/api/announcements/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { error } = await db.deleteAnnouncement(id);
+
+        if (error) {
+            return res.status(400).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+
+        res.json({ success: true });
+
+    } catch (error) {
+        console.error('Error deleting announcement:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to delete announcement' 
+        });
+    }
+});
+
+// --- NOTIFICATIONS ENDPOINTS ---
+app.get('/api/notifications', async (req, res) => {
+    try {
+        // Get user ID from headers
+        const userId = req.headers['x-user-id'];
+        
+        if (!userId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'User ID is required' 
+            });
+        }
+
+        const { data, error } = await db.getNotifications(userId);
+
+        if (error) {
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Failed to fetch notifications' 
+            });
+        }
+
+        res.json({ success: true, data });
+
+    } catch (error) {
+        console.error('Error fetching notifications:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to fetch notifications' 
+        });
+    }
+});
+
+app.put('/api/notifications/:id/read', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.headers['x-user-id'];
+        
+        if (!userId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'User ID is required' 
+            });
+        }
+
+        const { data, error } = await db.markNotificationAsRead(id, userId);
+
+        if (error) {
+            return res.status(400).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+
+        res.json({ success: true, data });
+
+    } catch (error) {
+        console.error('Error marking notification as read:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to mark notification as read' 
+        });
+    }
+});
+
+app.put('/api/notifications/mark-all-read', async (req, res) => {
+    try {
+        const { userId } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'User ID is required' 
+            });
+        }
+
+        const { error } = await db.markAllNotificationsAsRead(userId);
+
+        if (error) {
+            return res.status(400).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+
+        res.json({ success: true });
+
+    } catch (error) {
+        console.error('Error marking all notifications as read:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to mark notifications as read' 
+        });
+    }
+});
+
+app.get('/api/notifications/unread-count', async (req, res) => {
+    try {
+        const userId = req.headers['x-user-id'];
+        
+        if (!userId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'User ID is required' 
+            });
+        }
+
+        const { data, error } = await db.getUnreadNotificationCount(userId);
+
+        if (error) {
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Failed to get unread count' 
+            });
+        }
+
+        res.json({ success: true, count: data });
+
+    } catch (error) {
+        console.error('Error getting unread count:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to get unread count' 
+        });
+    }
+});
+
+// Helper function to create notifications for all employees when an announcement is posted
+async function createNotificationsForAnnouncement(announcement) {
+    try {
+        // Get all employees in the tenant
+        const { data: employees, error } = await db.getUsers();
+        
+        if (error || !employees) {
+            console.error('Error fetching employees for notifications:', error);
+            return;
+        }
+
+        // Create notifications for each employee
+        const notifications = employees
+            .filter(employee => employee.role !== 'SuperAdmin') // Don't notify super admins
+            .map(employee => ({
+                user_id: employee.id,
+                announcement_id: announcement.id,
+                type: 'announcement',
+                title: `New Announcement: ${announcement.title}`,
+                message: `A new announcement has been posted by ${announcement.author_name}`,
+                created_at: new Date().toISOString()
+            }));
+
+        // Create notifications in batch
+        for (const notification of notifications) {
+            await db.createNotification(notification);
+        }
+
+        console.log(`Created ${notifications.length} notifications for announcement`);
+
+    } catch (error) {
+        console.error('Error creating notifications for announcement:', error);
+    }
+}
 
 // --- MOMO CALLBACK ENDPOINT ---
 app.post('/api/momo/callback', async (req, res) => {

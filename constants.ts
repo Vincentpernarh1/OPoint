@@ -4,24 +4,28 @@ export const COMPANIES: Company[] = [
     {
         id: 'c1',
         name: 'Vertex Innovations Ltd.',
+        encryptedId: 'enc_c1',
         licenseCount: 50,
         modules: { payroll: true, leave: true, expenses: true, reports: true, announcements: true }
     },
     {
         id: 'c2',
         name: 'Summit Solutions Inc.',
+        encryptedId: 'enc_c2',
         licenseCount: 10,
         modules: { payroll: true, leave: true, expenses: false, reports: true, announcements: false }
     },
     {
         id: '1c8296f4-edad-4934-9638-d6ed933eeead',
         name: 'Vpena Teck',
+        encryptedId: 'enc_1c8296f4',
         licenseCount: 50,
         modules: { payroll: true, leave: true, expenses: true, reports: true, announcements: true }
     },
     {
         id: '19333055-ca7a-4cc0-a4e6-1b5e444cf96e',
         name: 'Vpena Teck',
+        encryptedId: 'enc_19333055',
         licenseCount: 50,
         modules: { payroll: true, leave: true, expenses: true, reports: true, announcements: true }
     }
@@ -29,13 +33,13 @@ export const COMPANIES: Company[] = [
 
 // Dummy data with emails and passwords for domain-based login
 export const USERS: User[] = [
-  { id: '1', name: 'Alice Johnson', email: 'alice@vertex.com', password: 'password123', role: UserRole.EMPLOYEE, avatarUrl: 'https://picsum.photos/seed/alice/100/100', team: 'Frontend', companyId: 'c1', basicSalary: 8000, hireDate: new Date('2022-05-15'), mobileMoneyNumber: '0240123456' },
-  { id: '2', name: 'Bob Williams', email: 'bob@vertex.com', password: 'password123', role: UserRole.EMPLOYEE, avatarUrl: 'https://picsum.photos/seed/bob/100/100', team: 'Frontend', companyId: 'c1', basicSalary: 6000, hireDate: new Date(new Date().setMonth(new Date().getMonth() - 6)), mobileMoneyNumber: '0551234567' },
-  { id: '3', name: 'Charlie Brown', email: 'charlie@summit.inc', password: 'password123', role: UserRole.ADMIN, avatarUrl: 'https://picsum.photos/seed/charlie/100/100', team: 'Management', companyId: 'c2', basicSalary: 70000, hireDate: new Date('2020-01-20'), mobileMoneyNumber: '0272345678' },
-  { id: '4', name: 'Diana Prince', email: 'diana@vertex.com', password: 'password123', role: UserRole.EMPLOYEE, avatarUrl: 'https://picsum.photos/seed/diana/100/100', team: 'Backend', companyId: 'c1', basicSalary: 3500, hireDate: new Date('2023-08-01'), mobileMoneyNumber: '0503456789' },
-  { id: '5', name: 'Eva Green', email: 'eva@vertex.com', password: 'password123', role: UserRole.HR, avatarUrl: 'https://picsum.photos/seed/eva/100/100', team: 'HR', companyId: 'c1', basicSalary: 12000, hireDate: new Date('2021-03-10'), mobileMoneyNumber: '0201112222' },
-  { id: '6', name: 'Frank Miller', email: 'frank@vertex.com', password: 'password123', role: UserRole.OPERATIONS, avatarUrl: 'https://picsum.photos/seed/frank/100/100', team: 'Operations', companyId: 'c1', basicSalary: 11000, hireDate: new Date('2021-07-22'), mobileMoneyNumber: '0543334444' },
-  { id: '7', name: 'Grace Jones', email: 'grace@summit.inc', password: 'password123', role: UserRole.PAYMENTS, avatarUrl: 'https://picsum.photos/seed/grace/100/100', team: 'Finance', companyId: 'c2', basicSalary: 15000, hireDate: new Date('2019-11-01'), mobileMoneyNumber: '0265556666' },
+  { id: '1', name: 'Alice Johnson', email: 'alice@vertex.com', password: 'password123', role: UserRole.EMPLOYEE, avatarUrl: 'https://picsum.photos/seed/alice/100/100', team: 'Frontend', tenantId: 'c1', basicSalary: 8000, hireDate: new Date('2022-05-15'), mobileMoneyNumber: '0240123456' },
+  { id: '2', name: 'Bob Williams', email: 'bob@vertex.com', password: 'password123', role: UserRole.EMPLOYEE, avatarUrl: 'https://picsum.photos/seed/bob/100/100', team: 'Frontend', tenantId: 'c1', basicSalary: 6000, hireDate: new Date(new Date().setMonth(new Date().getMonth() - 6)), mobileMoneyNumber: '0551234567' },
+  { id: '3', name: 'Charlie Brown', email: 'charlie@summit.inc', password: 'password123', role: UserRole.ADMIN, avatarUrl: 'https://picsum.photos/seed/charlie/100/100', team: 'Management', tenantId: 'c2', basicSalary: 70000, hireDate: new Date('2020-01-20'), mobileMoneyNumber: '0272345678' },
+  { id: '4', name: 'Diana Prince', email: 'diana@vertex.com', password: 'password123', role: UserRole.EMPLOYEE, avatarUrl: 'https://picsum.photos/seed/diana/100/100', team: 'Backend', tenantId: 'c1', basicSalary: 3500, hireDate: new Date('2023-08-01'), mobileMoneyNumber: '0503456789' },
+  { id: '5', name: 'Eva Green', email: 'eva@vertex.com', password: 'password123', role: UserRole.HR, avatarUrl: 'https://picsum.photos/seed/eva/100/100', team: 'HR', tenantId: 'c1', basicSalary: 12000, hireDate: new Date('2021-03-10'), mobileMoneyNumber: '0201112222' },
+  { id: '6', name: 'Frank Miller', email: 'frank@vertex.com', password: 'password123', role: UserRole.OPERATIONS, avatarUrl: 'https://picsum.photos/seed/frank/100/100', team: 'Operations', tenantId: 'c1', basicSalary: 11000, hireDate: new Date('2021-07-22'), mobileMoneyNumber: '0543334444' },
+  { id: '7', name: 'Grace Jones', email: 'grace@summit.inc', password: 'password123', role: UserRole.PAYMENTS, avatarUrl: 'https://picsum.photos/seed/grace/100/100', team: 'Finance', tenantId: 'c2', basicSalary: 15000, hireDate: new Date('2019-11-01'), mobileMoneyNumber: '0265556666' },
 ];
 
 export const LEAVE_REQUESTS: LeaveRequest[] = [
@@ -91,8 +95,9 @@ export const PAYSCLIP_HISTORY: Partial<Payslip>[] = USERS.flatMap(user => {
 
 
 export const ANNOUNCEMENTS: Announcement[] = [
-    { id: 'ann1', title: 'Public Holiday Announcement', content: 'Please be reminded that this coming Friday is a public holiday. The office will be closed. Enjoy the long weekend!', author: 'Charlie Brown', date: new Date(new Date().setDate(new Date().getDate() - 1)), isRead: false },
-    { id: 'ann2', title: 'End of Year Party', content: 'Get ready for our annual end-of-year party! More details to follow next week.', author: 'Charlie Brown', date: new Date('2023-12-01'), isRead: true },
+    { id: 'ann1', tenant_id: 'c1', title: 'Public Holiday Announcement', content: 'Please be reminded that this coming Friday is a public holiday. The office will be closed. Enjoy the long weekend!', author_id: '5', created_at: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(), updated_at: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(), isRead: false },
+    { id: 'ann2', tenant_id: 'c1', title: 'End of Year Party', content: 'Get ready for our annual end-of-year party! More details to follow next week.', author_id: '5', created_at: new Date('2023-12-01').toISOString(), updated_at: new Date('2023-12-01').toISOString(), isRead: true },
+    { id: 'ann3', tenant_id: 'c2', title: 'Company Meeting', content: 'There will be a company-wide meeting next Monday at 10 AM in the main conference room.', author_id: '3', created_at: new Date('2023-12-15').toISOString(), updated_at: new Date('2023-12-15').toISOString(), isRead: false },
 ];
 
 export const EXPENSE_REQUESTS: ExpenseRequest[] = [

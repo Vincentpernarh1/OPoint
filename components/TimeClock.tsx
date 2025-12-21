@@ -7,6 +7,7 @@ import CameraModal from './CameraModal';
 import ImagePreviewModal from './ImagePreviewModal';
 import ManualAdjustmentModal from './ManualAdjustmentModal';
 import Notification from './Notification';
+import { offlineStorage } from '../services/offlineStorage';
 
 interface TimeClockProps {
     currentUser: User;
@@ -105,26 +106,17 @@ const TimeClock = ({ currentUser, isOnline }: TimeClockProps) => {
     const [notification, setNotification] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     
-    const latestAnnouncement = useMemo(() => ANNOUNCEMENTS.sort((a,b) => b.date.getTime() - a.date.getTime())[0], []);
+    const latestAnnouncement = useMemo(() => ANNOUNCEMENTS.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0], []);
 
-    // Load entries from local storage on mount
+    // Load entries
     useEffect(() => {
         try {
-            const storedEntries = localStorage.getItem(`time_entries_${currentUser.id}`);
-            const localEntries = storedEntries ? JSON.parse(storedEntries).map((e: any) => ({...e, timestamp: new Date(e.timestamp)})) : [];
+            // Load from constants/mock data (in real app, this would be from API)
             const serverEntries = TIME_ENTRIES.filter(e => e.userId === currentUser.id);
             
-            // Merge: prefer server entries if IDs match, otherwise combine
-            const allEntries = [...serverEntries];
-            localEntries.forEach((localEntry: TimeEntry) => {
-                if (!allEntries.some(serverEntry => serverEntry.id === localEntry.id)) {
-                    allEntries.push(localEntry);
-                }
-            });
-            
-            // Filter out future entries (Fix for "Clock Out Disabled" bug)
+            // Filter out future entries
             const now = new Date();
-            const validEntries = allEntries.filter(e => e.timestamp <= now);
+            const validEntries = serverEntries.filter(e => e.timestamp <= now);
             
             // Sort
             validEntries.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
@@ -139,16 +131,23 @@ const TimeClock = ({ currentUser, isOnline }: TimeClockProps) => {
     // Sync data when online status changes
     useEffect(() => {
         if (isOnline) {
-            const unsyncedEntries = timeEntries.filter(e => !e.synced);
-            if (unsyncedEntries.length > 0) {
-                console.log("Syncing offline entries...", unsyncedEntries);
-                const updatedEntries = timeEntries.map(e => ({...e, synced: true}));
-                setTimeEntries(updatedEntries);
-                localStorage.setItem(`time_entries_${currentUser.id}`, JSON.stringify(updatedEntries));
-                setNotification(`${unsyncedEntries.length} offline record(s) synced successfully!`);
-            }
+            // Sync offline data
+            const syncData = async () => {
+                const unsynced = await offlineStorage.getUnsyncedTimePunches(currentUser.tenantId || '');
+                if (unsynced.length > 0) {
+                    console.log("Syncing offline time punches...", unsynced);
+                    // Here you would call the API to sync each punch
+                    // For now, just mark as synced and delete
+                    for (const punch of unsynced) {
+                        await offlineStorage.markTimePunchSynced(punch.id);
+                        await offlineStorage.deleteTimePunch(punch.id);
+                    }
+                    setNotification(`${unsynced.length} offline record(s) synced successfully!`);
+                }
+            };
+            syncData();
         }
-    }, [isOnline, timeEntries, currentUser.id]);
+    }, [isOnline, currentUser.tenantId]);
 
     const lastEntry = useMemo(() => {
         if (timeEntries.length === 0) return null;
@@ -221,12 +220,25 @@ const TimeClock = ({ currentUser, isOnline }: TimeClockProps) => {
         setCurrentActionType(null);
     };
 
-    const saveNewEntry = (newEntry: TimeEntry) => {
+    const saveNewEntry = async (newEntry: TimeEntry) => {
+        if (!isOnline) {
+            // Save to offline storage
+            await offlineStorage.saveTimePunch({
+                id: newEntry.id,
+                userId: newEntry.userId,
+                companyId: currentUser.tenantId || '',
+                type: newEntry.type === TimeEntryType.CLOCK_IN ? 'clock_in' : 'clock_out',
+                timestamp: newEntry.timestamp.toISOString(),
+                location: newEntry.location,
+                photoUrl: newEntry.photoUrl,
+                synced: false,
+                createdAt: new Date().toISOString()
+            });
+        }
+        // Always update local state
         setTimeEntries(prevEntries => {
             const updatedEntries = [newEntry, ...prevEntries];
-            // Sort by timestamp descending to ensure logic correctness
             updatedEntries.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-            localStorage.setItem(`time_entries_${currentUser.id}`, JSON.stringify(updatedEntries));
             return updatedEntries;
         });
     };

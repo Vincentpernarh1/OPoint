@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect, lazy, Suspense } from 'react';
-import { Routes, Route, Link, Navigate, useLocation, Outlet } from 'react-router-dom';
-import { User, UserRole, Company } from './types';
+import { Routes, Route, Link, Navigate, useLocation, Outlet, useParams } from 'react-router-dom';
+import { User, UserRole, Company, Announcement } from './types';
 import { COMPANIES } from './constants';
 
 // Import Components with lazy loading
@@ -22,9 +22,10 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 // Import Services
 import { authService } from './services/authService';
-import { getCurrentCompanyId, getCurrentCompanyName } from './services/database';
+import { getCurrentTenantId, setTenantContext } from './services/database';
+import db from './services/database';
+import { api } from './services/api';
 
-// Import Icons
 import { LogoIcon, LogOutIcon, LayoutDashboardIcon, BriefcaseIcon, CheckSquareIcon, UsersIcon, DollarSignIcon, MenuIcon, XIcon, FileTextIcon, MegaphoneIcon, ReceiptIcon, UserCircleIcon, SmartphoneIcon, CogIcon } from './components/Icons';
 
 const PERMISSIONS: Record<string, UserRole[]> = {
@@ -43,56 +44,104 @@ const PERMISSIONS: Record<string, UserRole[]> = {
 
 const App = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
-    const [currentCompany, setCurrentCompany] = useState<Company | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
-    useEffect(() => {
-        setIsLoading(true);
-        console.log('[useEffect] Checking session...');
+    const fetchAnnouncements = useCallback(async () => {
+        if (!currentUser?.tenantId) return;
         try {
-            const userFromCookie: any = authService.getCurrentUser();
-            console.log('[useEffect] User from cookie:', userFromCookie);
-            if (userFromCookie) {
-                // Normalize role string
-                let role = userFromCookie.role;
-                if (role === 'SuperAdmin') role = 'Super Admin';
-                // Capitalize first letter to match UserRole enum
-                role = role.charAt(0).toUpperCase() + role.slice(1);
-                const isSuperAdmin = role === 'Super Admin';
-                // Use only valid User fields
-                const appUser: User = {
-                    id: userFromCookie?.id || userFromCookie?.auth_user_id || '',
-                    name: userFromCookie?.name || userFromCookie?.full_name || '',
-                    email: userFromCookie?.email || '',
-                    role: role as UserRole,
-                    companyId: isSuperAdmin ? undefined : userFromCookie?.company_id,
-                    team: userFromCookie?.team || '',
-                    avatarUrl: userFromCookie?.avatar_url || '',
-                    basicSalary: userFromCookie?.basic_salary || 0,
-                    hireDate: userFromCookie?.hire_date ? new Date(userFromCookie?.hire_date) : new Date(),
-                };
-                console.log('[useEffect] Mapped appUser:', appUser);
-
-                if (isSuperAdmin) {
-                    setCurrentUser(appUser);
-                } else {
-                    const company = COMPANIES.find(c => c.id === appUser.companyId);
-                    console.log('[useEffect] Found company:', company);
-                    setCurrentUser(appUser);
-                    setCurrentCompany(company || null);
-                }
+            const data = await api.getAnnouncements(currentUser.tenantId);
+            if (data && data.length > 0) {
+                setAnnouncements(data);
             } else {
-                console.log('[useEffect] No active session found.');
+                // Fall back to constants for development
+                const mockData = ANNOUNCEMENTS.filter(ann => ann.tenant_id === currentUser.tenantId);
+                setAnnouncements(mockData);
             }
         } catch (error) {
-            console.error("Session check failed:", error);
-        } finally {
-            console.log('[useEffect] Finished session check, setting isLoading to false.');
-            setIsLoading(false);
+            console.error('Error fetching announcements:', error);
+            // Fall back to constants on error
+            const mockData = ANNOUNCEMENTS.filter(ann => ann.tenant_id === currentUser.tenantId);
+            setAnnouncements(mockData);
         }
+    }, [currentUser?.tenantId]);
+
+    const handlePostAnnouncement = useCallback(async (newAnnouncement: Announcement) => {
+        setAnnouncements(prev => [newAnnouncement, ...prev]);
     }, []);
 
-    const handleLogin = (userFromApi: any) => {
+    useEffect(() => {
+        const init = async () => {
+            setIsLoading(true);
+            console.log('[useEffect] Checking session...');
+            try {
+                const userFromCookie: any = authService.getCurrentUser();
+                console.log('[useEffect] User from session:', userFromCookie);
+                
+                if (userFromCookie && userFromCookie.id && userFromCookie.email) {
+                    // Normalize role string
+                    let role = userFromCookie.role;
+                    if (role === 'SuperAdmin') role = 'Super Admin';
+                    // Capitalize first letter to match UserRole enum
+                    role = role.charAt(0).toUpperCase() + role.slice(1);
+                    const isSuperAdmin = role === 'Super Admin';
+                    // Validate that we have the required fields
+                    if (!userFromCookie.id || !userFromCookie.email) {
+                        console.log('[useEffect] Invalid user data, clearing session');
+                        authService.logout();
+                        setCurrentUser(null);
+                        setIsLoading(false);
+                        return;
+                    }
+                    const appUser: User = {
+                        id: userFromCookie?.id || userFromCookie?.auth_user_id || '',
+                        name: userFromCookie?.name || userFromCookie?.full_name || '',
+                        email: userFromCookie?.email || '',
+                        role: role as UserRole,
+                        tenantId: isSuperAdmin ? undefined : userFromCookie?.tenantId || userFromCookie?.tenant_id,
+                        companyName: userFromCookie?.companyName || userFromCookie?.company_name || '',
+                        team: userFromCookie?.team || '',
+                        avatarUrl: userFromCookie?.avatar_url || '',
+                        basicSalary: userFromCookie?.basic_salary || 0,
+                        hireDate: userFromCookie?.hire_date ? new Date(userFromCookie?.hire_date) : new Date(),
+                    };
+                    console.log('[useEffect] Mapped appUser:', appUser);
+
+                    if (isSuperAdmin) {
+                        setCurrentUser(appUser);
+                    } else {
+                        // Set tenant context
+                        if (appUser.tenantId) {
+                            setTenantContext(appUser.tenantId, appUser.id);
+                            setCurrentUser(appUser);
+                        } else {
+                            console.log('[useEffect] No tenant ID found, clearing session');
+                            authService.logout();
+                            setCurrentUser(null);
+                        }
+                    }
+                } else {
+                    console.log('[useEffect] No valid session found');
+                    setCurrentUser(null);
+                }
+            } catch (error) {
+                console.error('[useEffect] Session restoration failed:', error);
+                authService.logout();
+                setCurrentUser(null);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        init();
+    }, []);
+
+    useEffect(() => {
+        if (currentUser?.tenantId) {
+            fetchAnnouncements();
+        }
+    }, [currentUser?.tenantId, fetchAnnouncements]);
+
+    const handleLogin = async (userFromApi: any) => {
         // Normalize role string
         let role = userFromApi.role;
         if (role === 'SuperAdmin') role = 'Super Admin';
@@ -106,7 +155,8 @@ const App = () => {
             name: user?.name || user?.full_name || '',
             email: user?.email || '',
             role: role as UserRole,
-            companyId: isSuperAdmin ? undefined : user?.company_id,
+            tenantId: isSuperAdmin ? undefined : user?.tenant_id,
+            companyName: user?.company_name || '',
             team: user?.team || '',
             avatarUrl: user?.avatar_url || '',
             basicSalary: user?.basic_salary || 0,
@@ -115,17 +165,19 @@ const App = () => {
         console.log('[handleLogin] Mapped appUser:', appUser);
         setCurrentUser(appUser);
         if (!isSuperAdmin) {
-            const company = COMPANIES.find(c => c.id === appUser.companyId);
-            console.log('[handleLogin] Found company:', company);
-            setCurrentCompany(company || null);
+            // Set tenant context
+            if (appUser.tenantId) {
+                setTenantContext(appUser.tenantId, appUser.id);
+            }
         }
+        // Set user in sessionStorage for persistence
+        authService.setCurrentUser(appUser);
         setIsLoading(false);
     };
 
     const handleLogout = useCallback(() => {
         authService.logout();
         setCurrentUser(null);
-        setCurrentCompany(null);
     }, []);
 
     if (isLoading) {
@@ -134,10 +186,10 @@ const App = () => {
 
     const companyRoles = [UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS, UserRole.EMPLOYEE];
 
-    // Guard: If user is logged in but has no company, show error and prevent app crash/loop
+    // Guard: If user is logged in but has no tenant, show error and prevent app crash/loop
     if (
         currentUser &&
-        !currentCompany
+        !currentUser.tenantId
     ) {
         return (
             <div className="h-screen w-screen flex flex-col items-center justify-center bg-red-50">
@@ -149,20 +201,29 @@ const App = () => {
         );
     }
 
+    const LoginWrapper = () => {
+        return currentUser ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />;
+    };
+
     return (
         <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center"><LogoIcon className="h-16 w-16 animate-pulse" /></div>}>
             <Routes>
                 {/* AUTH ROUTES */}
-                <Route path="/login/*" element={currentUser ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />} />
                 <Route path="/login" element={currentUser ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />} />
                 <Route path="/" element={currentUser ? <Navigate to="/dashboard" /> : <InitialLogin />} />
 
-                {/* PROTECTED COMPANY ROUTES */}
+                {/* PROTECTED TENANT ROUTES */}
                 <Route
                     path="/"
                     element={
                         <ProtectedRoute currentUser={currentUser} allowedRoles={companyRoles}>
-                            <CompanyLayout currentUser={currentUser!} currentCompany={currentCompany!} onLogout={handleLogout} />
+                            <CompanyLayout 
+                                currentUser={currentUser!} 
+                                onLogout={handleLogout}
+                                announcements={announcements}
+                                onPostAnnouncement={handlePostAnnouncement}
+                                unreadNotificationCount={0}
+                            />
                         </ProtectedRoute>
                     }
                 >
@@ -171,7 +232,7 @@ const App = () => {
                     <Route path="payslips" element={<Payslips currentUser={currentUser!} onViewChange={() => {}} />} />
                     <Route path="expenses" element={<Expenses currentUser={currentUser!} />} />
                     <Route path="profile" element={<Profile currentUser={currentUser!} />} />
-                    <Route path="announcements" element={<Announcements currentUser={currentUser!} announcements={[]} onPost={()=>{}} onMarkAsRead={()=>{}} />} />
+                    <Route path="announcements" element={<Announcements currentUser={currentUser!} announcements={announcements} onPost={handlePostAnnouncement} onDelete={() => {}} />} />
                     <Route path="approvals" element={<Approvals />} />
                     <Route path="employees" element={<EmployeeManagement currentUser={currentUser!} />} />
                     <Route path="payroll" element={<MobileMoneyPayroll />} />
@@ -188,19 +249,42 @@ const App = () => {
 
 
 // Layout for the main company application
-const CompanyLayout = ({ currentUser, currentCompany, onLogout }: { currentUser: User, currentCompany: Company, onLogout: () => void }) => {
+
+const CompanyLayout = ({ 
+    currentUser, 
+    onLogout, 
+    announcements, 
+    onPostAnnouncement, 
+    onMarkAnnouncementsAsRead,
+    unreadNotificationCount 
+}: { 
+    currentUser: User, 
+    onLogout: () => void,
+    announcements: Announcement[],
+    onPostAnnouncement: (announcement: Announcement) => void,
+    unreadNotificationCount: number
+}) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const location = useLocation();
 
+    // Default modules for tenant-based system
+    const defaultModules = {
+        payroll: true,
+        leave: true,
+        expenses: true,
+        reports: true,
+        announcements: true
+    };
+
     const navigationItems = useMemo(() => {
-        if (!currentUser || !currentCompany) return [];
-        const modules = currentCompany.modules;
+        if (!currentUser) return [];
+        const modules = defaultModules;
         const allItems = [
             { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboardIcon, enabled: true },
             { name: 'Leave', path: '/leave', icon: BriefcaseIcon, enabled: modules.leave },
             { name: 'Payslips', path: '/payslips', icon: DollarSignIcon, enabled: modules.payroll },
             { name: 'Expenses', path: '/expenses', icon: ReceiptIcon, enabled: modules.expenses },
-            { name: 'Announcements', path: '/announcements', icon: MegaphoneIcon, enabled: modules.announcements, badge: 0 },
+            { name: 'Announcements', path: '/announcements', icon: MegaphoneIcon, enabled: modules.announcements },
             { name: 'My Profile', path: '/profile', icon: UserCircleIcon, enabled: true },
             { name: 'Approvals', path: '/approvals', icon: CheckSquareIcon, enabled: true },
             { name: 'Employees', path: '/employees', icon: UsersIcon, enabled: true },
@@ -209,7 +293,7 @@ const CompanyLayout = ({ currentUser, currentCompany, onLogout }: { currentUser:
             { name: 'Settings', path: '/settings', icon: CogIcon, enabled: true },
         ];
         return allItems.filter(item => item.enabled && PERMISSIONS[item.path]?.includes(currentUser.role));
-    }, [currentUser, currentCompany]);
+    }, [currentUser]);
 
     const pageTitle = useMemo(() => {
         const item = navigationItems.find(navItem => navItem.path === location.pathname);
@@ -221,7 +305,7 @@ const CompanyLayout = ({ currentUser, currentCompany, onLogout }: { currentUser:
             <div className="h-16 flex items-center justify-center border-b shrink-0 px-4">
                  <div className="flex items-center space-x-2">
                     <LogoIcon className="h-8 w-8" />
-                    <span className="text-xl font-bold text-gray-800 truncate">{currentCompany?.name || 'Vpena Opoint'}</span>
+                    <span className="text-xl font-bold text-gray-800 truncate">{currentUser.companyName || 'OPoint-P360'}</span>
                 </div>
             </div>
             <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
@@ -255,10 +339,27 @@ const CompanyLayout = ({ currentUser, currentCompany, onLogout }: { currentUser:
 
     return (
         <div className="flex h-screen bg-slate-100 font-sans">
-            <aside className="w-64 bg-white border-r flex-col hidden md:flex shrink-0"><SidebarContent/></aside>
+            {/* Mobile backdrop */}
+            {isSidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+            )}
+            <aside className={`w-64 bg-white border-r flex-col shrink-0 fixed md:relative z-50 md:z-auto transform transition-transform duration-300 ease-in-out ${
+                isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+            } ${isSidebarOpen ? 'flex' : 'hidden md:flex'}`}>
+                <SidebarContent/>
+            </aside>
             <div className="flex-1 flex flex-col overflow-hidden">
                 <header className="h-16 bg-white border-b flex justify-between items-center px-6 shrink-0">
-                    <div className="flex items-center">
+                    <div className="flex items-center space-x-4">
+                        <button
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                            className="md:hidden p-2 rounded-lg hover:bg-gray-100"
+                        >
+                            {isSidebarOpen ? <XIcon className="h-6 w-6" /> : <MenuIcon className="h-6 w-6" />}
+                        </button>
                         <h1 className="text-xl font-semibold text-gray-800 capitalize">{pageTitle}</h1>
                     </div>
                     <div className="flex items-center space-x-6">

@@ -240,7 +240,7 @@ const Payslips = ({ currentUser, onViewChange }: PayslipsProps) => {
     // Filter employees based on debounced search query and current user's company
     const filteredEmployees = useMemo(() => {
         // Filter by company first
-        const companyEmployees = USERS.filter(u => u.companyId === currentUser.companyId);
+        const companyEmployees = USERS.filter(u => u.tenantId === currentUser.tenantId);
         
         // Then filter by search query
         if (!debouncedSearchQuery.trim()) return companyEmployees;
@@ -250,7 +250,7 @@ const Payslips = ({ currentUser, onViewChange }: PayslipsProps) => {
             user.team.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
             user.role.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
         );
-    }, [debouncedSearchQuery, currentUser.companyId]);
+    }, [debouncedSearchQuery, currentUser.tenantId]);
 
     if (isManager && !selectedEmployee) {
         return (
