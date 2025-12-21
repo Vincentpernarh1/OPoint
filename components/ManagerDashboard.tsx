@@ -13,6 +13,8 @@ interface ManagerDashboardProps {
 const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerDashboardProps) => {
     const [employeeCount, setEmployeeCount] = useState(0);
     const [loadingEmployees, setLoadingEmployees] = useState(true);
+    const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
+    const [loadingApprovals, setLoadingApprovals] = useState(true);
     
     const companyUsers = useMemo(() => {
         return USERS.filter(u => u.tenantId === currentUser.tenantId);
@@ -37,13 +39,31 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
         fetchEmployeeCount();
     }, [currentUser.tenantId, companyUsers.length]);
 
-    const pendingApprovalsCount = useMemo(() => {
-        const leave = LEAVE_REQUESTS.filter(r => r.status === RequestStatus.PENDING).length;
-        const adjustments = ADJUSTMENT_REQUESTS.filter(r => r.status === RequestStatus.PENDING).length;
-        const expenses = EXPENSE_REQUESTS.filter(r => r.status === RequestStatus.PENDING).length;
-        const profile = PROFILE_UPDATE_REQUESTS.filter(r => r.status === RequestStatus.PENDING).length;
-        return leave + adjustments + expenses + profile;
-    }, []);
+    // Fetch real pending approvals count from API
+    useEffect(() => {
+        const fetchPendingApprovalsCount = async () => {
+            try {
+                setLoadingApprovals(true);
+                
+                // Fetch pending leave requests
+                const leaveRequests = await api.getLeaveRequests(currentUser.tenantId, { status: 'Pending' });
+                
+                // Fetch pending time adjustment requests
+                const timeAdjustments = await api.getTimeAdjustmentRequests(currentUser.tenantId, { status: 'Pending' });
+                
+                const totalPending = leaveRequests.length + timeAdjustments.length;
+                setPendingApprovalsCount(totalPending);
+            } catch (error) {
+                console.error('Failed to fetch pending approvals count:', error);
+                // Fallback to 0
+                setPendingApprovalsCount(0);
+            } finally {
+                setLoadingApprovals(false);
+            }
+        };
+
+        fetchPendingApprovalsCount();
+    }, [currentUser.tenantId]);
     
     const latestAnnouncement = useMemo(() => {
         if (announcements.length === 0) return null;
@@ -73,7 +93,7 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <StatCard title="Total Employees" value={loadingEmployees ? '...' : employeeCount} icon={UsersGroupIcon} linkTo="employees" />
-                <StatCard title="Pending Approvals" value={pendingApprovalsCount} icon={CheckSquareIcon} linkTo="approvals" />
+                <StatCard title="Pending Approvals" value={loadingApprovals ? '...' : pendingApprovalsCount} icon={CheckSquareIcon} linkTo="approvals" />
             </div>
             
              {latestAnnouncement && (
