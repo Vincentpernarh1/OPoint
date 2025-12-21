@@ -86,6 +86,7 @@ const EmployeeManagement = ({ currentUser }: EmployeeManagementProps) => {
                 email: updatedUser.email,
                 role: updatedUser.role,
                 basic_salary: updatedUser.basicSalary,
+                mobile_money_number: updatedUser.mobileMoneyNumber,
             });
             
             // Refresh users list

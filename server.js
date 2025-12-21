@@ -581,7 +581,7 @@ app.post('/api/auth/change-password', async (req, res) => {
         // Set tenant context for RLS
         if (user.tenant_id) {
             setTenantContext(user.tenant_id, user.id);
-            console.log('✅ Tenant context set for password change:', user.tenant_id);
+            // console.log('✅ Tenant context set for password change:', user.tenant_id);
         }
 
         // Verify current password (either temporary or hashed)
@@ -992,6 +992,183 @@ app.delete('/api/users/:id', async (req, res) => {
     }
 });
 
+// --- PROFILE UPDATE REQUEST ENDPOINTS ---
+app.post('/api/profile-update-requests', async (req, res) => {
+    try {
+        const { field_name, requested_value, current_value } = req.body;
+        const tenantId = req.headers['x-tenant-id'];
+        const userId = req.body.user_id; // From authenticated user
+
+        if (!tenantId || !userId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Tenant ID and User ID required'
+            });
+        }
+
+        // Get current user info for the request
+        const { data: user, error: userError } = await db.getUserById(userId);
+        if (userError || !user) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+
+        // Validate mobile money number format
+        if (field_name === 'mobile_money_number' && !validators.isValidGhanaPhone(requested_value)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid Ghana phone number format'
+            });
+        }
+
+        const requestData = {
+            user_id: userId,
+            employee_name: user.name,
+            field_name,
+            current_value: current_value || '',
+            requested_value,
+            requested_by: userId,
+            status: 'Pending'
+        };
+
+        const { data, error } = await db.createProfileUpdateRequest(requestData);
+
+        if (error) {
+            return res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        res.json({
+            success: true,
+            data
+        });
+
+    } catch (error) {
+        console.error('Error creating profile update request:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to create profile update request'
+        });
+    }
+});
+
+app.get('/api/profile-update-requests', async (req, res) => {
+    try {
+        const { status, userId } = req.query;
+        const tenantId = req.headers['x-tenant-id'];
+
+        if (!tenantId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Tenant ID required'
+            });
+        }
+
+        const filters = {};
+        if (status) filters.status = status;
+        if (userId) filters.userId = userId;
+
+        const { data, error } = await db.getProfileUpdateRequests(filters);
+
+        if (error) {
+            return res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        res.json({
+            success: true,
+            data
+        });
+
+    } catch (error) {
+        console.error('Error fetching profile update requests:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch profile update requests'
+        });
+    }
+});
+
+app.put('/api/profile-update-requests/:id/approve', async (req, res) => {
+    try {
+        const requestId = req.params.id;
+        const { review_notes } = req.body;
+        const tenantId = req.headers['x-tenant-id'];
+        const reviewerId = req.body.reviewer_id; // From authenticated user
+
+        if (!tenantId || !reviewerId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Tenant ID and Reviewer ID required'
+            });
+        }
+
+        const { data, error } = await db.approveProfileUpdateRequest(requestId, reviewerId, review_notes);
+
+        if (error) {
+            return res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        res.json({
+            success: true,
+            data
+        });
+
+    } catch (error) {
+        console.error('Error approving profile update request:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to approve profile update request'
+        });
+    }
+});
+
+app.put('/api/profile-update-requests/:id/reject', async (req, res) => {
+    try {
+        const requestId = req.params.id;
+        const { review_notes } = req.body;
+        const tenantId = req.headers['x-tenant-id'];
+        const reviewerId = req.body.reviewer_id; // From authenticated user
+
+        if (!tenantId || !reviewerId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Tenant ID and Reviewer ID required'
+            });
+        }
+
+        const { data, error } = await db.rejectProfileUpdateRequest(requestId, reviewerId, review_notes);
+
+        if (error) {
+            return res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        res.json({
+            success: true,
+            data
+        });
+
+    } catch (error) {
+        console.error('Error rejecting profile update request:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to reject profile update request'
+        });
+    }
+});
+
 // --- PAYROLL ENDPOINTS ---
 app.get('/api/payroll/payable-employees', async (req, res) => {
     try {
@@ -1347,7 +1524,7 @@ app.post('/api/leave/requests', async (req, res) => {
         // Set tenant context
         if (tenantId) {
             setTenantContext(tenantId);
-            console.log('Tenant context set to:', tenantId);
+            // console.log('Tenant context set to:', tenantId);
         }
 
         // Validation
