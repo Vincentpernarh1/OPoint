@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { TimeEntry, TimeEntryType, User, Announcement, AdjustmentRequest, RequestStatus } from '../types';
-import { TIME_ENTRIES, ANNOUNCEMENTS, ADJUSTMENT_REQUESTS } from '../constants';
+import { TIME_ENTRIES, ADJUSTMENT_REQUESTS } from '../constants';
 import { MapPinIcon, ArrowUpRightIcon, ArrowDownLeftIcon, MegaphoneIcon, ClockIcon, XIcon } from './Icons';
 import CameraModal from './CameraModal';
 import ImagePreviewModal from './ImagePreviewModal';
@@ -12,6 +12,7 @@ import { offlineStorage } from '../services/offlineStorage';
 interface TimeClockProps {
     currentUser: User;
     isOnline: boolean;
+    announcements?: Announcement[];
 }
 
 // Wrapper for geolocation to convert it to a Promise
@@ -91,7 +92,7 @@ const formatDuration = (ms: number, withSign = false) => {
     return `${sign}${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 };
 
-const TimeClock = ({ currentUser, isOnline }: TimeClockProps) => {
+const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps) => {
     const [time, setTime] = useState(new Date());
     const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
     const [adjustmentRequests, setAdjustmentRequests] = useState<AdjustmentRequest[]>(ADJUSTMENT_REQUESTS.filter(r => r.userId === currentUser.id));
@@ -106,7 +107,7 @@ const TimeClock = ({ currentUser, isOnline }: TimeClockProps) => {
     const [notification, setNotification] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     
-    const latestAnnouncement = useMemo(() => ANNOUNCEMENTS.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0], []);
+    const latestAnnouncement = useMemo(() => announcements.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0], [announcements]);
 
     // Load entries
     useEffect(() => {
@@ -203,9 +204,25 @@ const TimeClock = ({ currentUser, isOnline }: TimeClockProps) => {
     }, [dailyWorkHistory, time]);
 
     useEffect(() => {
-        const timer = setInterval(() => setTime(new Date()), 1000);
-        return () => clearInterval(timer);
-    }, []);
+        const loadTimeEntries = async () => {
+            try {
+                const punches = await offlineStorage.getTimePunches(currentUser.tenantId || '', currentUser.id);
+                const entries: TimeEntry[] = punches.map(p => ({
+                    id: p.id,
+                    userId: p.userId,
+                    type: p.type === 'clock_in' ? TimeEntryType.CLOCK_IN : TimeEntryType.CLOCK_OUT,
+                    timestamp: new Date(p.timestamp),
+                    location: p.location || 'Location unavailable',
+                    photoUrl: p.photoUrl,
+                    synced: p.synced
+                }));
+                setTimeEntries(entries.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()));
+            } catch (error) {
+                console.error('Failed to load time entries:', error);
+            }
+        };
+        loadTimeEntries();
+    }, [currentUser.id, currentUser.tenantId]);
 
     const handleClockAction = (type: TimeEntryType) => {
         setCurrentActionType(type);
@@ -234,6 +251,38 @@ const TimeClock = ({ currentUser, isOnline }: TimeClockProps) => {
                 synced: false,
                 createdAt: new Date().toISOString()
             });
+        } else {
+            // Online: try to sync immediately
+            try {
+                // TODO: Add API call to save to database
+                console.log('Online: saving to database', newEntry);
+                // For now, mark as synced
+                await offlineStorage.saveTimePunch({
+                    id: newEntry.id,
+                    userId: newEntry.userId,
+                    companyId: currentUser.tenantId || '',
+                    type: newEntry.type === TimeEntryType.CLOCK_IN ? 'clock_in' : 'clock_out',
+                    timestamp: newEntry.timestamp.toISOString(),
+                    location: newEntry.location,
+                    photoUrl: newEntry.photoUrl,
+                    synced: true,
+                    createdAt: new Date().toISOString()
+                });
+            } catch (error) {
+                console.error('Failed to sync online:', error);
+                // Save offline
+                await offlineStorage.saveTimePunch({
+                    id: newEntry.id,
+                    userId: newEntry.userId,
+                    companyId: currentUser.tenantId || '',
+                    type: newEntry.type === TimeEntryType.CLOCK_IN ? 'clock_in' : 'clock_out',
+                    timestamp: newEntry.timestamp.toISOString(),
+                    location: newEntry.location,
+                    photoUrl: newEntry.photoUrl,
+                    synced: false,
+                    createdAt: new Date().toISOString()
+                });
+            }
         }
         // Always update local state
         setTimeEntries(prevEntries => {
@@ -251,15 +300,39 @@ const TimeClock = ({ currentUser, isOnline }: TimeClockProps) => {
         // Use a local variable to prevent race condition issues with state updates
         let processingComplete = false;
 
+        // Check geolocation permission first
+        if ('permissions' in navigator) {
+            try {
+                const permission = await navigator.permissions.query({ name: 'geolocation' });
+                if (permission.state === 'denied') {
+                    setLocationError("Location permission denied. Please enable location access in browser settings for localhost. Entry saved locally.");
+                    const newEntry: TimeEntry = {
+                        id: `te-${Date.now()}`,
+                        userId: currentUser.id,
+                        type,
+                        timestamp: new Date(),
+                        location: 'Location unavailable',
+                        photoUrl,
+                        synced: isOnline
+                    };
+                    saveNewEntry(newEntry);
+                    setIsProcessing(false);
+                    return;
+                }
+            } catch (permError) {
+                console.warn("Permission query failed:", permError);
+            }
+        }
+
         try {
             // Create a timeout promise
             const timeoutPromise = new Promise<never>((_, reject) => 
-                setTimeout(() => reject(new Error("Timeout")), 10000)
+                setTimeout(() => reject(new Error("Timeout")), 5000)
             );
 
             // Race between geolocation and timeout
             const position = await Promise.race([
-                getCurrentPosition({ enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }),
+                getCurrentPosition({ enableHighAccuracy: true, timeout: 4000, maximumAge: 0 }),
                 timeoutPromise
             ]) as GeolocationPosition;
 
