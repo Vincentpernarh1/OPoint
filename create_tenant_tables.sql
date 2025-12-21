@@ -121,3 +121,48 @@ CREATE INDEX IF NOT EXISTS idx_opoint_announcements_tenant_id ON opoint_announce
 
 -- Grant permissions
 GRANT CREATE ON SCHEMA public TO service_role;
+
+
+
+
+
+-- Add time adjustment columns to existing opoint_clock_logs table
+ALTER TABLE opoint_clock_logs
+ADD COLUMN IF NOT EXISTS employee_name VARCHAR(255),
+ADD COLUMN IF NOT EXISTS company_name VARCHAR(255),
+ADD COLUMN IF NOT EXISTS location TEXT,
+ADD COLUMN IF NOT EXISTS photo_url TEXT,
+ADD COLUMN IF NOT EXISTS requested_clock_in TIMESTAMP WITH TIME ZONE,
+ADD COLUMN IF NOT EXISTS requested_clock_out TIMESTAMP WITH TIME ZONE,
+ADD COLUMN IF NOT EXISTS adjustment_reason TEXT,
+ADD COLUMN IF NOT EXISTS adjustment_status VARCHAR(50),
+ADD COLUMN IF NOT EXISTS adjustment_requested_at TIMESTAMP WITH TIME ZONE,
+ADD COLUMN IF NOT EXISTS adjustment_reviewed_by UUID,
+ADD COLUMN IF NOT EXISTS adjustment_reviewed_at TIMESTAMP WITH TIME ZONE;
+
+
+
+
+-- Create leave_balances table
+CREATE TABLE IF NOT EXISTS opoint_leave_balances (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID REFERENCES opoint_companies(id),
+    employee_id UUID,
+    leave_type VARCHAR(50) NOT NULL,
+    total_days DECIMAL(5,2) DEFAULT 0,
+    used_days DECIMAL(5,2) DEFAULT 0,
+    remaining_days DECIMAL(5,2) DEFAULT 0,
+    year INTEGER NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(tenant_id, employee_id, leave_type, year)
+);
+
+-- Index for performance
+CREATE INDEX IF NOT EXISTS idx_opoint_leave_balances_tenant_employee ON opoint_leave_balances(tenant_id, employee_id);
+CREATE INDEX IF NOT EXISTS idx_opoint_leave_balances_year ON opoint_leave_balances(year);
+
+
+
+
+select * from opoint_leave_balances;

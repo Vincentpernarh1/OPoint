@@ -342,6 +342,63 @@ export const api = {
     return result.data;
   },
 
+  // Leave Balances API
+  getLeaveBalances: async (tenantId: string, employeeId: string): Promise<any[]> => {
+    try {
+      const response = await fetch(`${API_BASE}/api/leave/balances/${employeeId}`, {
+        headers: getHeaders(tenantId),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch leave balances');
+      }
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch leave balances');
+      }
+      return result.data || [];
+    } catch (error) {
+      console.warn('API call failed for leave balances:', error);
+      return []; // Return empty array as fallback
+    }
+  },
+
+  updateLeaveBalance: async (tenantId: string, employeeId: string, leaveType: string, usedDays: number): Promise<any> => {
+    try {
+      const response = await fetch(`${API_BASE}/api/leave/balances/${employeeId}`, {
+        method: 'PUT',
+        headers: getHeaders(tenantId),
+        body: JSON.stringify({ leaveType, usedDays }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update leave balance');
+      }
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update leave balance');
+      }
+      return result.data;
+    } catch (error) {
+      console.warn('API call failed for updating leave balance:', error);
+      throw error; // Re-throw for Approvals component to handle
+    }
+  },
+
+  initializeLeaveBalance: async (tenantId: string, employeeId: string, leaveType: string, totalDays: number): Promise<any> => {
+    const response = await fetch(`${API_BASE}/api/leave/balances/${employeeId}/initialize`, {
+      method: 'POST',
+      headers: getHeaders(tenantId),
+      body: JSON.stringify({ leaveType, totalDays }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to initialize leave balance');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to initialize leave balance');
+    }
+    return result.data;
+  },
+
   // Time Punches
   saveTimePunch: async (tenantId: string, punchData: any): Promise<any> => {
     const response = await fetch(`${API_BASE}/api/time-punches`, {
