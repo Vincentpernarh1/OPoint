@@ -21,7 +21,7 @@ async function createTestUser() {
     
     // Check if user already exists
     const { data: existing, error: checkError } = await supabase
-        .from('P360-Opoint_User')
+        .from('opoint_users')
         .select('*')
         .eq('email', 'Kofigogoli@gmail.com');
     
@@ -48,17 +48,13 @@ async function createTestUser() {
         temporary_password: 'TempPass123!',
         role: 'SuperAdmin',
         basic_salary: 0,
-        mobile_money_number: '0240000000',
         hire_date: new Date().toISOString().split('T')[0],
-        department: 'Administration',
-        position: 'System Administrator',
         status: 'active',
-        is_active: true,
         requires_password_change: true
     };
     
     const { data, error } = await supabase
-        .from('P360-Opoint_User')
+        .from('opoint_users')
         .insert([testUser])
         .select();
     

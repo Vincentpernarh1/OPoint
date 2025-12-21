@@ -15,18 +15,42 @@ export const authService = {
         basicSalary: 0,
         hireDate: new Date(),
       };
-      localStorage.setItem('currentUser', JSON.stringify(user));
+      sessionStorage.setItem('currentUser', JSON.stringify(user));
       return user;
     }
     return null;
   },
 
+  setCurrentUser: (user: User): void => {
+    try {
+      sessionStorage.setItem('currentUser', JSON.stringify(user));
+    } catch (error) {
+      console.error('Failed to store user session:', error);
+    }
+  },
+
   getCurrentUser: (): User | null => {
-    const userStr = localStorage.getItem('currentUser');
-    return userStr ? JSON.parse(userStr) : null;
+    try {
+      const userStr = sessionStorage.getItem('currentUser');
+      if (!userStr) return null;
+      
+      const user = JSON.parse(userStr);
+      // Validate that the user object has required fields
+      if (!user || !user.id || !user.email) {
+        console.warn('Invalid user data in session storage, clearing...');
+        sessionStorage.removeItem('currentUser');
+        return null;
+      }
+      
+      return user;
+    } catch (error) {
+      console.error('Failed to parse user session:', error);
+      sessionStorage.removeItem('currentUser');
+      return null;
+    }
   },
 
   logout: (): void => {
-    localStorage.removeItem('currentUser');
+    sessionStorage.removeItem('currentUser');
   },
 };

@@ -69,3 +69,7 @@ SELECT
   is_active
 FROM "P360-Opoint_User"
 WHERE email = 'Kofigogoli@gmail.com';
+
+
+
+select * from company_vpena_teck_users;
