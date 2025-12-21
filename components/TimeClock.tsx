@@ -8,6 +8,7 @@ import ImagePreviewModal from './ImagePreviewModal';
 import ManualAdjustmentModal from './ManualAdjustmentModal';
 import Notification from './Notification';
 import { offlineStorage } from '../services/offlineStorage';
+import { api } from '../services/api';
 
 interface TimeClockProps {
     currentUser: User;
@@ -224,6 +225,33 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
         loadTimeEntries();
     }, [currentUser.id, currentUser.tenantId]);
 
+    useEffect(() => {
+        const syncUnsyncedPunches = async () => {
+            if (!isOnline) return;
+            try {
+                const unsynced = await offlineStorage.getUnsyncedTimePunches(currentUser.tenantId || '');
+                for (const punch of unsynced) {
+                    try {
+                        await api.saveTimePunch(currentUser.tenantId || '', {
+                            userId: punch.userId,
+                            companyId: punch.companyId,
+                            type: punch.type,
+                            timestamp: punch.timestamp,
+                            location: punch.location,
+                            photoUrl: punch.photoUrl
+                        });
+                        await offlineStorage.markTimePunchSynced(punch.id);
+                    } catch (syncError) {
+                        console.error('Failed to sync punch:', punch.id, syncError);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to sync unsynced punches:', error);
+            }
+        };
+        syncUnsyncedPunches();
+    }, [isOnline, currentUser.tenantId]);
+
     const handleClockAction = (type: TimeEntryType) => {
         setCurrentActionType(type);
         setIsCameraOpen(true);
@@ -254,9 +282,15 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
         } else {
             // Online: try to sync immediately
             try {
-                // TODO: Add API call to save to database
-                console.log('Online: saving to database', newEntry);
-                // For now, mark as synced
+                await api.saveTimePunch(currentUser.tenantId || '', {
+                    userId: newEntry.userId,
+                    companyId: currentUser.tenantId || '',
+                    type: newEntry.type === TimeEntryType.CLOCK_IN ? 'clock_in' : 'clock_out',
+                    timestamp: newEntry.timestamp.toISOString(),
+                    location: newEntry.location,
+                    photoUrl: newEntry.photoUrl
+                });
+                // Mark as synced
                 await offlineStorage.saveTimePunch({
                     id: newEntry.id,
                     userId: newEntry.userId,
@@ -332,13 +366,14 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
 
             // Race between geolocation and timeout
             const position = await Promise.race([
-                getCurrentPosition({ enableHighAccuracy: true, timeout: 4000, maximumAge: 0 }),
+                getCurrentPosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }),
                 timeoutPromise
             ]) as GeolocationPosition;
 
             if (processingComplete) return; // Guard clause
 
             const { latitude, longitude } = position.coords;
+            console.log('Geolocation coordinates:', latitude, longitude);
             
             let locationName = '';
             try {
