@@ -262,7 +262,7 @@ const App = () => {
                     <Route path="announcements" element={<Announcements currentUser={currentUser!} announcements={announcements} onPost={handlePostAnnouncement} onDelete={() => {}} onMarkAsRead={handleMarkAnnouncementsAsRead} />} />
                     <Route path="approvals" element={<Approvals currentUser={currentUser!} />} />
                     <Route path="employees" element={<EmployeeManagement currentUser={currentUser!} />} />
-                    <Route path="payroll" element={<MobileMoneyPayroll />} />
+                    <Route path="payroll" element={<MobileMoneyPayroll currentUser={currentUser!} />} />
                     <Route path="reports" element={<Reports />} />
                     <Route path="settings" element={<Settings />} />
                 </Route>

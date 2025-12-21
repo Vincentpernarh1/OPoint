@@ -18,6 +18,11 @@ interface PayableEmployee {
     mobileMoneyNumber?: string;
     basicSalary: number;
     netPay: number;
+    grossPay: number;
+    totalDeductions: number;
+    ssnitEmployee: number;
+    paye: number;
+    otherDeductions: number;
     isPaid: boolean;
     paidAmount?: number;
     paidDate?: Date;
@@ -95,6 +100,7 @@ const CurrencyInput = ({
     return (
         <input
             ref={inputRef}
+            title="Currency Input"
             type="text"
             disabled={disabled}
             value={localValue}
@@ -106,7 +112,11 @@ const CurrencyInput = ({
     );
 };
 
-const MobileMoneyPayroll = () => {
+interface MobileMoneyPayrollProps {
+    currentUser: User;
+}
+
+const MobileMoneyPayroll = ({ currentUser }: MobileMoneyPayrollProps) => {
     const [activeTab, setActiveTab] = useState<'pending' | 'paid'>('pending');
     const [step, setStep] = useState(1); // 1: Select, 2: Review, 3: Approve, 4: Results
     const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
@@ -123,7 +133,7 @@ const MobileMoneyPayroll = () => {
     const fetchPayableEmployees = async () => {
         setIsLoading(true);
         try {
-            const data = await api.getPayableEmployees();
+            const data = await api.getPayableEmployees(currentUser.tenantId);
             if (Array.isArray(data)) {
                 setAllEmployees(data);
             } else {
@@ -198,15 +208,17 @@ const MobileMoneyPayroll = () => {
     };
 
     const handleSelectAll = () => {
-        if (selectedUserIds.size === pendingEmployees.length) {
+        const payableEmployees = pendingEmployees.filter(u => u.mobileMoneyNumber); // Only those with mobile money
+        
+        if (selectedUserIds.size === payableEmployees.length) {
             setSelectedUserIds(new Set());
             // Optional: Clear adjustments? No, keep them in case they re-select.
         } else {
-            const newSet = new Set(pendingEmployees.map(u => u.id));
+            const newSet = new Set(payableEmployees.map(u => u.id));
             setSelectedUserIds(newSet);
             // Initialize adjustments for all
             const newAdjustments = { ...adjustments };
-            pendingEmployees.forEach(u => {
+            payableEmployees.forEach(u => {
                 if (!newAdjustments[u.id]) {
                     newAdjustments[u.id] = { amount: u.netPay, reason: '' };
                 }
@@ -235,7 +247,7 @@ const MobileMoneyPayroll = () => {
                 reason: u.reason
             }));
 
-            const results = await api.processPayroll(payload, password);
+            const results = await api.processPayroll(payload, password, currentUser.tenantId);
             setPaymentResults(results as PaymentResult[]);
             setStep(4);
             
@@ -285,12 +297,26 @@ const MobileMoneyPayroll = () => {
 
                     {activeTab === 'pending' ? (
                         <>
+                            {pendingEmployees.filter(u => !u.mobileMoneyNumber).length > 0 && (
+                                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                    <div className="flex items-center">
+                                        <div className="text-yellow-600 mr-2">⚠️</div>
+                                        <div>
+                                            <p className="text-sm font-medium text-yellow-800">Mobile Money Setup Required</p>
+                                            <p className="text-xs text-yellow-700">
+                                                {pendingEmployees.filter(u => !u.mobileMoneyNumber).length} employee(s) need mobile money numbers before they can be paid. 
+                                                Please update their profiles or request them to add their mobile money details.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             <h3 className="text-lg font-semibold mb-2">Select Employees to Pay</h3>
                             <div className="overflow-x-auto border rounded-lg">
                                 <table className="w-full text-sm text-left">
                                 <thead className="bg-slate-50 text-gray-700">
                                         <tr>
-                                            <th className="p-3 w-10"><input type="checkbox" onChange={handleSelectAll} checked={selectedUserIds.size === pendingEmployees.length && pendingEmployees.length > 0} /></th>
+                                            <th className="p-3 w-10"><input  title="Select All" type="checkbox" onChange={handleSelectAll} checked={selectedUserIds.size === pendingEmployees.filter(u => u.mobileMoneyNumber).length && pendingEmployees.filter(u => u.mobileMoneyNumber).length > 0} /></th>
                                             <th className="p-3">Employee</th>
                                             <th className="p-3">Salary Info</th>
                                             <th className="p-3">Payout Amount (GHS)</th>
@@ -306,16 +332,26 @@ const MobileMoneyPayroll = () => {
                                             return (
                                                 <tr key={user.id} className={`border-b hover:bg-slate-50 transition-colors ${isSelected ? 'bg-indigo-50/30' : ''}`}>
                                                     <td className="p-3 align-top pt-4">
-                                                        <input type="checkbox" checked={isSelected} onChange={() => handleToggleUser(user.id)} />
+                                                        {user.mobileMoneyNumber ? (
+                                                            <input  title="Select" type="checkbox" checked={isSelected} onChange={() => handleToggleUser(user.id)} />
+                                                        ) : (
+                                                            <div className="text-red-500 text-xs">❌</div>
+                                                        )}
                                                     </td>
                                                     <td className="p-3 align-top">
                                                         <p className="font-bold text-gray-800">{user.name}</p>
                                                         <p className="text-xs text-gray-500">{user.mobileMoneyNumber || 'No MoMo Number'}</p>
+                                                        {!user.mobileMoneyNumber && (
+                                                            <div className="mt-1 p-1 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                                                                ⚠️ Mobile money required for payment
+                                                            </div>
+                                                        )}
                                                     </td>
                                                     <td className="p-3 align-top">
                                                         <div className="text-xs space-y-1">
                                                             <p><span className="text-gray-500">Basic:</span> {formatCurrency(user.basicSalary)}</p>
-                                                            <p><span className="text-gray-500">Calc. Net:</span> {formatCurrency(user.netPay)}</p>
+                                                            <p><span className="text-gray-500">Gross:</span> {formatCurrency(user.grossPay)}</p>
+                                                            <p><span className="text-gray-500">Net:</span> {formatCurrency(user.netPay)}</p>
                                                         </div>
                                                     </td>
                                                     <td className="p-3 align-top">
@@ -421,7 +457,8 @@ const MobileMoneyPayroll = () => {
                             <thead className="bg-gray-100 sticky top-0">
                                 <tr>
                                     <th className="p-2">Name</th>
-                                    <th className="p-2">Original Net</th>
+                                    <th className="p-2">Gross Pay</th>
+                                    <th className="p-2">Deductions</th>
                                     <th className="p-2">Final Pay</th>
                                     <th className="p-2">Reason</th>
                                 </tr>
@@ -432,7 +469,14 @@ const MobileMoneyPayroll = () => {
                                     return (
                                         <tr key={u.id} className={`border-b ${isChanged ? 'bg-yellow-50' : ''}`}>
                                             <td className="p-2 font-medium">{u.name}</td>
-                                            <td className="p-2 text-gray-500">{formatCurrency(u.netPay)}</td>
+                                            <td className="p-2 text-gray-500">{formatCurrency(u.grossPay)}</td>
+                                            <td className="p-2 text-xs text-gray-600">
+                                                <div>
+                                                    <p>PAYE: {formatCurrency(u.paye)}</p>
+                                                    <p>SSNIT: {formatCurrency(u.ssnitEmployee)}</p>
+                                                    {u.otherDeductions > 0 && <p>Other: {formatCurrency(u.otherDeductions)}</p>}
+                                                </div>
+                                            </td>
                                             <td className={`p-2 font-bold ${isChanged ? 'text-amber-600' : 'text-gray-800'}`}>{formatCurrency(u.finalAmount)}</td>
                                             <td className="p-2 text-xs italic text-gray-600">{u.reason || '-'}</td>
                                         </tr>

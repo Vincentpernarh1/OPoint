@@ -306,7 +306,17 @@ async function getUsers() {
     const { data, error } = await db.getUsers();
     if (error || !data || data.length === 0) {
         console.log('⚠️  Using fallback mock data (database not configured)');
-        return MOCK_USERS;
+        // Transform mock data to camelCase to match database transformation
+        return MOCK_USERS.map(user => ({
+            ...user,
+            tenantId: user.company_id, // Map company_id to tenantId
+            basicSalary: user.basic_salary,
+            mobileMoneyNumber: user.mobile_money_number,
+            // Remove snake_case versions
+            basic_salary: undefined,
+            mobile_money_number: undefined,
+            company_id: undefined
+        }));
     }
     return data;
 }
@@ -314,9 +324,62 @@ async function getUsers() {
 async function getUserById(userId) {
     const { data, error } = await db.getUserById(userId);
     if (error || !data) {
-        return MOCK_USERS.find(u => u.id === userId);
+        // Transform mock data to camelCase
+        const mockUser = MOCK_USERS.find(u => u.id === userId);
+        if (mockUser) {
+            return {
+                ...mockUser,
+                tenantId: mockUser.company_id,
+                basicSalary: mockUser.basic_salary,
+                mobileMoneyNumber: mockUser.mobile_money_number,
+                // Remove snake_case versions
+                basic_salary: undefined,
+                mobile_money_number: undefined,
+                company_id: undefined
+            };
+        }
+        return null;
     }
     return data;
+}
+
+// Calculate net pay after taxes and deductions
+function calculateNetPay(basicSalary, userId, payDate) {
+    // Calculate SSNIT contributions
+    const ssnitEmployee = basicSalary * 0.055; // 5.5%
+
+    // Calculate PAYE tax (Ghana tax brackets)
+    let paye = 0;
+    const taxableIncome = basicSalary;
+
+    if (taxableIncome <= 3828) {
+        paye = 0;
+    } else if (taxableIncome <= 4828) {
+        paye = (taxableIncome - 3828) * 0.05;
+    } else if (taxableIncome <= 5828) {
+        paye = 1000 * 0.05 + (taxableIncome - 4828) * 0.10;
+    } else if (taxableIncome <= 6828) {
+        paye = 1000 * 0.05 + 1000 * 0.10 + (taxableIncome - 5828) * 0.175;
+    } else {
+        paye = 1000 * 0.05 + 1000 * 0.10 + 1000 * 0.175 + (taxableIncome - 6828) * 0.25;
+    }
+
+    // For now, we'll assume no additional deductions from payroll history
+    // In a real implementation, you might want to check for pending deductions
+    const otherDeductions = 0;
+
+    // Calculate totals
+    const totalDeductions = ssnitEmployee + paye + otherDeductions;
+    const netPay = basicSalary - totalDeductions;
+
+    return {
+        grossPay: basicSalary,
+        netPay: Math.max(0, netPay), // Ensure net pay is not negative
+        totalDeductions,
+        ssnitEmployee,
+        paye,
+        otherDeductions
+    };
 }
 
 // --- API ENDPOINTS ---
@@ -944,7 +1007,9 @@ app.get('/api/payroll/payable-employees', async (req, res) => {
         });
 
         const payableEmployees = users.map(user => {
-            const netPay = user.basic_salary * 0.90; // Mock calculation (90% after deductions)
+            // Use proper tax calculations instead of mock 90%
+            const payCalculation = calculateNetPay(user.basicSalary || 0, user.id, new Date());
+            const netPay = payCalculation.netPay;
             
             // Check if paid this month (from database or fallback)
             let paymentLog;
@@ -969,9 +1034,14 @@ app.get('/api/payroll/payable-employees', async (req, res) => {
                 id: user.id,
                 name: user.name,
                 email: user.email,
-                mobileMoneyNumber: user.mobile_money_number,
+                mobileMoneyNumber: user.mobileMoneyNumber,
                 netPay: netPay,
-                basicSalary: user.basic_salary,
+                basicSalary: user.basicSalary,
+                grossPay: payCalculation.grossPay,
+                totalDeductions: payCalculation.totalDeductions,
+                ssnitEmployee: payCalculation.ssnitEmployee,
+                paye: payCalculation.paye,
+                otherDeductions: payCalculation.otherDeductions,
                 isPaid: !!paymentLog,
                 paidAmount: paymentLog ? paymentLog.amount : 0,
                 paidDate: paymentLog ? paymentLog.created_at || paymentLog.date : null,
