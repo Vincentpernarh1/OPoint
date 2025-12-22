@@ -16,3 +16,6 @@ CREATE TABLE IF NOT EXISTS opoint_leave_balances (
 -- Index for performance
 CREATE INDEX IF NOT EXISTS idx_opoint_leave_balances_tenant_employee ON opoint_leave_balances(tenant_id, employee_id);
 CREATE INDEX IF NOT EXISTS idx_opoint_leave_balances_year ON opoint_leave_balances(year);
+
+
+select * from opoint_employees;
