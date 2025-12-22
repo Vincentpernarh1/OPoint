@@ -1006,6 +1006,9 @@ app.post('/api/profile-update-requests', async (req, res) => {
             });
         }
 
+        // Set tenant context
+        setTenantContext(tenantId);
+
         // Get current user info for the request
         const { data: user, error: userError } = await db.getUserById(userId);
         if (userError || !user) {
@@ -1020,6 +1023,27 @@ app.post('/api/profile-update-requests', async (req, res) => {
             return res.status(400).json({
                 success: false,
                 error: 'Invalid Ghana phone number format'
+            });
+        }
+
+        // Check if there's already a pending request for this field
+        const { data: existingRequests, error: checkError } = await db.getProfileUpdateRequests({
+            userId: userId,
+            status: 'Pending'
+        });
+
+        if (checkError) {
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to check existing requests'
+            });
+        }
+
+        const hasPendingRequest = existingRequests.some(req => req.field_name === field_name);
+        if (hasPendingRequest) {
+            return res.status(400).json({
+                success: false,
+                error: `You already have a pending request for ${field_name === 'mobile_money_number' ? 'mobile money number' : field_name} update. Please wait for it to be reviewed.`
             });
         }
 
@@ -1068,6 +1092,9 @@ app.get('/api/profile-update-requests', async (req, res) => {
             });
         }
 
+        // Set tenant context
+        setTenantContext(tenantId);
+
         const filters = {};
         if (status) filters.status = status;
         if (userId) filters.userId = userId;
@@ -1109,6 +1136,9 @@ app.put('/api/profile-update-requests/:id/approve', async (req, res) => {
             });
         }
 
+        // Set tenant context
+        setTenantContext(tenantId);
+
         const { data, error } = await db.approveProfileUpdateRequest(requestId, reviewerId, review_notes);
 
         if (error) {
@@ -1146,6 +1176,9 @@ app.put('/api/profile-update-requests/:id/reject', async (req, res) => {
             });
         }
 
+        // Set tenant context
+        setTenantContext(tenantId);
+
         const { data, error } = await db.rejectProfileUpdateRequest(requestId, reviewerId, review_notes);
 
         if (error) {
@@ -1165,6 +1198,69 @@ app.put('/api/profile-update-requests/:id/reject', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to reject profile update request'
+        });
+    }
+});
+
+// Cancel profile update request (for users to cancel their own requests)
+app.put('/api/profile-update-requests/:id/cancel', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userId } = req.body;
+        const tenantId = req.headers['x-tenant-id'];
+
+        if (!tenantId || !userId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Tenant ID and User ID required'
+            });
+        }
+
+        // Set tenant context
+        setTenantContext(tenantId);
+
+        // Verify the request belongs to the user
+        const { data: request, error: fetchError } = await db.getProfileUpdateRequestById(id);
+        if (fetchError || !request) {
+            return res.status(404).json({
+                success: false,
+                error: 'Request not found'
+            });
+        }
+
+        if (request.user_id !== userId) {
+            return res.status(403).json({
+                success: false,
+                error: 'You can only cancel your own requests'
+            });
+        }
+
+        if (request.status !== 'Pending') {
+            return res.status(400).json({
+                success: false,
+                error: 'Only pending requests can be cancelled'
+            });
+        }
+
+        const { data, error } = await db.cancelProfileUpdateRequest(id, userId);
+
+        if (error) {
+            return res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        res.json({
+            success: true,
+            data
+        });
+
+    } catch (error) {
+        console.error('Error cancelling profile update request:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to cancel profile update request'
         });
     }
 });
@@ -1785,6 +1881,167 @@ app.put('/api/time-adjustments/:id', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: 'Failed to update time adjustment request' 
+        });
+    }
+});
+
+// --- PROFILE UPDATE REQUESTS ENDPOINTS ---
+app.get('/api/profile-update-requests', async (req, res) => {
+    try {
+        const { status, userId } = req.query;
+        const tenantId = req.headers['x-tenant-id'];
+        
+        const filters = {};
+        if (status) filters.status = status;
+        if (userId) filters.userId = userId;
+
+        const { data, error } = await db.getProfileUpdateRequests(filters, tenantId);
+
+        if (error) {
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Failed to fetch profile update requests' 
+            });
+        }
+
+        res.json({ 
+            success: true, 
+            data 
+        });
+
+    } catch (error) {
+        console.error('Error fetching profile update requests:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to fetch profile update requests' 
+        });
+    }
+});
+
+app.post('/api/profile-update-requests', async (req, res) => {
+    try {
+        const requestData = req.body;
+        const tenantId = req.headers['x-tenant-id'];
+
+        // Set tenant context
+        if (tenantId) {
+            setTenantContext(tenantId);
+        }
+
+        // Validation
+        if (!requestData.user_id || !requestData.field_name || !requestData.requested_value) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Missing required fields' 
+            });
+        }
+
+        const { data, error } = await db.createProfileUpdateRequest(requestData);
+
+        if (error) {
+            return res.status(400).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+
+        res.status(201).json({ 
+            success: true, 
+            data 
+        });
+
+    } catch (error) {
+        console.error('Error creating profile update request:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to create profile update request' 
+        });
+    }
+});
+
+app.put('/api/profile-update-requests/:id/approve', async (req, res) => {
+    try {
+        const { reviewer_id, review_notes } = req.body;
+        const requestId = req.params.id;
+        const tenantId = req.headers['x-tenant-id'];
+
+        const { data, error } = await db.approveProfileUpdateRequest(requestId, reviewer_id, review_notes, tenantId);
+
+        if (error) {
+            return res.status(400).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+
+        res.json({ 
+            success: true, 
+            data 
+        });
+
+    } catch (error) {
+        console.error('Error approving profile update request:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to approve profile update request' 
+        });
+    }
+});
+
+app.put('/api/profile-update-requests/:id/reject', async (req, res) => {
+    try {
+        const { reviewer_id, review_notes } = req.body;
+        const requestId = req.params.id;
+        const tenantId = req.headers['x-tenant-id'];
+
+        const { data, error } = await db.rejectProfileUpdateRequest(requestId, reviewer_id, review_notes, tenantId);
+
+        if (error) {
+            return res.status(400).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+
+        res.json({ 
+            success: true, 
+            data 
+        });
+
+    } catch (error) {
+        console.error('Error rejecting profile update request:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to reject profile update request' 
+        });
+    }
+});
+
+app.put('/api/profile-update-requests/:id/cancel', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        const requestId = req.params.id;
+        const tenantId = req.headers['x-tenant-id'];
+
+        const { data, error } = await db.cancelProfileUpdateRequest(requestId, userId, tenantId);
+
+        if (error) {
+            return res.status(400).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+
+        res.json({ 
+            success: true, 
+            data 
+        });
+
+    } catch (error) {
+        console.error('Error cancelling profile update request:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to cancel profile update request' 
         });
     }
 });

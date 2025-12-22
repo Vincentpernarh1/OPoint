@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { TimeEntry, TimeEntryType, User, Announcement, AdjustmentRequest, RequestStatus } from '../types';
 import { TIME_ENTRIES, ADJUSTMENT_REQUESTS } from '../constants';
 import { MapPinIcon, ArrowUpRightIcon, ArrowDownLeftIcon, MegaphoneIcon, ClockIcon, XIcon } from './Icons';
@@ -9,6 +9,7 @@ import ManualAdjustmentModal from './ManualAdjustmentModal';
 import Notification from './Notification';
 import { offlineStorage } from '../services/offlineStorage';
 import { api } from '../services/api';
+import './TimeClock.css';
 
 
 interface TimeClockProps {
@@ -108,6 +109,8 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     
     const [notification, setNotification] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    
+    const progressBarRef = useRef<HTMLDivElement>(null);
     
     const latestAnnouncement = useMemo(() => announcements.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0], [announcements]);
 
@@ -465,6 +468,13 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
         return Math.min(100, Math.max(0, (worked / total) * 100));
     }, [todaySummary.worked, time, timeEntries]);
 
+    // Update progress bar width dynamically
+    useEffect(() => {
+        if (progressBarRef.current) {
+            progressBarRef.current.style.width = `${progressPercentage}%`;
+        }
+    }, [progressPercentage]);
+
     // Determines if a specific day needs an adjustment button based on 10 min tolerance
     const isAdjustmentNeeded = (summary: { worked: number, balance: number }, entries: TimeEntry[], date: Date) => {
         // Use the current system time/state time to determine 'today'
@@ -578,10 +588,10 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                         </div>
                         <div className="pt-4">
                             <p className="text-sm text-gray-500 mb-1">Progress to 8hr Goal</p>
-                            <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                            <div className="progress-bar-container">
                                 <div 
-                                    className="bg-primary h-2.5 rounded-full transition-all duration-1000 ease-linear" 
-                                    style={{ width: `${progressPercentage}%` }}
+                                    ref={progressBarRef}
+                                    className="progress-bar-fill"
                                 ></div>
                             </div>
                         </div>

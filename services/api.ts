@@ -1,7 +1,7 @@
 import type { Company, NewCompanyData, User, Announcement } from '../types';
 import { UserRole } from '../types';
 
-const API_BASE = '';
+const API_BASE = 'http://localhost:3001';
 
 // Helper function to get headers with tenant context
 const getHeaders = (tenantId?: string) => {
@@ -579,4 +579,18 @@ export const api = {
     }
     return result.data;
   },
-};
+  cancelProfileUpdateRequest: async (tenantId: string, requestId: string, userId: string): Promise<any> => {
+    const response = await fetch(`${API_BASE}/api/profile-update-requests/${requestId}/cancel`, {
+      method: 'PUT',
+      headers: getHeaders(tenantId),
+      body: JSON.stringify({ userId }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to cancel profile update request');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to cancel profile update request');
+    }
+    return result.data;
+  },};
