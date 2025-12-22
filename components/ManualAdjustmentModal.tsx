@@ -42,7 +42,7 @@ const ManualAdjustmentModal = ({ onClose, onSubmit, date, existingClockIn, exist
         setError('');
 
         onSubmit({
-            date: dateObj,
+            date: date, // Use the date prop directly, it's already in YYYY-MM-DD format
             originalClockIn: existingClockIn,
             originalClockOut: existingClockOut,
             requestedClockIn: reqIn,

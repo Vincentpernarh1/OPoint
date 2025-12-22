@@ -59,7 +59,7 @@ export const LEAVE_BALANCES: LeaveBalance[] = [
 
 
 export const ADJUSTMENT_REQUESTS: AdjustmentRequest[] = [
-    { id: 'a1', userId: '4', date: new Date(), requestedClockIn: new Date(new Date().setHours(9, 5, 0)), requestedClockOut: new Date(new Date().setHours(18, 0, 0)), reason: 'Forgot to clock in on time.', status: RequestStatus.PENDING },
+    { id: 'a1', userId: '4', date: new Date().toISOString().split('T')[0], requestedClockIn: new Date(new Date().setHours(9, 5, 0)), requestedClockOut: new Date(new Date().setHours(18, 0, 0)), reason: 'Forgot to clock in on time.', status: RequestStatus.PENDING },
 ];
 
 const yesterday = new Date();

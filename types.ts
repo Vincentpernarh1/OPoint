@@ -90,7 +90,7 @@ export interface AdjustmentRequest {
   id: string;
   userId: string;
   employeeName?: string;
-  date: Date;
+  date: string;
   originalClockIn?: Date;
   originalClockOut?: Date;
   requestedClockIn: Date;

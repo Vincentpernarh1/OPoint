@@ -25,3 +25,20 @@ CREATE INDEX IF NOT EXISTS idx_opoint_expense_claims_tenant_id ON opoint_expense
 CREATE INDEX IF NOT EXISTS idx_opoint_expense_claims_employee_id ON opoint_expense_claims(employee_id);
 CREATE INDEX IF NOT EXISTS idx_opoint_expense_claims_status ON opoint_expense_claims(status);
 CREATE INDEX IF NOT EXISTS idx_opoint_expense_claims_submitted_at ON opoint_expense_claims(submitted_at);
+
+
+
+ALTER TABLE opoint_clock_logs
+ADD COLUMN IF NOT EXISTS adjustment_applied BOOLEAN DEFAULT FALSE;
+
+UPDATE opoint_clock_logs
+SET adjustment_applied = TRUE
+WHERE adjustment_status = 'Approved';
+
+
+delete from opoint_clock_logs;
+
+SELECT * from opoint_clock_logs;
+
+
+commit;

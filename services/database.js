@@ -685,11 +685,58 @@ export const db = {
         const tenantId = getCurrentTenantId();
         if (!tenantId) return { data: null, error: 'No tenant context set' };
 
+        console.log('Creating adjustment request:', {
+            userId: adjustmentData.userId,
+            date: adjustmentData.date,
+            tenantId
+        });
+
         // Find existing clock log for the date, or create new one
         const startOfDay = new Date(adjustmentData.date);
         startOfDay.setHours(0, 0, 0, 0);
         const endOfDay = new Date(adjustmentData.date);
         endOfDay.setHours(23, 59, 59, 999);
+
+        // Check for existing adjustment requests for this day
+        const { data: existingAdjustments, error: adjError } = await client
+            .from('opoint_clock_logs')
+            .select('adjustment_status, adjustment_applied, clock_in, requested_clock_in')
+            .eq('employee_id', adjustmentData.userId)
+            .eq('tenant_id', tenantId)
+            .not('adjustment_status', 'is', null);
+
+        console.log('Database query for existing adjustments:', {
+            userId: adjustmentData.userId,
+            tenantId,
+            date: adjustmentData.date,
+            existingAdjustments,
+            adjError
+        });
+
+        if (adjError) {
+            console.log('Database error:', adjError);
+            return { data: null, error: adjError };
+        }
+
+        // Filter adjustments for the specific date
+        const existingAdjustment = existingAdjustments?.find(log => {
+            const logDate = log.clock_in ? new Date(log.clock_in).toISOString().split('T')[0] :
+                          log.requested_clock_in ? new Date(log.requested_clock_in).toISOString().split('T')[0] : null;
+            console.log('Checking log date:', { log, logDate, targetDate: adjustmentData.date, matches: logDate === adjustmentData.date });
+            return logDate === adjustmentData.date;
+        });
+
+        console.log('Final existing adjustment check:', { existingAdjustment });
+
+        if (existingAdjustment) {
+            console.log('Found existing adjustment - blocking submission');
+            if (existingAdjustment.adjustment_status === 'Pending') {
+                return { data: null, error: 'A time adjustment request is already pending for this day' };
+            }
+            if (existingAdjustment.adjustment_status === 'Approved' || existingAdjustment.adjustment_applied) {
+                return { data: null, error: 'This day has already been adjusted and cannot be modified' };
+            }
+        }
 
         const { data: existingLog, error: findError } = await client
             .from('opoint_clock_logs')
@@ -782,12 +829,13 @@ export const db = {
             adjustment_reviewed_at: updates.status !== 'Pending' ? new Date().toISOString() : null
         };
 
-        // If approved, update the actual clock times and clear requested times
+        // If approved, update the actual clock times and clear requested times, and mark as applied
         if (updates.status === 'Approved') {
             updateData.clock_in = updates.requested_clock_in;
             updateData.clock_out = updates.requested_clock_out;
             updateData.requested_clock_in = null;
             updateData.requested_clock_out = null;
+            updateData.adjustment_applied = true; // Mark that adjustment has been applied
         }
 
         const { data, error } = await client
@@ -1322,18 +1370,7 @@ export const db = {
             .eq('tenant_id', tenantId)
             .eq('employee_id', employeeId);
 
-        if (date) {
-            // Filter by date - assuming date is in YYYY-MM-DD format
-            const startOfDay = new Date(date);
-            startOfDay.setHours(0, 0, 0, 0);
-            const endOfDay = new Date(date);
-            endOfDay.setHours(23, 59, 59, 999);
-
-            query = query
-                .gte('clock_in', startOfDay.toISOString())
-                .lte('clock_in', endOfDay.toISOString());
-        }
-
+        // Remove date filtering from here - it's done in the server
         query = query.order('clock_in', { ascending: false });
 
         const { data, error } = await query;

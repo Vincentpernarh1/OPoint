@@ -24,10 +24,10 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 async function runMigration() {
     try {
-        console.log('🚀 Running mobile money number migration...');
+        console.log('🚀 Running adjustment_applied migration...');
 
         // Read the migration SQL file
-        const migrationPath = path.join(__dirname, 'migration_add_mobile_money_number.sql');
+        const migrationPath = path.join(__dirname, 'migration_add_adjustment_applied.sql');
         const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
 
         console.log('📄 Migration SQL:');
