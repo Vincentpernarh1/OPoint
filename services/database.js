@@ -801,6 +801,93 @@ export const db = {
         return { data, error };
     },
 
+    // --- EXPENSE CLAIMS ---
+    async createExpenseClaim(expenseData) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: null, error: 'No tenant context set' };
+
+        const dbData = {
+            tenant_id: tenantId,
+            employee_id: expenseData.employee_id,
+            employee_name: expenseData.employee_name,
+            description: expenseData.description,
+            amount: expenseData.amount,
+            expense_date: expenseData.expense_date,
+            receipt_url: expenseData.receipt_url,
+            status: expenseData.status || 'pending'
+        };
+
+        const { data, error } = await client
+            .from('opoint_expense_claims')
+            .insert([dbData])
+            .select()
+            .single();
+
+        return { data, error };
+    },
+
+    async getExpenseClaims(filters = {}, tenantIdOverride = null) {
+        const client = getSupabaseClient();
+        if (!client) return { data: [], error: 'Database not configured' };
+
+        const tenantId = tenantIdOverride || getCurrentTenantId();
+
+        let query = client
+            .from('opoint_expense_claims')
+            .select('*');
+
+        if (tenantId) {
+            query = query.eq('tenant_id', tenantId);
+        }
+
+        if (filters.status) {
+            query = query.eq('status', filters.status);
+        }
+
+        if (filters.employee_id) {
+            query = query.eq('employee_id', filters.employee_id);
+        }
+
+        query = query.order('submitted_at', { ascending: false });
+
+        const { data, error } = await query;
+        return { data, error };
+    },
+
+    async updateExpenseClaim(claimId, updates, tenantIdOverride = null) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const tenantId = tenantIdOverride || getCurrentTenantId();
+
+        const updateData = {
+            ...updates,
+            updated_at: new Date().toISOString()
+        };
+
+        // If status is being changed to approved or rejected, set reviewed info
+        if (updates.status && updates.status !== 'pending') {
+            updateData.reviewed_at = new Date().toISOString();
+            // reviewed_by should be passed in updates
+        }
+
+        let query = client
+            .from('opoint_expense_claims')
+            .update(updateData)
+            .eq('id', claimId);
+
+        if (tenantId) {
+            query = query.eq('tenant_id', tenantId);
+        }
+
+        const { data, error } = await query.select().single();
+
+        return { data, error };
+    },
+
     // --- AUTHENTICATION ---
     async getUserByEmail(email) {
         const client = getSupabaseAdminClient(); // Use admin client to bypass RLS
@@ -869,6 +956,23 @@ export const db = {
             .select()
             .single();
         
+        return { data, error };
+    },
+
+    async updateUserSalary(userId, newSalary) {
+        const client = getSupabaseAdminClient(); // Use admin client to bypass RLS
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const { data, error } = await client
+            .from('opoint_users')
+            .update({
+                basic_salary: newSalary,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', userId)
+            .select()
+            .single();
+
         return { data, error };
     },
 

@@ -442,6 +442,57 @@ export const api = {
     return result.data;
   },
 
+  // Expense Claims API
+  getExpenseClaims: async (tenantId: string, filters?: { status?: string; employee_id?: string }): Promise<any[]> => {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.employee_id) params.append('employee_id', filters.employee_id);
+
+    const response = await fetch(`${API_BASE}/api/expenses?${params}`, {
+      headers: getHeaders(tenantId),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch expense claims');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch expense claims');
+    }
+    return result.data || [];
+  },
+
+  createExpenseClaim: async (tenantId: string, expenseData: any): Promise<any> => {
+    const response = await fetch(`${API_BASE}/api/expenses`, {
+      method: 'POST',
+      headers: getHeaders(tenantId),
+      body: JSON.stringify(expenseData),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to create expense claim');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to create expense claim');
+    }
+    return result.data;
+  },
+
+  updateExpenseClaim: async (tenantId: string, claimId: string, updates: any): Promise<any> => {
+    const response = await fetch(`${API_BASE}/api/expenses/${claimId}`, {
+      method: 'PUT',
+      headers: getHeaders(tenantId),
+      body: JSON.stringify(updates),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update expense claim');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to update expense claim');
+    }
+    return result.data;
+  },
+
   // Time Punches
   saveTimePunch: async (tenantId: string, punchData: any): Promise<any> => {
     const response = await fetch(`${API_BASE}/api/time-punches`, {

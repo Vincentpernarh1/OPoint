@@ -1783,6 +1783,145 @@ app.post('/api/leave/balances/:employeeId/initialize', async (req, res) => {
     }
 });
 
+// --- EXPENSE CLAIM ENDPOINTS ---
+app.get('/api/expenses', async (req, res) => {
+    try {
+        const { status, employee_id } = req.query;
+        const tenantId = req.headers['x-tenant-id'];
+
+        const filters = {};
+        if (status) filters.status = status;
+        if (employee_id) filters.employee_id = employee_id;
+
+        const { data, error } = await db.getExpenseClaims(filters, tenantId);
+
+        if (error) {
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to fetch expense claims'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: data || []
+        });
+    } catch (error) {
+        console.error('Error fetching expense claims:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch expense claims'
+        });
+    }
+});
+
+app.post('/api/expenses', async (req, res) => {
+    try {
+        const { employee_id, employee_name, description, amount, expense_date, receipt_url } = req.body;
+        const tenantId = req.headers['x-tenant-id'];
+
+        console.log('Creating expense claim:', { employee_id, description, amount, tenantId });
+
+        const { data, error } = await db.createExpenseClaim({
+            employee_id,
+            employee_name,
+            description,
+            amount: parseFloat(amount),
+            expense_date,
+            receipt_url
+        });
+
+        if (error) {
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to create expense claim'
+            });
+        }
+
+        console.log('Expense claim created successfully:', data.id);
+        res.status(201).json({
+            success: true,
+            data
+        });
+    } catch (error) {
+        console.error('Error creating expense claim:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to create expense claim'
+        });
+    }
+});
+
+app.put('/api/expenses/:id', async (req, res) => {
+    try {
+        const claimId = req.params.id;
+        const { status, reviewed_by } = req.body;
+        const tenantId = req.headers['x-tenant-id'];
+
+        const updates = {};
+        if (status) updates.status = status;
+        if (reviewed_by) updates.reviewed_by = reviewed_by;
+
+        // If approving, add to salary
+        if (status === 'approved') {
+            // Get the expense claim details
+            const { data: claim, error: fetchError } = await db.getExpenseClaims({ employee_id: null }, tenantId);
+            if (fetchError) {
+                return res.status(500).json({
+                    success: false,
+                    error: 'Failed to fetch expense claim details'
+                });
+            }
+
+            const expenseClaim = claim.find(c => c.id === claimId);
+            if (!expenseClaim) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Expense claim not found'
+                });
+            }
+
+            // Update employee's basic salary
+            const { data: userData, error: userError } = await db.getUserById(expenseClaim.employee_id);
+            if (userError || !userData) {
+                return res.status(500).json({
+                    success: false,
+                    error: 'Failed to fetch employee data'
+                });
+            }
+
+            const newSalary = parseFloat(userData.basicSalary || 0) + parseFloat(expenseClaim.amount);
+            const { error: salaryError } = await db.updateUserSalary(expenseClaim.employee_id, newSalary);
+            if (salaryError) {
+                return res.status(500).json({
+                    success: false,
+                    error: 'Failed to update employee salary'
+                });
+            }
+        }
+
+        const { data, error } = await db.updateExpenseClaim(claimId, updates, tenantId);
+
+        if (error) {
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to update expense claim'
+            });
+        }
+
+        res.json({
+            success: true,
+            data
+        });
+    } catch (error) {
+        console.error('Error updating expense claim:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to update expense claim'
+        });
+    }
+});
+
 // --- TIME ADJUSTMENT ENDPOINTS ---
 app.get('/api/time-adjustments', async (req, res) => {
     try {

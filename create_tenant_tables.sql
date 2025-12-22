@@ -165,4 +165,4 @@ CREATE INDEX IF NOT EXISTS idx_opoint_leave_balances_year ON opoint_leave_balanc
 
 
 
-select * from opoint_leave_balances;
+select * from opoint_employees;
