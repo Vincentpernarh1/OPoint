@@ -74,148 +74,71 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                     reviewedAt: item.adjustment_reviewed_at ? new Date(item.adjustment_reviewed_at) : undefined
                 }));
                 
+                // Fetch profile update requests
+                const profileData = await api.getProfileUpdateRequests(currentUser.tenantId, {
+                    status: profileStatusFilter === 'All' ? undefined : profileStatusFilter
+                });
+                
                 // Use only API data - no mock data fallback
                 setLeaveRequests(transformedLeaveData);
                 setAdjustmentRequests(transformedAdjustmentData);
+                setProfileRequests(profileData);
             } catch (err) {
                 console.error('Failed to fetch requests:', err);
                 setError('Failed to load requests');
                 // No mock data fallback - show empty arrays on error
                 setLeaveRequests([]);
                 setAdjustmentRequests([]);
+                setProfileRequests([]);
             } finally {
                 setLoading(false);
             }
         };
 
+        // Initial fetch
         fetchRequests();
-    }, [currentUser.tenantId]);
 
-    // Refetch when leave status filter changes
-    useEffect(() => {
-        if (activeTab === 'leave') {
-            const fetchLeaveRequests = async () => {
-                try {
-                    setLoading(true);
-                    setError(null);
-                    const leaveData = await api.getLeaveRequests(currentUser.tenantId, { 
-                        status: leaveStatusFilter === 'All' ? undefined : leaveStatusFilter 
-                    });
-                    const transformedLeaveData: LeaveRequest[] = leaveData.map((item: any) => ({
-                        id: item.id,
-                        userId: item.employee_id,
-                        employeeName: item.employee_name,
-                        leaveType: item.leave_type as LeaveType,
-                        startDate: new Date(item.start_date),
-                        endDate: new Date(item.end_date),
-                        reason: item.reason,
-                        status: item.status as RequestStatus
-                    }));
-                    setLeaveRequests(transformedLeaveData);
-                } catch (err) {
-                    console.error('Failed to fetch leave requests:', err);
-                    setLeaveRequests([]);
-                } finally {
-                    setLoading(false);
-                }
-            };
-            fetchLeaveRequests();
-        }
-    }, [leaveStatusFilter, currentUser.tenantId, activeTab]);
+        // Set up polling every 30 seconds for real-time updates
+        const pollInterval = setInterval(fetchRequests, 30000);
 
-    // Refetch when adjustment status filter changes
-    useEffect(() => {
-        if (activeTab === 'adjustments') {
-            const fetchAdjustmentRequests = async () => {
-                try {
-                    setLoading(true);
-                    setError(null);
-                    const adjustmentData = await api.getTimeAdjustmentRequests(currentUser.tenantId, { 
-                        status: adjustmentStatusFilter === 'All' ? undefined : adjustmentStatusFilter 
-                    });
-                    const transformedAdjustmentData: AdjustmentRequest[] = adjustmentData.map((item: any) => ({
-                        id: item.id,
-                        userId: item.employee_id,
-                        employeeName: item.employee_name,
-                        date: item.adjustment_requested_at ? new Date(item.adjustment_requested_at) : new Date(),
-                        originalClockIn: item.clock_in ? new Date(item.clock_in) : undefined,
-                        originalClockOut: item.clock_out ? new Date(item.clock_out) : undefined,
-                        requestedClockIn: new Date(item.requested_clock_in),
-                        requestedClockOut: new Date(item.requested_clock_out),
-                        reason: item.adjustment_reason,
-                        status: item.adjustment_status as RequestStatus,
-                        reviewedBy: item.adjustment_reviewed_by,
-                        reviewedAt: item.adjustment_reviewed_at ? new Date(item.adjustment_reviewed_at) : undefined
-                    }));
-                    setAdjustmentRequests(transformedAdjustmentData);
-                } catch (err) {
-                    console.error('Failed to fetch adjustment requests:', err);
-                    setAdjustmentRequests([]);
-                } finally {
-                    setLoading(false);
-                }
-            };
-            fetchAdjustmentRequests();
-        }
-    }, [adjustmentStatusFilter, currentUser.tenantId, activeTab]);
-
-    // Refetch when profile status filter changes
-    useEffect(() => {
-        if (activeTab === 'profile') {
-            const fetchProfileRequests = async () => {
-                try {
-                    setLoading(true);
-                    setError(null);
-                    const profileData = await api.getProfileUpdateRequests(currentUser.tenantId, {
-                        status: profileStatusFilter === 'All' ? undefined : profileStatusFilter
-                    });
-                    setProfileRequests(profileData);
-                } catch (err) {
-                    console.error('Failed to fetch profile update requests:', err);
-                    setProfileRequests([]);
-                } finally {
-                    setLoading(false);
-                }
-            };
-            fetchProfileRequests();
-        }
-    }, [profileStatusFilter, currentUser.tenantId, activeTab]);
+        // Cleanup interval on unmount
+        return () => clearInterval(pollInterval);
+    }, [currentUser.tenantId, leaveStatusFilter, adjustmentStatusFilter, profileStatusFilter]);
 
     const handleAction = async (idOrSetter: string | ((prev: any[]) => any[]), actionOrId: 'approve' | 'reject' | 'cancel' | string, action?: 'approve' | 'reject' | 'cancel' | 'adjustment' | 'profile') => {
-        // Handle leave requests: handleAction(id, action)
-        if (typeof idOrSetter === 'string' && typeof actionOrId === 'string' && (actionOrId === 'approve' || actionOrId === 'reject' || actionOrId === 'cancel')) {
+        // Handle leave requests: handleAction(id, action) - no third parameter
+        if (typeof idOrSetter === 'string' && typeof actionOrId === 'string' && (actionOrId === 'approve' || actionOrId === 'reject' || actionOrId === 'cancel') && !action) {
             const id = idOrSetter;
             const actionType = actionOrId;
             try {
                 const status = actionType === 'approve' ? 'Approved' : actionType === 'reject' ? 'Rejected' : 'Cancelled';
-                
-                // Get the leave request details first
-                const leaveRequest = leaveRequests.find(req => req.id === id);
-                if (!leaveRequest) {
-                    throw new Error('Leave request not found');
-                }
 
-                await api.updateLeaveRequest(currentUser.tenantId, id, { 
+                // Make API call directly without checking local state first
+                await api.updateLeaveRequest(currentUser.tenantId, id, {
                     status
                 });
-                
+
                 // If approved, update leave balance
                 if (actionType === 'approve') {
-                    try {
-                        // Calculate number of days
-                        const startDate = new Date(leaveRequest.startDate);
-                        const endDate = new Date(leaveRequest.endDate);
-                        const daysCount = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end dates
-                        
-                        await api.updateLeaveBalance(currentUser.tenantId, leaveRequest.userId, leaveRequest.leaveType, daysCount);
-                    } catch (balanceError) {
-                        console.warn('Could not update leave balance (table may not exist yet):', balanceError);
-                        // Don't fail the approval if balance update fails
+                    // Get the leave request details from local state for balance calculation
+                    const leaveRequest = leaveRequests.find(req => req.id === id);
+                    if (leaveRequest) {
+                        try {
+                            // Calculate number of days
+                            const startDate = new Date(leaveRequest.startDate);
+                            const endDate = new Date(leaveRequest.endDate);
+                            const daysCount = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end dates
+
+                            await api.updateLeaveBalance(currentUser.tenantId, leaveRequest.userId, leaveRequest.leaveType, daysCount);
+                        } catch (balanceError) {
+                            console.warn('Could not update leave balance (table may not exist yet):', balanceError);
+                            // Don't fail the approval if balance update fails
+                        }
                     }
                 }
-                
-                // Update status in local state instead of removing
-                setLeaveRequests(prev => prev.map(req => 
+
+                // Update status in local state - if not found, it might have been removed by polling, which is fine
+                setLeaveRequests(prev => prev.map(req =>
                     req.id === id ? { ...req, status: status as RequestStatus } : req
                 ));
             } catch (err) {
@@ -533,7 +456,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                             )}
                                         </div>
                                         <div className="flex space-x-2 flex-shrink-0">
-                                            {currentUser.role === UserRole.ADMIN && req.status === 'Pending' ? (
+                                            {currentUser.role === UserRole.ADMIN && (req.status === 'Pending' || req.status === 'pending') ? (
                                                 <>
                                                     <button
                                                         title="Approve profile update"
@@ -552,8 +475,8 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                                 </>
                                             ) : (
                                                 <span className={`text-xs px-2 py-1 rounded ${
-                                                    req.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                                                    req.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                                                    req.status === 'Approved' || req.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                                    req.status === 'Rejected' || req.status === 'rejected' ? 'bg-red-100 text-red-800' :
                                                     'bg-yellow-100 text-yellow-800'
                                                 }`}>
                                                     {req.status}

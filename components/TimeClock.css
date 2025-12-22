@@ -1,0 +1,14 @@
+.progress-bar-container {
+    width: 100%;
+    background-color: #e5e7eb; /* Equivalent to bg-gray-200 */
+    border-radius: 9999px; /* Equivalent to rounded-full */
+    height: 10px; /* Equivalent to h-2.5 */
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 10px; /* Equivalent to h-2.5 */
+    background-color: #4f46e5; /* primary DEFAULT from tailwind config */
+    border-radius: 9999px; /* Equivalent to rounded-full */
+    transition: width 1s ease-linear; /* Equivalent to transition-all duration-1000 ease-linear */
+}
