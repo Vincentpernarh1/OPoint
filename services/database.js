@@ -1309,6 +1309,37 @@ export const db = {
         return { data, error };
     },
 
+    async getClockLogs(employeeId, date = null) {
+        const client = getSupabaseClient();
+        if (!client) return { data: [], error: 'Database not configured' };
+
+        const tenantId = getCurrentTenantId();
+        if (!tenantId) return { data: [], error: 'No tenant context set' };
+
+        let query = client
+            .from('opoint_clock_logs')
+            .select('*')
+            .eq('tenant_id', tenantId)
+            .eq('employee_id', employeeId);
+
+        if (date) {
+            // Filter by date - assuming date is in YYYY-MM-DD format
+            const startOfDay = new Date(date);
+            startOfDay.setHours(0, 0, 0, 0);
+            const endOfDay = new Date(date);
+            endOfDay.setHours(23, 59, 59, 999);
+
+            query = query
+                .gte('clock_in', startOfDay.toISOString())
+                .lte('clock_in', endOfDay.toISOString());
+        }
+
+        query = query.order('clock_in', { ascending: false });
+
+        const { data, error } = await query;
+        return { data, error };
+    },
+
     // --- PROFILE UPDATE REQUESTS ---
     async createProfileUpdateRequest(requestData) {
         const client = getSupabaseClient();

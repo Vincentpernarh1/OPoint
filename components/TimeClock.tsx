@@ -439,9 +439,10 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
 
             setAdjustmentTarget(null);
             setNotification('Time adjustment request submitted successfully!');
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to submit adjustment request:', error);
-            setNotification('Failed to submit time adjustment request. Please try again.');
+            const errorMessage = error.message || 'Failed to submit time adjustment request. Please try again.';
+            setNotification(errorMessage);
         }
     };
     

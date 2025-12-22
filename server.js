@@ -2543,6 +2543,53 @@ app.post('/api/time-punches', async (req, res) => {
     }
 });
 
+app.get('/api/time-entries', async (req, res) => {
+    try {
+        const { userId, date } = req.query;
+        const tenantId = req.headers['x-tenant-id'];
+
+        if (!userId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'userId is required' 
+            });
+        }
+
+        const { data, error } = await db.getClockLogs(userId, date);
+
+        if (error) {
+            console.error('Database error fetching time entries:', error);
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Failed to fetch time entries' 
+            });
+        }
+
+        // Transform to TimeEntry format
+        const timeEntries = data.map(entry => ({
+            id: entry.id,
+            userId: entry.employee_id,
+            type: entry.clock_out ? 'clock_out' : 'clock_in',
+            timestamp: entry.clock_in || entry.clock_out,
+            location: entry.location,
+            photoUrl: entry.photo_url,
+            synced: true
+        }));
+
+        res.json({ 
+            success: true, 
+            data: timeEntries 
+        });
+
+    } catch (error) {
+        console.error('Error fetching time entries:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to fetch time entries' 
+        });
+    }
+});
+
 // --- TIME ADJUSTMENT REQUESTS ENDPOINTS ---
 app.get('/api/time-adjustments', async (req, res) => {
     try {
@@ -2591,6 +2638,26 @@ app.post('/api/time-adjustments', async (req, res) => {
             return res.status(400).json({ 
                 success: false, 
                 error: 'Missing required fields' 
+            });
+        }
+
+        // Check if user already has a pending time adjustment request for this date
+        const existingRequests = await db.getTimeAdjustmentRequests({ 
+            userId: userId,
+            status: 'Pending'
+        }, tenantId);
+
+        // Check if any existing request is for the same date
+        const requestDate = new Date(date).toDateString();
+        const hasPendingRequestForDate = existingRequests.some(req => {
+            const reqDate = new Date(req.requested_clock_in).toDateString();
+            return reqDate === requestDate;
+        });
+
+        if (hasPendingRequestForDate) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'You already have a pending time adjustment request for this date. Please cancel the existing request before submitting a new one.' 
             });
         }
 
