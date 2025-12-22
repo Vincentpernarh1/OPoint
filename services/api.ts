@@ -560,6 +560,24 @@ export const api = {
     return result.data;
   },
 
+  getTimeEntries: async (tenantId: string, userId: string, date?: string): Promise<any[]> => {
+    const queryParams = new URLSearchParams({ userId });
+    if (date) queryParams.append('date', date);
+    const url = `${API_BASE}/api/time-entries?${queryParams.toString()}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getHeaders(tenantId),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch time entries');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch time entries');
+    }
+    return result.data;
+  },
+
   // Profile Update Requests
   createProfileUpdateRequest: async (tenantId: string, requestData: {
     user_id: string;

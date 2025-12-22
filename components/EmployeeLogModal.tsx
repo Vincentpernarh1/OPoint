@@ -1,10 +1,10 @@
 
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { User, TimeEntry } from '../types';
-import { TIME_ENTRIES } from '../constants';
 import { XIcon, CameraIcon, MapPinIcon } from './Icons';
 import ImagePreviewModal from './ImagePreviewModal';
+import { api } from '../services/api';
 
 interface EmployeeLogModalProps {
     user: User;
@@ -14,14 +14,33 @@ interface EmployeeLogModalProps {
 
 const EmployeeLogModal = ({ user, date, onClose }: EmployeeLogModalProps) => {
     const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+    const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchTimeEntries = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                const dateString = date ? date.toISOString().split('T')[0] : undefined;
+                const entries = await api.getTimeEntries(user.tenantId, user.id, dateString);
+                setTimeEntries(entries);
+            } catch (err) {
+                console.error('Failed to fetch time entries:', err);
+                setError('Failed to load time entries');
+                setTimeEntries([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchTimeEntries();
+    }, [user, date]);
 
     const userTimeEntries = useMemo(() => {
-        let entries = TIME_ENTRIES.filter(entry => entry.userId === user.id);
-        if (date) {
-            entries = entries.filter(entry => entry.timestamp.toDateString() === date.toDateString());
-        }
-        return entries.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-    }, [user, date]);
+        return timeEntries.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    }, [timeEntries]);
 
     const title = date 
         ? `Time Log for ${user.name} on ${date.toLocaleDateString()}`
@@ -37,7 +56,16 @@ const EmployeeLogModal = ({ user, date, onClose }: EmployeeLogModalProps) => {
                     </button>
                     <h3 className="text-xl font-bold mb-4 text-gray-800">{title}</h3>
                     <div className="max-h-[70vh] overflow-y-auto">
-                        {userTimeEntries.length > 0 ? (
+                        {loading ? (
+                            <div className="text-center py-10">
+                                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                                <p className="mt-2 text-gray-500">Loading time entries...</p>
+                            </div>
+                        ) : error ? (
+                            <div className="text-center py-10">
+                                <p className="text-red-500">{error}</p>
+                            </div>
+                        ) : userTimeEntries.length > 0 ? (
                             <ul className="space-y-3">
                                 {userTimeEntries.map(entry => (
                                     <li key={entry.id} className="p-3 bg-gray-50 rounded-md border">

@@ -63,7 +63,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                     id: item.id,
                     userId: item.employee_id,
                     employeeName: item.employee_name,
-                    date: item.adjustment_requested_at ? new Date(item.adjustment_requested_at) : new Date(),
+                    date: new Date(item.requested_clock_in), // Use the date of the requested clock in for viewing activity
                     originalClockIn: item.clock_in ? new Date(item.clock_in) : undefined,
                     originalClockOut: item.clock_out ? new Date(item.clock_out) : undefined,
                     requestedClockIn: new Date(item.requested_clock_in),
@@ -238,8 +238,22 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
         }
     };
 
-    const handleViewLog = (userId: string, date: Date) => {
-        const user = getUser(userId);
+    const handleViewLog = (userId: string, date: Date, employeeName?: string) => {
+        let user = getUser(userId);
+        if (!user && employeeName) {
+            // Create a temporary user object for API-based users
+            user = {
+                id: userId,
+                name: employeeName,
+                email: '',
+                role: UserRole.EMPLOYEE,
+                avatarUrl: '',
+                team: '',
+                tenantId: currentUser.tenantId,
+                basicSalary: 0,
+                hireDate: new Date(),
+            };
+        }
         if (user) {
             setViewingLog({ user, date });
         }
@@ -422,7 +436,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                             )}
                                         </div>
                                     </div>
-                                    <div className="mt-3 pt-3 border-t text-left"><button onClick={() => handleViewLog(req.userId, req.date)} className="text-sm font-medium text-primary hover:underline">View Activity for this Day</button></div>
+                                    <div className="mt-3 pt-3 border-t text-left"><button onClick={() => handleViewLog(req.userId, req.date, req.employeeName)} className="text-sm font-medium text-primary hover:underline">View Activity for this Day</button></div>
                                 </div>
                             ))}
                             {adjustmentRequests.length === 0 && <p className="text-gray-500 text-center py-8">No time adjustment requests found.</p>}
