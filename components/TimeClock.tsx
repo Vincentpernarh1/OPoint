@@ -98,41 +98,209 @@ const formatDuration = (ms: number, withSign = false) => {
 const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps) => {
     const [time, setTime] = useState(new Date());
     const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
-    const [adjustmentRequests, setAdjustmentRequests] = useState<AdjustmentRequest[]>(ADJUSTMENT_REQUESTS.filter(r => r.userId === currentUser.id));
+    const [adjustmentRequests, setAdjustmentRequests] = useState<AdjustmentRequest[]>([]);
     const [locationError, setLocationError] = useState<string | null>(null);
     const [isCameraOpen, setIsCameraOpen] = useState(false);
     const [currentActionType, setCurrentActionType] = useState<TimeEntryType | null>(null);
     const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
     
-    // Changed to store both date and entries for the adjustment modal
     const [adjustmentTarget, setAdjustmentTarget] = useState<{date: string, clockIn?: Date, clockOut?: Date} | null>(null);
     
     const [notification, setNotification] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isLoadingAdjustments, setIsLoadingAdjustments] = useState(true);
     
     const progressBarRef = useRef<HTMLDivElement>(null);
     
     const latestAnnouncement = useMemo(() => announcements.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0], [announcements]);
 
-    // Load entries
+    // Load entries and adjustment requests
     useEffect(() => {
-        try {
-            // Load from constants/mock data (in real app, this would be from API)
-            const serverEntries = TIME_ENTRIES.filter(e => e.userId === currentUser.id);
-            
-            // Filter out future entries
-            const now = new Date();
-            const validEntries = serverEntries.filter(e => e.timestamp <= now);
-            
-            // Sort
-            validEntries.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-            
-            setTimeEntries(validEntries);
-        } catch (error) {
-            console.error("Failed to load time entries", error);
-            setTimeEntries([]);
-        }
-    }, [currentUser.id]);
+        const storageKey = `adjustmentRequests_${currentUser.id}`;
+        
+        const loadData = async () => {
+            try {
+                setIsLoadingAdjustments(true);
+                
+                // Load time entries from constants/mock data (in real app, this would be from API)
+                const serverEntries = TIME_ENTRIES.filter(e => e.userId === currentUser.id);
+                
+                // Filter out future entries
+                const now = new Date();
+                const validEntries = serverEntries.filter(e => e.timestamp <= now);
+                
+                // Sort
+                validEntries.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+                
+                setTimeEntries(validEntries);
+
+                // Load local adjustments first for immediate availability
+                const stored = localStorage.getItem(storageKey);
+                let localAdjustments: AdjustmentRequest[] = [];
+                if (stored) {
+                    try {
+                        localAdjustments = JSON.parse(stored, (key, value) => {
+                            if (key === 'requestedClockIn' || key === 'requestedClockOut' || 
+                                key === 'originalClockIn' || key === 'originalClockOut' || 
+                                key === 'reviewedAt') {
+                                return value ? new Date(value) : undefined;
+                            }
+                            return value;
+                        });
+                        console.log('Loaded local adjustments:', localAdjustments.length, 'items');
+                    } catch (e) {
+                        console.error('Error parsing localStorage:', e);
+                        localAdjustments = [];
+                    }
+                }
+
+                // Set local adjustments immediately so UI is consistent
+                setAdjustmentRequests(localAdjustments);
+
+                // Load adjustment requests from API
+                try {
+                    console.log('Loading adjustment requests from API for user:', currentUser.id, 'tenant:', currentUser.tenantId);
+                    const adjustmentData = await api.getTimeAdjustmentRequests(currentUser.tenantId, { 
+                        userId: currentUser.id 
+                    });
+                    console.log('API returned adjustment data:', adjustmentData);
+                    const transformedAdjustmentData: AdjustmentRequest[] = adjustmentData
+                        .filter(item => {
+                            // Filter out invalid dates (like 1969-12-31)
+                            const date = new Date(item.clock_in || item.requested_clock_in);
+                            const year = date.getFullYear();
+                            return year > 2000 && year < 2100; // Valid date range
+                        })
+                        .map((item: any) => ({
+                        id: item.id,
+                        userId: item.employee_id,
+                        employeeName: item.employee_name || currentUser.name, // Fallback to current user name
+                        date: (() => {
+                            const d = new Date(item.clock_in || item.requested_clock_in);
+                            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                        })(),
+                        originalClockIn: item.clock_in ? new Date(item.clock_in) : undefined,
+                        originalClockOut: item.clock_out ? new Date(item.clock_out) : undefined,
+                        requestedClockIn: new Date(item.requested_clock_in),
+                        requestedClockOut: new Date(item.requested_clock_out),
+                        reason: item.adjustment_reason,
+                        status: item.adjustment_status as RequestStatus,
+                        reviewedBy: item.adjustment_reviewed_by,
+                        reviewedAt: item.adjustment_reviewed_at ? new Date(item.adjustment_reviewed_at) : undefined
+                    }));
+                    
+                    console.log('Transformed API data:', transformedAdjustmentData);
+                    
+                    // Combine API data with local adjustments, preferring local for same date/status
+                    const combinedData = [...transformedAdjustmentData];
+                    
+                    for (const local of localAdjustments) {
+                        const existingIndex = combinedData.findIndex(api => 
+                            api.date === local.date && api.status === local.status
+                        );
+                        if (existingIndex === -1) {
+                            // Local adjustment not in API data, add it
+                            combinedData.push(local);
+                        } else {
+                            // Replace API data with local data (local takes precedence)
+                            combinedData[existingIndex] = local;
+                        }
+                    }
+                    
+                    console.log('Combined adjustment data:', combinedData);
+                    
+                    setAdjustmentRequests(combinedData);
+                    
+                    // Update localStorage with current local adjustments
+                    const currentLocal = combinedData.filter(req => req.id.startsWith('temp-'));
+                    localStorage.setItem(storageKey, JSON.stringify(currentLocal));
+                    
+                } catch (adjustmentError) {
+                    console.error("Failed to load adjustment requests from API:", adjustmentError);
+                    // Keep local adjustments as the state (already set above)
+                    console.log('Keeping local adjustments due to API failure');
+                }
+            } catch (error) {
+                console.error("Failed to load time entries", error);
+                setTimeEntries([]);
+            } finally {
+                setIsLoadingAdjustments(false);
+            }
+        };
+
+        loadData();
+        
+        // Refresh adjustment requests every 30 seconds to catch external updates
+        const interval = setInterval(() => {
+            // Get current local adjustments from localStorage
+            let localAdjustments: AdjustmentRequest[] = [];
+            try {
+                const stored = localStorage.getItem(storageKey);
+                if (stored) {
+                    localAdjustments = JSON.parse(stored).map((item: any) => ({
+                        ...item,
+                        requestedClockIn: new Date(item.requestedClockIn),
+                        requestedClockOut: new Date(item.requestedClockOut),
+                        reviewedAt: item.reviewedAt ? new Date(item.reviewedAt) : undefined
+                    }));
+                }
+            } catch (e) {
+                console.error('Error parsing localStorage during refresh:', e);
+                localAdjustments = [];
+            }
+
+            api.getTimeAdjustmentRequests(currentUser.tenantId, { userId: currentUser.id })
+                .then(adjustmentData => {
+                    const transformedAdjustmentData: AdjustmentRequest[] = adjustmentData
+                        .filter(item => {
+                            // Filter out invalid dates (like 1969-12-31)
+                            const date = new Date(item.clock_in || item.requested_clock_in);
+                            const year = date.getFullYear();
+                            return year > 2000 && year < 2100; // Valid date range
+                        })
+                        .map((item: any) => ({
+                        id: item.id,
+                        userId: item.employee_id,
+                        employeeName: item.employee_name || currentUser.name, // Fallback to current user name
+                        date: (() => {
+                            const d = new Date(item.clock_in || item.requested_clock_in);
+                            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                        })(),
+                        originalClockIn: item.clock_in ? new Date(item.clock_in) : undefined,
+                        originalClockOut: item.clock_out ? new Date(item.clock_out) : undefined,
+                        requestedClockIn: new Date(item.requested_clock_in),
+                        requestedClockOut: new Date(item.requested_clock_out),
+                        reason: item.adjustment_reason,
+                        status: item.adjustment_status as RequestStatus,
+                        reviewedBy: item.adjustment_reviewed_by,
+                        reviewedAt: item.adjustment_reviewed_at ? new Date(item.adjustment_reviewed_at) : undefined
+                    }));
+                    
+                    // Combine API data with local adjustments, preferring local for same date/status
+                    const combinedData = [...transformedAdjustmentData];
+                    
+                    for (const local of localAdjustments) {
+                        const existingIndex = combinedData.findIndex(api => 
+                            api.date === local.date && api.status === local.status
+                        );
+                        if (existingIndex === -1) {
+                            // Local adjustment not in API data, add it
+                            combinedData.push(local);
+                        } else {
+                            // Replace API data with local data (local takes precedence)
+                            combinedData[existingIndex] = local;
+                        }
+                    }
+                    
+                    setAdjustmentRequests(combinedData);
+                })
+                .catch(adjustmentError => {
+                    console.error("Failed to refresh adjustment requests", adjustmentError);
+                });
+        }, 30000); // 30 seconds
+
+        return () => clearInterval(interval);
+    }, [currentUser.id, currentUser.tenantId]);
 
     // Sync data when online status changes
     useEffect(() => {
@@ -200,7 +368,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                     summary: { worked: totalWorkedMs, balance: balanceMs },
                 };
             })
-            .sort((a, b) => b.date.getTime() - a.date.getTime());
+            .sort((a, b) => b.date.getTime() - a.date.getTime()); // Sort by date descending
     }, [timeEntries, time]);
 
     const todaySummary = useMemo(() => {
@@ -426,15 +594,77 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
 
     const handleAdjustmentSubmit = async (adjustment: Omit<AdjustmentRequest, 'id' | 'userId' | 'status'>) => {
         try {
-            // Create new adjustment request via API
-            await api.createTimeAdjustmentRequest(currentUser.tenantId || '', {
+            console.log('Submitting adjustment:', {
                 userId: currentUser.id,
-                date: adjustment.date.toISOString().split('T')[0], // YYYY-MM-DD
+                tenantId: currentUser.tenantId,
+                date: adjustment.date,
+                requestedClockIn: adjustment.requestedClockIn,
+                requestedClockOut: adjustment.requestedClockOut
+            });
+
+            // Check for existing pending or approved adjustments for this day
+            const existingAdjustment = adjustmentRequests.find(req => {
+                return req.date === adjustment.date && (req.status === RequestStatus.PENDING || req.status === RequestStatus.APPROVED);
+            });
+
+            if (existingAdjustment) {
+                console.log('Found existing adjustment in local state:', existingAdjustment);
+                if (existingAdjustment.status === RequestStatus.PENDING) {
+                    setNotification('A time adjustment request is already pending for this day');
+                    setAdjustmentTarget(null);
+                    return;
+                }
+                if (existingAdjustment.status === RequestStatus.APPROVED) {
+                    setNotification('This day has already been adjusted and cannot be modified');
+                    setAdjustmentTarget(null);
+                    return;
+                }
+            }
+
+            // Create new adjustment request via API
+            const response = await api.createTimeAdjustmentRequest(currentUser.tenantId || '', {
+                userId: currentUser.id,
+                employeeName: currentUser.name,
+                date: adjustment.date, // Already in YYYY-MM-DD format
                 originalClockIn: adjustment.originalClockIn?.toISOString(),
                 originalClockOut: adjustment.originalClockOut?.toISOString(),
                 requestedClockIn: adjustment.requestedClockIn.toISOString(),
                 requestedClockOut: adjustment.requestedClockOut.toISOString(),
                 reason: adjustment.reason
+            });
+
+            // Add the new request to local state
+            const newRequest: AdjustmentRequest = {
+                id: response.id || `temp-${Date.now()}`, // Use temp ID if not returned
+                userId: currentUser.id,
+                employeeName: currentUser.name,
+                date: adjustment.date, // Keep as string
+                originalClockIn: adjustment.originalClockIn,
+                originalClockOut: adjustment.originalClockOut,
+                requestedClockIn: adjustment.requestedClockIn,
+                requestedClockOut: adjustment.requestedClockOut,
+                reason: adjustment.reason,
+                status: RequestStatus.PENDING
+            };
+            
+            console.log('Adding new adjustment request:', newRequest);
+            
+            setAdjustmentRequests(prev => {
+                const updated = [...prev, newRequest];
+                // Store locally added adjustments in sessionStorage
+                const localAdjustments = updated.filter(req => req.id.startsWith('temp-'));
+                console.log('Storing local adjustments in sessionStorage:', localAdjustments.length, 'items');
+                const storageKey = `adjustmentRequests_${currentUser.id}`;
+                console.log('Using storage key:', storageKey);
+                try {
+                    const storageValue = JSON.stringify(localAdjustments);
+                    localStorage.setItem(storageKey, storageValue);
+                    console.log('localStorage set successfully, value length:', storageValue.length);
+                    console.log('Verifying storage:', localStorage.getItem(storageKey)?.length);
+                } catch (e) {
+                    console.error('Error setting localStorage:', e);
+                }
+                return updated;
             });
 
             setAdjustmentTarget(null);
@@ -448,7 +678,13 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     
     const handleCancelAdjustment = (requestId: string) => {
         if(window.confirm('Are you sure you want to cancel this adjustment request?')) {
-            setAdjustmentRequests(prev => prev.filter(req => req.id !== requestId));
+            setAdjustmentRequests(prev => {
+                const updated = prev.filter(req => req.id !== requestId);
+                // Update localStorage with remaining local adjustments
+                const localAdjustments = updated.filter(req => req.id.startsWith('temp-'));
+                localStorage.setItem(`adjustmentRequests_${currentUser.id}`, JSON.stringify(localAdjustments));
+                return updated;
+            });
             setNotification('Adjustment request cancelled.');
         }
     };
@@ -604,10 +840,11 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                     <div className="space-y-8 max-h-[40rem] overflow-y-auto pr-2">
                         {dailyWorkHistory.length > 0 ? dailyWorkHistory.map(day => {
                             const { needed, reason } = isAdjustmentNeeded(day.summary, day.entries, day.date);
-                            const pendingRequest = adjustmentRequests.find(req => 
-                                new Date(req.date).toDateString() === day.date.toDateString() && 
-                                req.status === RequestStatus.PENDING
-                            );
+                            const adjustmentRequest = adjustmentRequests.find(req => {
+                                const reqDate = req.date;
+                                const dayDate = `${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, '0')}-${String(day.date.getDate()).padStart(2, '0')}`;
+                                return reqDate === dayDate;
+                            });
                             
                             return (
                                 <div key={day.date.toISOString()} className="border-b pb-6 last:border-b-0">
@@ -669,22 +906,38 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
 
                                     {/* ADJUSTMENT SECTION */}
                                     <div className="mt-4 flex justify-end">
-                                        {pendingRequest ? (
-                                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center space-x-4">
-                                                <div className="flex items-center text-amber-700">
+                                        {adjustmentRequest && (adjustmentRequest.status === RequestStatus.PENDING || adjustmentRequest.status === RequestStatus.APPROVED) ? (
+                                            <div className={`border rounded-lg p-3 flex items-center space-x-4 ${
+                                                adjustmentRequest.status === RequestStatus.APPROVED 
+                                                    ? 'bg-green-50 border-green-200' 
+                                                    : 'bg-amber-50 border-amber-200'
+                                            }`}>
+                                                <div className={`flex items-center ${
+                                                    adjustmentRequest.status === RequestStatus.APPROVED 
+                                                        ? 'text-green-700' 
+                                                        : 'text-amber-700'
+                                                }`}>
                                                     <ClockIcon className="h-5 w-5 mr-2" />
-                                                    <span className="font-semibold text-sm">Adjustment Requested</span>
+                                                    <span className="font-semibold text-sm">
+                                                        {adjustmentRequest.status === RequestStatus.APPROVED 
+                                                            ? 'Adjustment Approved' 
+                                                            : 'Adjustment Requested'}
+                                                    </span>
                                                 </div>
-                                                <div className="h-4 w-px bg-amber-300"></div>
-                                                <button 
-                                                    onClick={() => handleCancelAdjustment(pendingRequest.id)}
-                                                    className="text-xs font-medium text-red-600 hover:underline flex items-center"
-                                                >
-                                                    <XIcon className="h-3 w-3 mr-1" />
-                                                    Cancel Request
-                                                </button>
+                                                {adjustmentRequest.status === RequestStatus.PENDING && (
+                                                    <>
+                                                        <div className="h-4 w-px bg-amber-300"></div>
+                                                        <button 
+                                                            onClick={() => handleCancelAdjustment(adjustmentRequest.id)}
+                                                            className="text-xs font-medium text-red-600 hover:underline flex items-center"
+                                                        >
+                                                            <XIcon className="h-3 w-3 mr-1" />
+                                                            Cancel Request
+                                                        </button>
+                                                    </>
+                                                )}
                                             </div>
-                                        ) : needed ? (
+                                        ) : needed && !isLoadingAdjustments ? (
                                             <div className="text-right">
                                                 <button 
                                                     onClick={() => {
@@ -704,6 +957,12 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                                                     <span>Request Adjustment</span>
                                                 </button>
                                                 <p className="text-xs text-red-500 mt-1 font-medium">{reason}</p>
+                                            </div>
+                                        ) : isLoadingAdjustments ? (
+                                            <div className="text-right">
+                                                <div className="text-sm bg-gray-100 text-gray-500 font-semibold py-2 px-4 rounded-lg flex items-center justify-center ml-auto">
+                                                    <span>Loading...</span>
+                                                </div>
                                             </div>
                                         ) : null}
                                     </div>

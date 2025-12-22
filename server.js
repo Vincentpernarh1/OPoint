@@ -1925,11 +1925,12 @@ app.put('/api/expenses/:id', async (req, res) => {
 // --- TIME ADJUSTMENT ENDPOINTS ---
 app.get('/api/time-adjustments', async (req, res) => {
     try {
-        const { status } = req.query;
+        const { status, userId } = req.query;
         const tenantId = req.headers['x-tenant-id'];
 
         const filters = {};
         if (status) filters.status = status;
+        if (userId) filters.userId = userId;
 
         const { data, error } = await db.getTimeAdjustmentRequests(filters, tenantId);
 
@@ -2004,6 +2005,7 @@ app.put('/api/time-adjustments/:id', async (req, res) => {
         const { data, error } = await db.updateTimeAdjustmentRequest(adjustmentId, updates, tenantId);
 
         if (error) {
+            console.log('Update time adjustment error:', error);
             return res.status(400).json({ 
                 success: false, 
                 error: error.message 
@@ -2565,8 +2567,20 @@ app.get('/api/time-entries', async (req, res) => {
             });
         }
 
+        // Filter entries by date if specified
+        let filteredData = data;
+        if (date) {
+            filteredData = data.filter(entry => {
+                const clockInDate = entry.clock_in ? entry.clock_in.split('T')[0] : null;
+                const clockOutDate = entry.clock_out ? entry.clock_out.split('T')[0] : null;
+                
+                // Include entry if either clock_in or clock_out is on the target date
+                return clockInDate === date || clockOutDate === date;
+            });
+        }
+
         // Transform to TimeEntry format
-        const timeEntries = data.map(entry => ({
+        const timeEntries = filteredData.map(entry => ({
             id: entry.id,
             userId: entry.employee_id,
             type: entry.clock_out ? 'clock_out' : 'clock_in',
@@ -2593,17 +2607,14 @@ app.get('/api/time-entries', async (req, res) => {
 // --- TIME ADJUSTMENT REQUESTS ENDPOINTS ---
 app.get('/api/time-adjustments', async (req, res) => {
     try {
-        const { status } = req.query;
+        const { status, userId } = req.query;
         const tenantId = req.headers['x-tenant-id'];
-        
-        console.log('Fetching time adjustments for tenant:', tenantId, 'status:', status);
         
         const filters = {};
         if (status) filters.status = status;
+        if (userId) filters.userId = userId;
 
         const { data, error } = await db.getTimeAdjustmentRequests(filters, tenantId);
-
-        console.log('Time adjustments result:', { data: data?.length, error });
 
         if (error) {
             console.error('Database error fetching time adjustments:', error);
@@ -2641,23 +2652,22 @@ app.post('/api/time-adjustments', async (req, res) => {
             });
         }
 
-        // Check if user already has a pending time adjustment request for this date
+        // Check if user already has a pending or approved time adjustment request for this date
         const existingRequests = await db.getTimeAdjustmentRequests({ 
-            userId: userId,
-            status: 'Pending'
+            userId: userId
         }, tenantId);
 
-        // Check if any existing request is for the same date
+        // Check if any existing request is for the same date (both pending and approved)
         const requestDate = new Date(date).toDateString();
-        const hasPendingRequestForDate = existingRequests.some(req => {
+        const hasRequestForDate = existingRequests.some(req => {
             const reqDate = new Date(req.requested_clock_in).toDateString();
             return reqDate === requestDate;
         });
 
-        if (hasPendingRequestForDate) {
+        if (hasRequestForDate) {
             return res.status(400).json({ 
                 success: false, 
-                error: 'You already have a pending time adjustment request for this date. Please cancel the existing request before submitting a new one.' 
+                error: 'You already have a time adjustment request for this date. Please contact your administrator if you need to make changes.' 
             });
         }
 
@@ -2692,48 +2702,6 @@ app.post('/api/time-adjustments', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: 'Failed to create time adjustment request' 
-        });
-    }
-});
-
-app.put('/api/time-adjustments/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { status, reviewedBy } = req.body;
-        const tenantId = req.headers['x-tenant-id'];
-
-        if (!id || !status) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Missing required fields' 
-            });
-        }
-
-        const updates = {
-            status: status,
-            reviewed_by: reviewedBy || null,
-            reviewed_at: status !== 'Pending' ? new Date().toISOString() : null
-        };
-
-        const { data, error } = await db.updateTimeAdjustmentRequest(id, updates, tenantId);
-
-        if (error) {
-            return res.status(500).json({ 
-                success: false, 
-                error: 'Failed to update time adjustment request' 
-            });
-        }
-
-        res.json({ 
-            success: true, 
-            data 
-        });
-
-    } catch (error) {
-        console.error('Error updating time adjustment request:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Failed to update time adjustment request' 
         });
     }
 });

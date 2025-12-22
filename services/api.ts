@@ -510,56 +510,6 @@ export const api = {
     return result.data;
   },
 
-  // Time Adjustment Requests
-  createTimeAdjustmentRequest: async (tenantId: string, adjustmentData: any): Promise<any> => {
-    const response = await fetch(`${API_BASE}/api/time-adjustments`, {
-      method: 'POST',
-      headers: getHeaders(tenantId),
-      body: JSON.stringify(adjustmentData),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to create time adjustment request');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to create time adjustment request');
-    }
-    return result.data;
-  },
-
-  updateTimeAdjustmentRequest: async (tenantId: string, id: string, updates: any): Promise<any> => {
-    const response = await fetch(`${API_BASE}/api/time-adjustments/${id}`, {
-      method: 'PUT',
-      headers: getHeaders(tenantId),
-      body: JSON.stringify(updates),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to update time adjustment request');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to update time adjustment request');
-    }
-    return result.data;
-  },
-
-  getTimeAdjustmentRequests: async (tenantId: string, filters?: any): Promise<any[]> => {
-    const queryParams = filters ? new URLSearchParams(filters).toString() : '';
-    const url = `${API_BASE}/api/time-adjustments${queryParams ? `?${queryParams}` : ''}`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: getHeaders(tenantId),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to fetch time adjustment requests');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to fetch time adjustment requests');
-    }
-    return result.data;
-  },
-
   getTimeEntries: async (tenantId: string, userId: string, date?: string): Promise<any[]> => {
     const queryParams = new URLSearchParams({ userId });
     if (date) queryParams.append('date', date);
@@ -662,4 +612,55 @@ export const api = {
       throw new Error(result.error || 'Failed to cancel profile update request');
     }
     return result.data;
-  },};
+  },
+
+  // Time Adjustment API
+  getTimeAdjustmentRequests: async (tenantId: string, filters?: { status?: string; userId?: string }): Promise<any[]> => {
+    const queryParams = filters ? new URLSearchParams(filters).toString() : '';
+    const url = `${API_BASE}/api/time-adjustments${queryParams ? `?${queryParams}` : ''}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getHeaders(tenantId),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch time adjustment requests');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch time adjustment requests');
+    }
+    return result.data;
+  },
+
+  createTimeAdjustmentRequest: async (tenantId: string, adjustmentData: any): Promise<any> => {
+    const response = await fetch(`${API_BASE}/api/time-adjustments`, {
+      method: 'POST',
+      headers: getHeaders(tenantId),
+      body: JSON.stringify(adjustmentData),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to create time adjustment request');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to create time adjustment request');
+    }
+    return result.data;
+  },
+
+  updateTimeAdjustmentRequest: async (tenantId: string, requestId: string, updates: any): Promise<any> => {
+    const response = await fetch(`${API_BASE}/api/time-adjustments/${requestId}`, {
+      method: 'PUT',
+      headers: getHeaders(tenantId),
+      body: JSON.stringify(updates),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update time adjustment request');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to update time adjustment request');
+    }
+    return result.data;
+  },
+};

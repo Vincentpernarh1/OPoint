@@ -10,20 +10,23 @@ interface EmployeeLogModalProps {
     user: User;
     date?: Date; // Optional date for filtering
     onClose: () => void;
+    adjustment?: any;
 }
 
-const EmployeeLogModal = ({ user, date, onClose }: EmployeeLogModalProps) => {
+const EmployeeLogModal = ({ user, date, onClose, adjustment }: EmployeeLogModalProps) => {
     const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
     const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    const dateToUse = adjustment?.originalClockIn ? new Date(adjustment.originalClockIn) : date;
 
     useEffect(() => {
         const fetchTimeEntries = async () => {
             try {
                 setLoading(true);
                 setError(null);
-                const dateString = date ? date.toISOString().split('T')[0] : undefined;
+                const dateString = dateToUse ? dateToUse.toISOString().split('T')[0] : undefined;
                 const entries = await api.getTimeEntries(user.tenantId, user.id, dateString);
                 setTimeEntries(entries);
             } catch (err) {
@@ -36,14 +39,14 @@ const EmployeeLogModal = ({ user, date, onClose }: EmployeeLogModalProps) => {
         };
 
         fetchTimeEntries();
-    }, [user, date]);
+    }, [user, dateToUse]);
 
     const userTimeEntries = useMemo(() => {
         return timeEntries.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
     }, [timeEntries]);
 
-    const title = date 
-        ? `Time Log for ${user.name} on ${date.toLocaleDateString()}`
+    const title = dateToUse 
+        ? `Time Log for ${user.name} on ${dateToUse.toLocaleDateString()}`
         : `Full Time Log for ${user.name}`;
 
     return (
@@ -51,10 +54,23 @@ const EmployeeLogModal = ({ user, date, onClose }: EmployeeLogModalProps) => {
             {previewImageUrl && <ImagePreviewModal imageUrl={previewImageUrl} onClose={() => setPreviewImageUrl(null)} isSecureContext={true} />}
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40" onClick={onClose}>
                 <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl relative" onClick={e => e.stopPropagation()}>
-                    <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                    <button  title="Close" onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
                         <XIcon className="h-6 w-6"/>
                     </button>
                     <h3 className="text-xl font-bold mb-4 text-gray-800">{title}</h3>
+                    {adjustment && (
+                        <div className="mb-4 p-4 bg-blue-50 rounded-md border">
+                            <h4 className="font-semibold text-gray-800 mb-2">Time Adjustment Request</h4>
+                            <div className="text-sm text-gray-600 space-y-1">
+                                <p><strong>Reason:</strong> {adjustment.adjustment_reason}</p>
+                                {adjustment.originalClockIn && <p><strong>Original Clock In:</strong> {adjustment.originalClockIn.toLocaleString()}</p>}
+                                {adjustment.originalClockOut && <p><strong>Original Clock Out:</strong> {adjustment.originalClockOut.toLocaleString()}</p>}
+                                <p><strong>Requested Clock In:</strong> {adjustment.requestedClockIn.toLocaleString()}</p>
+                                {adjustment.requestedClockOut && <p><strong>Requested Clock Out:</strong> {adjustment.requestedClockOut.toLocaleString()}</p>}
+                                <p><strong>Status:</strong> {adjustment.adjustment_status}</p>
+                            </div>
+                        </div>
+                    )}
                     <div className="max-h-[70vh] overflow-y-auto">
                         {loading ? (
                             <div className="text-center py-10">
