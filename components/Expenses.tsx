@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, ExpenseRequest, RequestStatus } from '../types';
-import { EXPENSE_REQUESTS } from '../constants';
+import { api } from '../services/api';
 import { ReceiptIcon, CheckCircleIcon, ClockIcon, XIcon } from './Icons';
 import Notification from './Notification';
 
@@ -8,42 +8,66 @@ interface ExpensesProps {
     currentUser: User;
 }
 
-const statusInfo: Record<RequestStatus, { icon: React.FC<{className?: string}>, color: string }> = {
-    [RequestStatus.PENDING]: { icon: ClockIcon, color: 'text-yellow-500' },
-    [RequestStatus.APPROVED]: { icon: CheckCircleIcon, color: 'text-green-500' },
-    [RequestStatus.REJECTED]: { icon: ClockIcon, color: 'text-red-500' }, // Using ClockIcon as a placeholder
-    [RequestStatus.CANCELLED]: { icon: XIcon, color: 'text-gray-500' },
+const statusInfo: Record<string, { icon: React.FC<{className?: string}>, color: string }> = {
+    'pending': { icon: ClockIcon, color: 'text-yellow-500' },
+    'approved': { icon: CheckCircleIcon, color: 'text-green-500' },
+    'rejected': { icon: ClockIcon, color: 'text-red-500' }, // Using ClockIcon as a placeholder
+    'cancelled': { icon: XIcon, color: 'text-gray-500' },
 };
 
 const formatCurrency = (amount: number) => new Intl.NumberFormat('en-GH', { style: 'currency', currency: 'GHS' }).format(amount);
 
 const Expenses = ({ currentUser }: ExpensesProps) => {
-    const [requests, setRequests] = useState<ExpenseRequest[]>(EXPENSE_REQUESTS.filter(e => e.userId === currentUser.id));
+    const [requests, setRequests] = useState<ExpenseRequest[]>([]);
+    const [loading, setLoading] = useState(true);
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [receipt, setReceipt] = useState<File | null>(null);
     const [notification, setNotification] = useState<string | null>(null);
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        const newRequest: ExpenseRequest = {
-            id: `ex-${Date.now()}`,
-            userId: currentUser.id,
-            description,
-            amount: parseFloat(amount),
-            date: new Date(date),
-            status: RequestStatus.PENDING,
-            receiptUrl: receipt ? URL.createObjectURL(receipt) : undefined,
+    // Fetch expense claims on component mount
+    useEffect(() => {
+        const fetchExpenseClaims = async () => {
+            try {
+                const claims = await api.getExpenseClaims(currentUser.tenantId!, { employee_id: currentUser.id });
+                setRequests(claims);
+            } catch (error) {
+                console.error('Failed to fetch expense claims:', error);
+                setNotification('Failed to load expense claims');
+            } finally {
+                setLoading(false);
+            }
         };
-        setRequests(prev => [newRequest, ...prev]);
-        
-        // Reset form
-        setDescription('');
-        setAmount('');
-        setDate(new Date().toISOString().split('T')[0]);
-        setReceipt(null);
-        setNotification('Expense claim submitted successfully!');
+
+        fetchExpenseClaims();
+    }, [currentUser.tenantId, currentUser.id]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            const expenseData = {
+                employee_id: currentUser.id,
+                employee_name: currentUser.name,
+                description,
+                amount: parseFloat(amount),
+                expense_date: date,
+                receipt_url: receipt ? URL.createObjectURL(receipt) : undefined,
+            };
+
+            const newClaim = await api.createExpenseClaim(currentUser.tenantId!, expenseData);
+            setRequests(prev => [newClaim, ...prev]);
+
+            // Reset form
+            setDescription('');
+            setAmount('');
+            setDate(new Date().toISOString().split('T')[0]);
+            setReceipt(null);
+            setNotification('Expense claim submitted successfully!');
+        } catch (error) {
+            console.error('Failed to submit expense claim:', error);
+            setNotification('Failed to submit expense claim');
+        }
     };
 
     return (
@@ -76,32 +100,39 @@ const Expenses = ({ currentUser }: ExpensesProps) => {
                 </div>
                  <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg">
                     <h3 className="text-xl font-bold text-gray-800 mb-4">My Expense Claims</h3>
-                    <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-                        {requests.length > 0 ? requests.map(req => {
-                            const StatusIcon = statusInfo[req.status].icon;
-                            return (
-                                <div key={req.id} className="p-3 border rounded-lg flex items-start space-x-3 bg-slate-50">
-                                    <div className={`p-2.5 rounded-full mt-1 ${statusInfo[req.status].color}`}>
-                                        <StatusIcon className="h-5 w-5" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="flex justify-between items-center">
-                                            <p className="font-semibold text-gray-700">{req.description}</p>
-                                            <p className={`font-bold text-lg ${statusInfo[req.status].color}`}>{formatCurrency(req.amount)}</p>
+                    {loading ? (
+                        <div className="text-center py-8">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                            <p className="text-gray-500 mt-2">Loading expense claims...</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                            {requests.length > 0 ? requests.map(req => {
+                                const StatusIcon = statusInfo[req.status].icon;
+                                return (
+                                    <div key={req.id} className="p-3 border rounded-lg flex items-start space-x-3 bg-slate-50">
+                                        <div className={`p-2.5 rounded-full mt-1 ${statusInfo[req.status].color}`}>
+                                            <StatusIcon className="h-5 w-5" />
                                         </div>
-                                        <div className="flex justify-between items-center text-sm">
-                                            <p className="text-gray-500 mt-1">{new Date(req.date).toLocaleDateString()}</p>
-                                            <span className={`px-2 py-1 text-xs font-medium rounded-full bg-gray-100 ${statusInfo[req.status].color}`}>
-                                                {req.status}
-                                            </span>
+                                        <div className="flex-1">
+                                            <div className="flex justify-between items-center">
+                                                <p className="font-semibold text-gray-700">{req.description}</p>
+                                                <p className={`font-bold text-lg ${statusInfo[req.status].color}`}>{formatCurrency(req.amount)}</p>
+                                            </div>
+                                            <div className="flex justify-between items-center text-sm">
+                                                <p className="text-gray-500 mt-1">{new Date(req.expense_date).toLocaleDateString()}</p>
+                                                <span className={`px-2 py-1 text-xs font-medium rounded-full bg-gray-100 ${statusInfo[req.status].color}`}>
+                                                    {req.status}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            );
-                        }) : (
-                            <p className="text-gray-500 text-center py-8">You have no expense claims.</p>
-                        )}
-                    </div>
+                                );
+                            }) : (
+                                <p className="text-gray-500 text-center py-8">You have no expense claims.</p>
+                            )}
+                        </div>
+                    )}
                  </div>
             </div>
         </>

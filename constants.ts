@@ -101,8 +101,8 @@ export const ANNOUNCEMENTS: Announcement[] = [
 ];
 
 export const EXPENSE_REQUESTS: ExpenseRequest[] = [
-    { id: 'ex1', userId: '1', description: 'Client Lunch Meeting', amount: 150.75, date: new Date(new Date().setDate(new Date().getDate() - 5)), status: RequestStatus.APPROVED, receiptUrl: 'https://picsum.photos/seed/receipt1/400/600' },
-    { id: 'ex2', userId: '4', description: 'Transport to UPSA Campus', amount: 50.00, date: new Date(new Date().setDate(new Date().getDate() - 2)), status: RequestStatus.PENDING, receiptUrl: 'https://picsum.photos/seed/receipt2/400/600' },
+    { id: 'ex1', employee_id: '1', employee_name: 'Alice Johnson', description: 'Client Lunch Meeting', amount: 150.75, expense_date: new Date(new Date().setDate(new Date().getDate() - 5)).toISOString().split('T')[0], status: RequestStatus.APPROVED, receipt_url: 'https://picsum.photos/seed/receipt1/400/600' },
+    { id: 'ex2', employee_id: '4', employee_name: 'Diana Prince', description: 'Transport to UPSA Campus', amount: 50.00, expense_date: new Date(new Date().setDate(new Date().getDate() - 2)).toISOString().split('T')[0], status: RequestStatus.PENDING, receipt_url: 'https://picsum.photos/seed/receipt2/400/600' },
 ];
 
 export const PROFILE_UPDATE_REQUESTS: ProfileUpdateRequest[] = [

@@ -78,11 +78,17 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 const profileData = await api.getProfileUpdateRequests(currentUser.tenantId, {
                     status: profileStatusFilter === 'All' ? undefined : profileStatusFilter
                 });
+
+                // Fetch expense claims
+                const expenseData = await api.getExpenseClaims(currentUser.tenantId, {
+                    status: 'pending' // Only show pending for approval
+                });
                 
                 // Use only API data - no mock data fallback
                 setLeaveRequests(transformedLeaveData);
                 setAdjustmentRequests(transformedAdjustmentData);
                 setProfileRequests(profileData);
+                setExpenseRequests(expenseData);
             } catch (err) {
                 console.error('Failed to fetch requests:', err);
                 setError('Failed to load requests');
@@ -90,6 +96,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 setLeaveRequests([]);
                 setAdjustmentRequests([]);
                 setProfileRequests([]);
+                setExpenseRequests([]);
             } finally {
                 setLoading(false);
             }
@@ -105,7 +112,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
         return () => clearInterval(pollInterval);
     }, [currentUser.tenantId, leaveStatusFilter, adjustmentStatusFilter, profileStatusFilter]);
 
-    const handleAction = async (idOrSetter: string | ((prev: any[]) => any[]), actionOrId: 'approve' | 'reject' | 'cancel' | string, action?: 'approve' | 'reject' | 'cancel' | 'adjustment' | 'profile') => {
+    const handleAction = async (idOrSetter: string | ((prev: any[]) => any[]), actionOrId: 'approve' | 'reject' | 'cancel' | string, action?: 'approve' | 'reject' | 'cancel' | 'adjustment' | 'profile' | 'expense') => {
         // Handle leave requests: handleAction(id, action) - no third parameter
         if (typeof idOrSetter === 'string' && typeof actionOrId === 'string' && (actionOrId === 'approve' || actionOrId === 'reject' || actionOrId === 'cancel') && !action) {
             const id = idOrSetter;
@@ -195,6 +202,31 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
             } catch (err) {
                 console.error(`Failed to ${actionType} profile update request:`, err);
                 setError(`Failed to ${actionType} profile update request`);
+            }
+        }
+        // Handle expense claims: handleAction(id, action, 'expense')
+        else if (typeof idOrSetter === 'string' && typeof actionOrId === 'string' && (actionOrId === 'approve' || actionOrId === 'reject') && action === 'expense') {
+            const id = idOrSetter;
+            const actionType = actionOrId;
+            try {
+                const status = actionType === 'approve' ? 'approved' : 'rejected';
+                await api.updateExpenseClaim(currentUser.tenantId, id, {
+                    status,
+                    reviewed_by: currentUser.id
+                });
+
+                // Update status in local state
+                setExpenseRequests(prev => prev.map(req =>
+                    req.id === id ? {
+                        ...req,
+                        status: status as RequestStatus,
+                        reviewed_by: currentUser.id,
+                        reviewed_at: new Date().toISOString()
+                    } : req
+                ));
+            } catch (err) {
+                console.error(`Failed to ${actionType} expense claim:`, err);
+                setError(`Failed to ${actionType} expense claim`);
             }
         }
         // Handle other requests: handleAction(setStateFunction, id)
@@ -401,19 +433,23 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                             {expenseRequests.map(req => (
                                 <div key={req.id} className="p-4 border rounded-lg flex justify-between items-center bg-slate-50">
                                     <div>
-                                        <p className="font-semibold">{getUser(req.userId)?.name}</p>
+                                        <p className="font-semibold">{req.employee_name}</p>
                                         <p className="text-sm text-gray-600">{req.description} - <span className="font-bold">{formatCurrency(req.amount)}</span></p>
-                                        <p className="text-xs text-gray-500 mt-1">{new Date(req.date).toLocaleDateString('en-US')}</p>
-                                        {req.receiptUrl && <a href={req.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">View Receipt</a>}
+                                        <p className="text-xs text-gray-500 mt-1">{new Date(req.expense_date).toLocaleDateString('en-US')}</p>
+                                        {req.receipt_url && <a href={req.receipt_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">View Receipt</a>}
                                     </div>
                                     <div className="flex space-x-2">
-                                        {currentUser.role === UserRole.ADMIN ? (
+                                        {currentUser.role === UserRole.ADMIN && req.status === 'pending' ? (
                                             <>
-                                                <button title="Approve expense claim" onClick={() => handleAction(setExpenseRequests, req.id)} className="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200"><CheckIcon className="h-5 w-5"/></button>
-                                                <button title="Reject expense claim" onClick={() => handleAction(setExpenseRequests, req.id)} className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200"><XIcon className="h-5 w-5"/></button>
+                                                <button title="Approve expense claim" onClick={() => handleAction(req.id, 'approve', 'expense')} className="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200"><CheckIcon className="h-5 w-5"/></button>
+                                                <button title="Reject expense claim" onClick={() => handleAction(req.id, 'reject', 'expense')} className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200"><XIcon className="h-5 w-5"/></button>
                                             </>
+                                        ) : req.status === 'pending' && currentUser.role !== UserRole.ADMIN ? (
+                                            <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-800">Pending</span>
                                         ) : (
-                                            <button title="Cancel expense claim" onClick={() => handleAction(setExpenseRequests, req.id)} className="p-2 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200"><XIcon className="h-5 w-5"/></button>
+                                            <span className={`text-xs px-2 py-1 rounded ${req.status === 'approved' ? 'bg-green-100 text-green-800' : req.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
+                                                {req.status}
+                                            </span>
                                         )}
                                     </div>
                                 </div>

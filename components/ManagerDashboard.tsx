@@ -56,7 +56,10 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
                 // Fetch pending profile update requests
                 const profileRequests = await api.getProfileUpdateRequests(currentUser.tenantId, { status: 'Pending' });
                 
-                const totalPending = leaveRequests.length + timeAdjustments.length + profileRequests.length;
+                // Fetch pending expense claims
+                const expenseClaims = await api.getExpenseClaims(currentUser.tenantId, { status: 'pending' });
+                
+                const totalPending = leaveRequests.length + timeAdjustments.length + profileRequests.length + expenseClaims.length;
                 setPendingApprovalsCount(totalPending);
             } catch (error) {
                 console.error('Failed to fetch pending approvals count:', error);

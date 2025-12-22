@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { TimeEntry, TimeEntryType, User, Announcement, AdjustmentRequest, RequestStatus } from '../types';
+import { TimeEntry, TimeEntryType, User, UserRole, Announcement, AdjustmentRequest, RequestStatus } from '../types';
 import { TIME_ENTRIES, ADJUSTMENT_REQUESTS } from '../constants';
-import { MapPinIcon, ArrowUpRightIcon, ArrowDownLeftIcon, MegaphoneIcon, ClockIcon, XIcon } from './Icons';
+import { MapPinIcon, ArrowUpRightIcon, ArrowDownLeftIcon, MegaphoneIcon, ClockIcon, XIcon, CameraIcon } from './Icons';
 import CameraModal from './CameraModal';
 import ImagePreviewModal from './ImagePreviewModal';
 import ManualAdjustmentModal from './ManualAdjustmentModal';
@@ -619,35 +619,51 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="space-y-3">
-                                        {day.entries.map(entry => (
-                                            <div key={entry.id} className="bg-gray-50 p-3 rounded-md">
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center">
-                                                        {entry.type === TimeEntryType.CLOCK_IN ? <ArrowUpRightIcon className="h-5 w-5 text-green-500 mr-3" /> : <ArrowDownLeftIcon className="h-5 w-5 text-red-500 mr-3" />}
-                                                        <span className={`font-medium ${entry.type === TimeEntryType.CLOCK_IN ? 'text-green-700' : 'text-red-700'}`}>{entry.type}</span>
-                                                        {!entry.synced && <span className="text-xs ml-2 bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded-full">Pending Sync</span>}
+                                    <div className="bg-white p-4 rounded-lg border">
+                                        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                                            {day.entries.map((entry) => (
+                                                <div key={entry.id} className="flex flex-col items-center space-y-2">
+                                                    <div className={`relative w-16 h-16 rounded-full flex items-center justify-center font-medium text-white shadow-lg ${
+                                                        entry.type === TimeEntryType.CLOCK_IN 
+                                                            ? 'bg-green-500' 
+                                                            : 'bg-red-500'
+                                                    }`}>
+                                                        {entry.type === TimeEntryType.CLOCK_IN ? (
+                                                            < ArrowDownLeftIcon className="h-6 w-6" />
+                                                        ) : (
+                                                            <ArrowUpRightIcon className="h-6 w-6" />
+                                                        )}
+                                                        {!entry.synced && (
+                                                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full border-2 border-white"></div>
+                                                        )}
                                                     </div>
-                                                    <span className="text-sm text-gray-600 font-semibold">{new Date(entry.timestamp).toLocaleTimeString()}</span>
-                                                </div>
-                                                <div className="mt-2 pl-8 space-y-2 text-sm">
-                                                    {entry.location && entry.location !== 'Location not available' && (
-                                                        <div className="flex items-center text-gray-500">
-                                                            <MapPinIcon className="h-4 w-4 mr-2 flex-shrink-0 text-gray-400" />
-                                                            <span className="truncate">{entry.location}</span>
+                                                    <div className="text-center">
+                                                        <div className="text-xs font-medium text-gray-700">
+                                                            {entry.type === TimeEntryType.CLOCK_IN ? 'Clock In' : 'Clock Out'}
                                                         </div>
-                                                    )}
-                                                    {entry.photoUrl && (
-                                                        <div className="flex items-center">
-                                                                <button onClick={() => setPreviewImageUrl(entry.photoUrl!)} className="flex items-center space-x-2 group">
-                                                                <img src={entry.photoUrl} alt="Clock-in selfie" className="w-8 h-8 rounded-md object-cover border"/>
-                                                                <span className="text-primary text-xs font-medium group-hover:underline">View Photo</span>
+                                                        <div className="text-xs text-gray-500 font-semibold">
+                                                            {new Date(entry.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center space-x-1">
+                                                        {entry.photoUrl && (
+                                                            <button 
+                                                                onClick={() => setPreviewImageUrl(entry.photoUrl!)} 
+                                                                className="flex items-center text-primary text-xs hover:underline"
+                                                                title="View photo"
+                                                            >
+                                                                <CameraIcon className="h-3 w-3" />
                                                             </button>
-                                                        </div>
-                                                    )}
+                                                        )}
+                                                        {entry.location && entry.location !== 'Location not available' && [UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS].includes(currentUser.role) && (
+                                                            <div className="flex items-center text-gray-500 text-xs" title={entry.location}>
+                                                                <MapPinIcon className="h-3 w-3" />
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
                                     </div>
 
                                     {/* ADJUSTMENT SECTION */}

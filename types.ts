@@ -156,12 +156,18 @@ export interface Announcement {
 
 export interface ExpenseRequest {
     id: string;
-    userId: string;
+    employee_id: string;
+    employee_name?: string;
     description: string;
     amount: number;
-    date: Date;
-    receiptUrl?: string; // Mock URL for uploaded photo
+    expense_date: string; // Date in YYYY-MM-DD format
+    receipt_url?: string;
     status: RequestStatus;
+    submitted_at?: string;
+    reviewed_by?: string;
+    reviewed_at?: string;
+    created_at?: string;
+    updated_at?: string;
 }
 
 export interface ProfileUpdateRequest {
