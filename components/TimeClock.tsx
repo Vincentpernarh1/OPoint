@@ -111,6 +111,30 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     const [isLoadingAdjustments, setIsLoadingAdjustments] = useState(true);
     
     const progressBarRef = useRef<HTMLDivElement>(null);
+
+    // Helpers for date normalization and localStorage parsing
+    const canonicalDate = (d: Date | string | undefined) => {
+        if (!d) return '';
+        try {
+            return new Date(d).toISOString().slice(0, 10);
+        } catch {
+            return '';
+        }
+    };
+
+    const parseStoredAdjustments = (raw: string) => {
+        try {
+            return JSON.parse(raw, (key, value) => {
+                if (value && (key === 'requestedClockIn' || key === 'requestedClockOut' || key === 'originalClockIn' || key === 'originalClockOut' || key === 'reviewedAt')) {
+                    return value ? new Date(value) : undefined;
+                }
+                return value;
+            });
+        } catch (e) {
+            console.error('Failed to parse stored adjustments', e);
+            return [];
+        }
+    };
     
     const latestAnnouncement = useMemo(() => announcements.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0], [announcements]);
 
@@ -177,7 +201,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                         employeeName: item.employee_name || currentUser.name, // Fallback to current user name
                         date: (() => {
                             const d = new Date(item.clock_in || item.requested_clock_in);
-                            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                            return d.toISOString().slice(0,10);
                         })(),
                         originalClockIn: item.clock_in ? new Date(item.clock_in) : undefined,
                         originalClockOut: item.clock_out ? new Date(item.clock_out) : undefined,
@@ -191,29 +215,30 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                     
                     console.log('Transformed API data:', transformedAdjustmentData);
                     
-                    // Combine API data with local adjustments, preferring local for same date/status
+                    // Combine API data with local adjustments, preferring by id then by date
                     const combinedData = [...transformedAdjustmentData];
                     
                     for (const local of localAdjustments) {
-                        const existingIndex = combinedData.findIndex(api => 
-                            api.date === local.date && api.status === local.status
-                        );
+                        const existingIndex = combinedData.findIndex(api => (
+                            (local.id && api.id === local.id) || api.date === local.date
+                        ));
                         if (existingIndex === -1) {
-                            // Local adjustment not in API data, add it
                             combinedData.push(local);
                         } else {
-                            // Replace API data with local data (local takes precedence)
-                            combinedData[existingIndex] = local;
+                            combinedData[existingIndex] = { ...combinedData[existingIndex], ...local };
                         }
                     }
-                    
+
                     console.log('Combined adjustment data:', combinedData);
-                    
+
                     setAdjustmentRequests(combinedData);
-                    
-                    // Update localStorage with current local adjustments
-                    const currentLocal = combinedData.filter(req => req.id.startsWith('temp-'));
-                    localStorage.setItem(storageKey, JSON.stringify(currentLocal));
+
+                    // Persist combined adjustments as a local cache (stores ISO strings for dates)
+                    try {
+                        localStorage.setItem(storageKey, JSON.stringify(combinedData));
+                    } catch (e) {
+                        console.error('Failed to persist combined adjustments to localStorage', e);
+                    }
                     
                 } catch (adjustmentError) {
                     console.error("Failed to load adjustment requests from API:", adjustmentError);
@@ -233,16 +258,11 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
         // Refresh adjustment requests every 30 seconds to catch external updates
         const interval = setInterval(() => {
             // Get current local adjustments from localStorage
-            let localAdjustments: AdjustmentRequest[] = [];
+                let localAdjustments: AdjustmentRequest[] = [];
             try {
                 const stored = localStorage.getItem(storageKey);
                 if (stored) {
-                    localAdjustments = JSON.parse(stored).map((item: any) => ({
-                        ...item,
-                        requestedClockIn: new Date(item.requestedClockIn),
-                        requestedClockOut: new Date(item.requestedClockOut),
-                        reviewedAt: item.reviewedAt ? new Date(item.reviewedAt) : undefined
-                    }));
+                    localAdjustments = parseStoredAdjustments(stored);
                 }
             } catch (e) {
                 console.error('Error parsing localStorage during refresh:', e);
@@ -264,7 +284,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                         employeeName: item.employee_name || currentUser.name, // Fallback to current user name
                         date: (() => {
                             const d = new Date(item.clock_in || item.requested_clock_in);
-                            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                            return d.toISOString().slice(0,10);
                         })(),
                         originalClockIn: item.clock_in ? new Date(item.clock_in) : undefined,
                         originalClockOut: item.clock_out ? new Date(item.clock_out) : undefined,
@@ -276,22 +296,20 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                         reviewedAt: item.adjustment_reviewed_at ? new Date(item.adjustment_reviewed_at) : undefined
                     }));
                     
-                    // Combine API data with local adjustments, preferring local for same date/status
+                    // Combine API data with local adjustments, preferring by id then by date
                     const combinedData = [...transformedAdjustmentData];
                     
                     for (const local of localAdjustments) {
-                        const existingIndex = combinedData.findIndex(api => 
-                            api.date === local.date && api.status === local.status
-                        );
+                        const existingIndex = combinedData.findIndex(api => (
+                            (local.id && api.id === local.id) || api.date === local.date
+                        ));
                         if (existingIndex === -1) {
-                            // Local adjustment not in API data, add it
                             combinedData.push(local);
                         } else {
-                            // Replace API data with local data (local takes precedence)
-                            combinedData[existingIndex] = local;
+                            combinedData[existingIndex] = { ...combinedData[existingIndex], ...local };
                         }
                     }
-                    
+
                     setAdjustmentRequests(combinedData);
                 })
                 .catch(adjustmentError => {
@@ -651,18 +669,12 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
             
             setAdjustmentRequests(prev => {
                 const updated = [...prev, newRequest];
-                // Store locally added adjustments in sessionStorage
-                const localAdjustments = updated.filter(req => req.id.startsWith('temp-'));
-                console.log('Storing local adjustments in sessionStorage:', localAdjustments.length, 'items');
+                // Persist an up-to-date cache of adjustments (useful if API GET lags)
                 const storageKey = `adjustmentRequests_${currentUser.id}`;
-                console.log('Using storage key:', storageKey);
                 try {
-                    const storageValue = JSON.stringify(localAdjustments);
-                    localStorage.setItem(storageKey, storageValue);
-                    console.log('localStorage set successfully, value length:', storageValue.length);
-                    console.log('Verifying storage:', localStorage.getItem(storageKey)?.length);
+                    localStorage.setItem(storageKey, JSON.stringify(updated));
                 } catch (e) {
-                    console.error('Error setting localStorage:', e);
+                    console.error('Error writing adjustments to localStorage', e);
                 }
                 return updated;
             });
@@ -680,9 +692,12 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
         if(window.confirm('Are you sure you want to cancel this adjustment request?')) {
             setAdjustmentRequests(prev => {
                 const updated = prev.filter(req => req.id !== requestId);
-                // Update localStorage with remaining local adjustments
-                const localAdjustments = updated.filter(req => req.id.startsWith('temp-'));
-                localStorage.setItem(`adjustmentRequests_${currentUser.id}`, JSON.stringify(localAdjustments));
+                // Persist updated adjustments cache
+                try {
+                    localStorage.setItem(`adjustmentRequests_${currentUser.id}`, JSON.stringify(updated));
+                } catch (e) {
+                    console.error('Failed to update adjustments cache', e);
+                }
                 return updated;
             });
             setNotification('Adjustment request cancelled.');
@@ -842,7 +857,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                             const { needed, reason } = isAdjustmentNeeded(day.summary, day.entries, day.date);
                             const adjustmentRequest = adjustmentRequests.find(req => {
                                 const reqDate = req.date;
-                                const dayDate = `${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, '0')}-${String(day.date.getDate()).padStart(2, '0')}`;
+                                const dayDate = canonicalDate(day.date);
                                 return reqDate === dayDate;
                             });
                             
@@ -947,7 +962,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                                                         const clockIn = clockIns.length > 0 ? new Date(Math.min(...clockIns.map(d => d.getTime()))) : undefined;
                                                         const clockOut = clockOuts.length > 0 ? new Date(Math.max(...clockOuts.map(d => d.getTime()))) : undefined;
                                                         setAdjustmentTarget({
-                                                            date: `${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, '0')}-${String(day.date.getDate()).padStart(2, '0')}`,
+                                                            date: canonicalDate(day.date),
                                                             clockIn,
                                                             clockOut
                                                         });
