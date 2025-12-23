@@ -2659,6 +2659,12 @@ app.post('/api/time-adjustments', async (req, res) => {
 
         // Check if any existing request is for the same date (both pending and approved)
         const requestDate = new Date(date).toDateString();
+
+
+        console.log("Date received here :",date)
+        console.log("Formatted request date :",requestDate  )
+
+        
         const hasRequestForDate = existingRequests.some(req => {
             const reqDate = new Date(req.requested_clock_in).toDateString();
             return reqDate === requestDate;
