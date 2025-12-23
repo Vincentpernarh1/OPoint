@@ -21,6 +21,30 @@ const getUser = (userId: string): User | undefined => USERS.find(u => u.id === u
 const formatCurrency = (amount: number) => new Intl.NumberFormat('en-GH', { style: 'currency', currency: 'GHS' }).format(amount);
 
 const Approvals = ({ currentUser }: ApprovalsProps) => {
+    // Helper to format/normalize server-provided dates to local YYYY-MM-DD
+    const canonicalDate = (d: Date | string | undefined) => {
+        if (!d) return '';
+        try {
+            const dt = d instanceof Date ? d : new Date(d);
+            const year = dt.getFullYear();
+            const month = String(dt.getMonth() + 1).padStart(2, '0');
+            const day = String(dt.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        } catch {
+            return '';
+        }
+    };
+
+    // Build a local Date from a YYYY-MM-DD string (avoids UTC midnight shift)
+    const localDateFromYMD = (ymd: string | undefined | null) => {
+        if (!ymd) return undefined;
+        const parts = String(ymd).split('-').map(p => parseInt(p, 10));
+        if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+            return new Date(parts[0], parts[1] - 1, parts[2]);
+        }
+        // Fallback
+        return new Date(ymd);
+    };
     const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
     const [adjustmentRequests, setAdjustmentRequests] = useState<AdjustmentRequest[]>([]);
     const [expenseRequests, setExpenseRequests] = useState<ExpenseRequest[]>([]);
@@ -64,20 +88,28 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
 
                 console.log("<Mnual checking : ",adjustmentData);
                 
-                const transformedAdjustmentData: AdjustmentRequest[] = adjustmentData.map((item: any) => ({
-                    id: item.id,
-                    userId: item.employee_id,
-                    employeeName: item.employee_name,
-                    date: new Date(item.requested_clock_in).toISOString().split('T')[0],
-                    originalClockIn: item.clock_in ? new Date(item.clock_in) : undefined,
-                    originalClockOut: item.clock_out ? new Date(item.clock_out) : undefined,
-                    requestedClockIn: new Date(item.requested_clock_in),
-                    requestedClockOut: new Date(item.requested_clock_out),
-                    reason: item.adjustment_reason,
-                    status: item.adjustment_status as RequestStatus,
-                    reviewedBy: item.adjustment_reviewed_by,
-                    reviewedAt: item.adjustment_reviewed_at ? new Date(item.adjustment_reviewed_at) : undefined
-                }));
+                const transformedAdjustmentData: AdjustmentRequest[] = adjustmentData.map((item: any) => {
+                    // Determine a safe date string (YYYY-MM-DD) without constructing Dates from null
+                    const dateFromRequestedClockIn = item.requested_clock_in ? canonicalDate(new Date(item.requested_clock_in)) : '';
+                    const dateFromRequestedClockOut = item.requested_clock_out ? canonicalDate(new Date(item.requested_clock_out)) : '';
+                    const dateFromClockIn = item.clock_in ? canonicalDate(new Date(item.clock_in)) : '';
+                    const dateStr = item.requested_date || dateFromRequestedClockIn || dateFromRequestedClockOut || dateFromClockIn || '';
+
+                    return {
+                        id: item.id,
+                        userId: item.employee_id,
+                        employeeName: item.employee_name,
+                        date: dateStr,
+                        originalClockIn: item.clock_in ? new Date(item.clock_in) : undefined,
+                        originalClockOut: item.clock_out ? new Date(item.clock_out) : undefined,
+                        requestedClockIn: item.requested_clock_in ? new Date(item.requested_clock_in) : undefined,
+                        requestedClockOut: item.requested_clock_out ? new Date(item.requested_clock_out) : undefined,
+                        reason: item.adjustment_reason,
+                        status: item.adjustment_status as RequestStatus,
+                        reviewedBy: item.adjustment_reviewed_by,
+                        reviewedAt: item.adjustment_reviewed_at ? new Date(item.adjustment_reviewed_at) : undefined
+                    } as AdjustmentRequest;
+                });
                 
                 // Fetch profile update requests
                 const profileData = await api.getProfileUpdateRequests(currentUser.tenantId, {
@@ -177,6 +209,8 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 if (actionType === 'approve' && adjustmentRequest) {
                     updateData.requested_clock_in = adjustmentRequest.requestedClockIn.toISOString();
                     updateData.requested_clock_out = adjustmentRequest.requestedClockOut.toISOString();
+                    // Also include an explicit date-only field so server can persist the intended local date
+                    updateData.requested_date = adjustmentRequest.date;
                 }
                 
                 console.log('Calling update API with:', updateData);
@@ -273,7 +307,8 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 hireDate: new Date(),
             };
         }
-        setViewingLog({ user, date: new Date(req.date), adjustment: req });
+        const localDate = localDateFromYMD(req.date) || new Date(req.date);
+        setViewingLog({ user, date: localDate, adjustment: req });
     };
     
     const renderFieldChanges = (fields: Partial<User>) => {
@@ -419,43 +454,49 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                     <option value="Rejected">Rejected</option>
                                 </select>
                             </div>
-                            {adjustmentRequests.map(req => (
-                                <div key={req.id} className={`p-4 border rounded-lg flex flex-col items-stretch ${req.status === RequestStatus.APPROVED ? 'bg-green-50 border-green-200' : req.status === RequestStatus.REJECTED ? 'bg-red-50 border-red-200' : 'bg-slate-50'}`}>
-                                    <div className="flex justify-between items-start w-full">
-                                        <div>
-                                            <p className="font-semibold">{req.employeeName || getUser(req.userId)?.name || `User ${req.userId}`}</p>
-                                            <p className="text-sm text-gray-600">{new Date(req.date).toLocaleDateString('en-US')}</p>
-                                            <p className="text-sm text-gray-600">
-                                                Requested: {req.requestedClockIn?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {req.requestedClockOut?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            </p>
-                                            {req.originalClockIn && req.originalClockOut && (
-                                                <p className="text-xs text-gray-500">
-                                                    Original: {req.originalClockIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {req.originalClockOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {adjustmentRequests.map(req => {
+                                const displayDate = localDateFromYMD(req.date) || (req.requestedClockIn ? new Date(req.requestedClockIn) : (req.requestedClockOut ? new Date(req.requestedClockOut) : (req.originalClockIn ? new Date(req.originalClockIn) : undefined)));
+                                return (
+                                    <div key={req.id} className={`p-4 border rounded-lg flex flex-col items-stretch ${req.status === RequestStatus.APPROVED ? 'bg-green-50 border-green-200' : req.status === RequestStatus.REJECTED ? 'bg-red-50 border-red-200' : 'bg-slate-50'}`}>
+                                        <div className="flex justify-between items-start w-full">
+                                            <div>
+                                                <p className="font-semibold">{req.employeeName || getUser(req.userId)?.name || `User ${req.userId}`}</p>
+                                                <p className="text-sm text-gray-600">{displayDate ? displayDate.toLocaleDateString('en-US') : '—'}</p>
+                                                {(() => {
+                                                    const requestedIn = req.requestedClockIn ? new Date(req.requestedClockIn) : (req.originalClockIn ? new Date(req.originalClockIn) : undefined);
+                                                    const requestedOut = req.requestedClockOut ? new Date(req.requestedClockOut) : (req.originalClockOut ? new Date(req.originalClockOut) : undefined);
+                                                    const usedFallback = !req.requestedClockIn && (req.originalClockIn || req.originalClockOut);
+                                                    return (
+                                                        <p className="text-sm text-gray-600">
+                                                            Requested: {requestedIn ? requestedIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'} - {requestedOut ? requestedOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                                                        </p>
+                                                    );
+                                                })()}
+                                                
+                                                <p className="text-xs text-gray-500 mt-1">{req.reason}</p>
+                                                <p className={`text-xs font-semibold mt-1 ${req.status === RequestStatus.APPROVED ? 'text-green-600' : req.status === RequestStatus.REJECTED ? 'text-red-600' : 'text-blue-600'}`}>
+                                                    Status: {req.status}
                                                 </p>
-                                            )}
-                                            <p className="text-xs text-gray-500 mt-1">{req.reason}</p>
-                                            <p className={`text-xs font-semibold mt-1 ${req.status === RequestStatus.APPROVED ? 'text-green-600' : req.status === RequestStatus.REJECTED ? 'text-red-600' : 'text-blue-600'}`}>
-                                                Status: {req.status}
-                                            </p>
+                                            </div>
+                                            <div className="flex space-x-2 flex-shrink-0">
+                                                {currentUser.role === UserRole.ADMIN && req.status === RequestStatus.PENDING ? (
+                                                    <>
+                                                        <button title="Approve time adjustment" onClick={() => handleAction(req.id, 'approve', 'adjustment')} className="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200"><CheckIcon className="h-5 w-5"/></button>
+                                                        <button title="Reject time adjustment" onClick={() => handleAction(req.id, 'reject', 'adjustment')} className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200"><XIcon className="h-5 w-5"/></button>
+                                                    </>
+                                                ) : req.status === RequestStatus.PENDING && currentUser.role !== UserRole.ADMIN ? (
+                                                    <button title="Cancel time adjustment" onClick={() => handleAction(req.id, 'cancel', 'adjustment')} className="p-2 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200"><XIcon className="h-5 w-5"/></button>
+                                                ) : (
+                                                    <span className={`text-xs px-2 py-1 rounded ${req.status === RequestStatus.APPROVED ? 'bg-green-100 text-green-800' : req.status === RequestStatus.REJECTED ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
+                                                        {req.status}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div className="flex space-x-2 flex-shrink-0">
-                                            {currentUser.role === UserRole.ADMIN && req.status === RequestStatus.PENDING ? (
-                                                <>
-                                                    <button title="Approve time adjustment" onClick={() => handleAction(req.id, 'approve', 'adjustment')} className="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200"><CheckIcon className="h-5 w-5"/></button>
-                                                    <button title="Reject time adjustment" onClick={() => handleAction(req.id, 'reject', 'adjustment')} className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200"><XIcon className="h-5 w-5"/></button>
-                                                </>
-                                            ) : req.status === RequestStatus.PENDING && currentUser.role !== UserRole.ADMIN ? (
-                                                <button title="Cancel time adjustment" onClick={() => handleAction(req.id, 'cancel', 'adjustment')} className="p-2 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200"><XIcon className="h-5 w-5"/></button>
-                                            ) : (
-                                                <span className={`text-xs px-2 py-1 rounded ${req.status === RequestStatus.APPROVED ? 'bg-green-100 text-green-800' : req.status === RequestStatus.REJECTED ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
-                                                    {req.status}
-                                                </span>
-                                            )}
-                                        </div>
+                                        <div className="mt-3 pt-3 border-t text-left"><button onClick={() => handleViewLog(req)} className="text-sm font-medium text-primary hover:underline">View Activity for this Day</button></div>
                                     </div>
-                                    <div className="mt-3 pt-3 border-t text-left"><button onClick={() => handleViewLog(req)} className="text-sm font-medium text-primary hover:underline">View Activity for this Day</button></div>
-                                </div>
-                            ))}
+                                );
+                            })}
                             {adjustmentRequests.length === 0 && <p className="text-gray-500 text-center py-8">No time adjustment requests found.</p>}
                         </div>
                     )}
