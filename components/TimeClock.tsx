@@ -335,7 +335,11 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                         ));
 
                         if (existingIndex === -1) {
-                            // Server has no record for this local adjustment -> drop it (stale)
+                            // If approved, keep it anyway to prevent vanishing statuses
+                            if (local.status === RequestStatus.APPROVED) {
+                                combinedData.push(local);
+                            }
+                            // Else drop (stale pending request)
                             continue;
                         } else {
                             // Merge: prefer server/API values to avoid stale local status
@@ -434,7 +438,11 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                         ));
 
                         if (existingIndex === -1) {
-                            // Server has no record for this local adjustment -> drop it (stale)
+                            // If approved, keep it anyway to prevent vanishing statuses
+                            if (local.status === RequestStatus.APPROVED) {
+                                combinedData.push(local);
+                            }
+                            // Else drop (stale pending request)
                             continue;
                         } else {
                             combinedData[existingIndex] = { ...local, ...combinedData[existingIndex] };
@@ -917,7 +925,11 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
 
                     const existingIndex = combined.findIndex(api => ((local.id && api.id === local.id) || api.date === local.date));
                     if (existingIndex === -1) {
-                        // Server has no matching record -> drop local stale adjustment
+                        // If approved, keep it anyway to prevent vanishing statuses
+                        if (local.status === RequestStatus.APPROVED) {
+                            combined.push(local);
+                        }
+                        // Else drop (stale pending request)
                         continue;
                     } else {
                         // Prefer server values; merge to keep any additional local fields

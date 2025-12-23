@@ -14,6 +14,7 @@ export const authService = {
         team: 'Admin',
         basicSalary: 0,
         hireDate: new Date(),
+        tenantId: '1', // Add tenantId for mock user
       };
       sessionStorage.setItem('currentUser', JSON.stringify(user));
       return user;
@@ -52,5 +53,7 @@ export const authService = {
 
   logout: (): void => {
     sessionStorage.removeItem('currentUser');
+    // Also clear any cached data
+    localStorage.clear();
   },
 };
