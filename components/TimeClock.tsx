@@ -143,6 +143,103 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     
     const latestAnnouncement = useMemo(() => announcements.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0], [announcements]);
 
+    // Ref to prevent overlapping refreshes
+    const isRefreshingRef = useRef(false);
+
+    // Fetch latest time entries from server, persist to offline DB, and update local state
+    const refreshTimeEntries = async () => {
+        if (!currentUser || !currentUser.tenantId) return;
+        if (isRefreshingRef.current) return;
+        isRefreshingRef.current = true;
+        try {
+            const serverEntries: any[] = await api.getTimeEntries(currentUser.tenantId, currentUser.id);
+            if (!serverEntries || !Array.isArray(serverEntries)) return;
+
+            const serverMapped: TimeEntry[] = serverEntries.map((item: any, idx: number) => {
+                const ts = item.timestamp || item.time || item.created_at || item.clock_in || item.clock_out || item.punched_at;
+                const timestamp = ts ? new Date(ts) : new Date();
+                const type = (item.type === 'clock_out' || (item.punch_type && item.punch_type === 'clock_out')) ? TimeEntryType.CLOCK_OUT : TimeEntryType.CLOCK_IN;
+                return {
+                    id: item.id ? String(item.id) : `se-${Date.now()}-${idx}`,
+                    userId: item.employee_id || item.user_id || currentUser.id,
+                    type,
+                    timestamp,
+                    location: item.location || item.geo || item.location_name || undefined,
+                    photoUrl: item.photo_url || item.photoUrl || undefined,
+                    synced: true
+                } as TimeEntry;
+            });
+
+            // Load local punches (including unsynced) and map to TimeEntry
+            let localPunchesRaw: any[] = [];
+            try {
+                localPunchesRaw = await offlineStorage.getTimePunches(currentUser.tenantId || '', currentUser.id);
+            } catch (err) {
+                console.warn('Failed to read local punches during refresh', err);
+            }
+
+            const localMapped: TimeEntry[] = (localPunchesRaw || []).map((p: any) => ({
+                id: p.id,
+                userId: p.userId,
+                type: p.type === 'clock_in' ? TimeEntryType.CLOCK_IN : TimeEntryType.CLOCK_OUT,
+                timestamp: p.timestamp ? new Date(p.timestamp) : new Date(),
+                location: p.location,
+                photoUrl: p.photoUrl,
+                synced: !!p.synced
+            }));
+
+            // Persist server entries into offline storage as synced punches
+            for (const e of serverMapped) {
+                try {
+                    await offlineStorage.saveTimePunch({
+                        id: e.id,
+                        userId: e.userId,
+                        companyId: currentUser.tenantId || '',
+                        type: e.type === TimeEntryType.CLOCK_IN ? 'clock_in' : 'clock_out',
+                        timestamp: e.timestamp.toISOString(),
+                        location: e.location,
+                        photoUrl: e.photoUrl,
+                        synced: true,
+                        createdAt: new Date().toISOString()
+                    });
+                } catch (err) {
+                    console.warn('Failed to persist server time entry to offline DB', err);
+                }
+            }
+
+            // Merge server and local entries, preferring local unsynced punches and server for canonical synced ones
+            const byId = new Map<string, TimeEntry>();
+            // Add server entries first
+            for (const s of serverMapped) {
+                byId.set(s.id, s);
+            }
+            // Add local ones, but do not overwrite server entries unless local is unsynced
+            for (const l of localMapped) {
+                if (!l.id) {
+                    // create a synthetic id based on timestamp+type
+                    const key = `local-${l.timestamp.toISOString()}-${l.type}`;
+                    if (!byId.has(key)) byId.set(key, { ...l, id: key });
+                } else if (!byId.has(l.id)) {
+                    byId.set(l.id, l);
+                } else {
+                    // If local is unsynced, prefer it (to show pending marker)
+                    const existing = byId.get(l.id)!;
+                    if (!l.synced) {
+                        byId.set(l.id, { ...existing, ...l });
+                    }
+                }
+            }
+
+            const combined = Array.from(byId.values());
+            combined.sort((a,b) => b.timestamp.getTime() - a.timestamp.getTime());
+            setTimeEntries(combined);
+        } catch (err) {
+            console.warn('refreshTimeEntries failed', err);
+        } finally {
+            isRefreshingRef.current = false;
+        }
+    };
+
     // Load entries and adjustment requests
     useEffect(() => {
         const storageKey = `adjustmentRequests_${currentUser.id}`;
@@ -222,17 +319,26 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                     
                     console.log('Transformed API data:', transformedAdjustmentData);
                     
-                    // Combine API data with local adjustments, preferring by id then by date
+                    // Combine API data with local adjustments. Keep only local-temp (unsynced) entries
+                    // if the server returned no matching record to avoid stale cached entries.
                     const combinedData = [...transformedAdjustmentData];
-                    
+
                     for (const local of localAdjustments) {
+                        // Always keep local unsynced/temp requests
+                        if (String(local.id || '').startsWith('temp-')) {
+                            combinedData.push(local);
+                            continue;
+                        }
+
                         const existingIndex = combinedData.findIndex(api => (
                             (local.id && api.id === local.id) || api.date === local.date
                         ));
+
                         if (existingIndex === -1) {
-                            combinedData.push(local);
+                            // Server has no record for this local adjustment -> drop it (stale)
+                            continue;
                         } else {
-                            // Prefer server/API values over local cache to avoid stale local status
+                            // Merge: prefer server/API values to avoid stale local status
                             combinedData[existingIndex] = { ...local, ...combinedData[existingIndex] };
                         }
                     }
@@ -253,6 +359,8 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                     } catch (e) {
                         console.error('Failed to persist combined adjustments to localStorage', e);
                     }
+                    // Also refresh time entries from server so local punches reflect any approved adjustments
+                    try { await refreshTimeEntries(); } catch (e) { console.warn('refreshTimeEntries failed during initial load', e); }
                     
                 } catch (adjustmentError) {
                     console.error("Failed to load adjustment requests from API:", adjustmentError);
@@ -311,22 +419,31 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                         reviewedAt: item.adjustment_reviewed_at ? new Date(item.adjustment_reviewed_at) : undefined
                     }));
                     
-                    // Combine API data with local adjustments, preferring by id then by date
+                    // Combine API data with local adjustments. Keep only local-temp (unsynced) entries
+                    // if the server returned no matching record to avoid stale cached entries.
                     const combinedData = [...transformedAdjustmentData];
-                    
+
                     for (const local of localAdjustments) {
+                        if (String(local.id || '').startsWith('temp-')) {
+                            combinedData.push(local);
+                            continue;
+                        }
+
                         const existingIndex = combinedData.findIndex(api => (
                             (local.id && api.id === local.id) || api.date === local.date
                         ));
+
                         if (existingIndex === -1) {
-                            combinedData.push(local);
+                            // Server has no record for this local adjustment -> drop it (stale)
+                            continue;
                         } else {
-                            // Prefer server/API values over local cache to avoid stale local status
                             combinedData[existingIndex] = { ...local, ...combinedData[existingIndex] };
                         }
                     }
 
                     setAdjustmentRequests(combinedData);
+                    // If adjustments changed, refresh server time entries to pick up changes
+                    try { void refreshTimeEntries(); } catch (e) { console.warn('refreshTimeEntries failed during polling', e); }
                 })
                 .catch(adjustmentError => {
                     console.error("Failed to refresh adjustment requests", adjustmentError);
@@ -712,6 +829,9 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 return updated;
             });
 
+            // Refresh time entries after submitting adjustment to pick up any server-side changes
+            try { await refreshTimeEntries(); } catch (e) { console.warn('refreshTimeEntries failed after submit', e); }
+
             setAdjustmentTarget(null);
             setNotification('Time adjustment request submitted successfully!');
         } catch (error: any) {
@@ -788,14 +908,26 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 }
 
                 const combined = [...transformed];
+
                 for (const local of localAdjustments) {
+                    if (String(local.id || '').startsWith('temp-')) {
+                        combined.push(local);
+                        continue;
+                    }
+
                     const existingIndex = combined.findIndex(api => ((local.id && api.id === local.id) || api.date === local.date));
-                    if (existingIndex === -1) combined.push(local);
-                    else combined[existingIndex] = { ...combined[existingIndex], ...local };
+                    if (existingIndex === -1) {
+                        // Server has no matching record -> drop local stale adjustment
+                        continue;
+                    } else {
+                        // Prefer server values; merge to keep any additional local fields
+                        combined[existingIndex] = { ...local, ...combined[existingIndex] };
+                    }
                 }
 
                 setAdjustmentRequests(combined);
                 try { localStorage.setItem(`adjustmentRequests_${currentUser.id}`, JSON.stringify(combined)); } catch (e) { }
+                try { await refreshTimeEntries(); } catch (e) { console.warn('refreshTimeEntries failed after cancel', e); }
             } catch (refreshErr) {
                 console.warn('Failed to refresh adjustments after cancel:', refreshErr);
             }
