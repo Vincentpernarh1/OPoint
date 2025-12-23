@@ -241,7 +241,7 @@ const App = () => {
             name: user?.name || user?.full_name || '',
             email: user?.email || '',
             role: role as UserRole,
-            tenantId: isSuperAdmin ? user?.tenant_id : user?.tenant_id,
+            tenantId: isSuperAdmin ? user?.tenantId : user?.tenantId,
             companyName: user?.company_name || '',
             team: user?.team || '',
             avatarUrl: user?.avatar_url || '',
