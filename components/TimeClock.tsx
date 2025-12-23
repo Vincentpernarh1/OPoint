@@ -113,10 +113,15 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     const progressBarRef = useRef<HTMLDivElement>(null);
 
     // Helpers for date normalization and localStorage parsing
+    // Return YYYY-MM-DD using local timezone (avoid UTC conversion)
     const canonicalDate = (d: Date | string | undefined) => {
         if (!d) return '';
         try {
-            return new Date(d).toISOString().slice(0, 10);
+            const dt = d instanceof Date ? d : new Date(d);
+            const year = dt.getFullYear();
+            const month = String(dt.getMonth() + 1).padStart(2, '0');
+            const day = String(dt.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
         } catch {
             return '';
         }
@@ -201,7 +206,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                         employeeName: item.employee_name || currentUser.name, // Fallback to current user name
                         date: (() => {
                             const d = new Date(item.clock_in || item.requested_clock_in);
-                            return d.toISOString().slice(0,10);
+                            return canonicalDate(d);
                         })(),
                         originalClockIn: item.clock_in ? new Date(item.clock_in) : undefined,
                         originalClockOut: item.clock_out ? new Date(item.clock_out) : undefined,
@@ -284,7 +289,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                         employeeName: item.employee_name || currentUser.name, // Fallback to current user name
                         date: (() => {
                             const d = new Date(item.clock_in || item.requested_clock_in);
-                            return d.toISOString().slice(0,10);
+                            return canonicalDate(d);
                         })(),
                         originalClockIn: item.clock_in ? new Date(item.clock_in) : undefined,
                         originalClockOut: item.clock_out ? new Date(item.clock_out) : undefined,

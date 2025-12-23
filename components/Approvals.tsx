@@ -60,6 +60,10 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 const adjustmentData = await api.getTimeAdjustmentRequests(currentUser.tenantId, { 
                     status: adjustmentStatusFilter === 'All' ? undefined : adjustmentStatusFilter 
                 });
+
+
+                console.log("<anual checking : ",adjustmentData);
+                
                 const transformedAdjustmentData: AdjustmentRequest[] = adjustmentData.map((item: any) => ({
                     id: item.id,
                     userId: item.employee_id,

@@ -1,7 +1,43 @@
 import type { Company, NewCompanyData, User, Announcement } from '../types';
 import { UserRole } from '../types';
+import { offlineStorage } from './offlineStorage';
 
 const API_BASE = 'http://localhost:3001';
+
+// Helper to send a request or enqueue it when offline / on network failure
+const sendOrQueue = async (method: string, url: string, tenantId?: string, body?: any) => {
+  const headers = getHeaders(tenantId);
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2,9)}`;
+
+  if (!navigator.onLine) {
+    await offlineStorage.enqueueRequest({ id, method, url, body, headers, tenantId });
+    return { _queued: true, _queueId: id, ...(body || {}) };
+  }
+
+  try {
+    const response = await fetch(url, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!response.ok) throw new Error('Network response not ok');
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error || 'API error');
+    return result.data;
+  } catch (error) {
+    // On error, enqueue for later retry and return queued indicator
+    await offlineStorage.enqueueRequest({ id, method, url, body, headers, tenantId });
+    // If we're online now, attempt to process the queue immediately
+    if (navigator.onLine) {
+      try {
+        await offlineStorage.processQueue();
+      } catch (err) {
+        console.warn('processQueue immediate attempt failed:', err);
+      }
+    }
+    return { _queued: true, _queueId: id, _error: String(error), ...(body || {}) };
+  }
+};
 
 // Helper function to get headers with tenant context
 const getHeaders = (tenantId?: string) => {
@@ -76,72 +112,27 @@ export const api = {
   },
 
   markAnnouncementsAsRead: async (tenantId: string, userId: string): Promise<void> => {
-    const response = await fetch(`${API_BASE}/api/announcements/mark-read`, {
-      method: 'POST',
-      headers: getHeaders(tenantId),
-      body: JSON.stringify({ userId }),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to mark announcements as read');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to mark announcements as read');
-    }
+    await sendOrQueue('POST', `${API_BASE}/api/announcements/mark-read`, tenantId, { userId });
   },
 
   createAnnouncement: async (data: { title: string; content: string; imageUrl?: string; created_by: string; tenant_id: string; author_name: string }): Promise<Announcement> => {
-    const response = await fetch(`${API_BASE}/api/announcements`, {
-      method: 'POST',
-      headers: getHeaders(data.tenant_id),
-      body: JSON.stringify({
-        title: data.title,
-        content: data.content,
-        imageUrl: data.imageUrl,
-        author_id: data.created_by,
-        author_name: data.author_name,
-        tenant_id: data.tenant_id
-      }),
+    return await sendOrQueue('POST', `${API_BASE}/api/announcements`, data.tenant_id, {
+      title: data.title,
+      content: data.content,
+      imageUrl: data.imageUrl,
+      author_id: data.created_by,
+      author_name: data.author_name,
+      tenant_id: data.tenant_id,
     });
-    if (!response.ok) {
-      throw new Error('Failed to create announcement');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to create announcement');
-    }
-    return result.data;
   },
 
   updateAnnouncement: async (id: string, data: Partial<Announcement>, tenantId: string): Promise<Announcement> => {
-    const response = await fetch(`${API_BASE}/api/announcements/${id}`, {
-      method: 'PUT',
-      headers: getHeaders(tenantId),
-      body: JSON.stringify(data),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to update announcement');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to update announcement');
-    }
-    return result.data;
+    return await sendOrQueue('PUT', `${API_BASE}/api/announcements/${id}`, tenantId, data);
   },
 
 
   deleteAnnouncement: async (announcementId: string, tenantId: string): Promise<void> => {
-    const response = await fetch(`${API_BASE}/api/announcements/${announcementId}`, {
-      method: 'DELETE',
-      headers: getHeaders(tenantId),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to delete announcement');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to delete announcement');
-    }
+    await sendOrQueue('DELETE', `${API_BASE}/api/announcements/${announcementId}`, tenantId);
   },
 
   // Notifications API
@@ -174,32 +165,11 @@ export const api = {
   },
 
   markNotificationAsRead: async (notificationId: string, tenantId: string): Promise<void> => {
-    const response = await fetch(`${API_BASE}/api/notifications/${notificationId}/read`, {
-      method: 'PUT',
-      headers: getHeaders(tenantId),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to mark notification as read');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to mark notification as read');
-    }
+    await sendOrQueue('PUT', `${API_BASE}/api/notifications/${notificationId}/read`, tenantId);
   },
 
   markAllNotificationsAsRead: async (tenantId: string, userId: string): Promise<void> => {
-    const response = await fetch(`${API_BASE}/api/notifications/mark-all-read`, {
-      method: 'PUT',
-      headers: getHeaders(tenantId),
-      body: JSON.stringify({ userId }),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to mark all notifications as read');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to mark all notifications as read');
-    }
+    await sendOrQueue('PUT', `${API_BASE}/api/notifications/mark-all-read`, tenantId, { userId });
   },
 
   sendNotification: async (message: string, roles: string[]): Promise<void> => {
@@ -223,19 +193,7 @@ export const api = {
   },
 
   processPayroll: async (payload: any, password: string, tenantId: string): Promise<any> => {
-    const response = await fetch(`${API_BASE}/api/payroll/pay`, {
-      method: 'POST',
-      headers: getHeaders(tenantId),
-      body: JSON.stringify({ payments: payload, password }),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to process payroll');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to process payroll');
-    }
-    return result.data;
+    return await sendOrQueue('POST', `${API_BASE}/api/payroll/pay`, tenantId, { payments: payload, password });
   },
 
   // Reports API
@@ -289,49 +247,15 @@ export const api = {
   },
 
   createUser: async (tenantId: string, userData: any): Promise<User> => {
-    const response = await fetch(`${API_BASE}/api/users`, {
-      method: 'POST',
-      headers: getHeaders(tenantId),
-      body: JSON.stringify(userData),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to create user');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to create user');
-    }
-    return result.data;
+    return await sendOrQueue('POST', `${API_BASE}/api/users`, tenantId, userData);
   },
 
   updateUser: async (tenantId: string, userId: string, userData: any): Promise<User> => {
-    const response = await fetch(`${API_BASE}/api/users/${userId}`, {
-      method: 'PUT',
-      headers: getHeaders(tenantId),
-      body: JSON.stringify(userData),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to update user');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to update user');
-    }
-    return result.data;
+    return await sendOrQueue('PUT', `${API_BASE}/api/users/${userId}`, tenantId, userData);
   },
 
   deleteUser: async (tenantId: string, userId: string): Promise<void> => {
-    const response = await fetch(`${API_BASE}/api/users/${userId}`, {
-      method: 'DELETE',
-      headers: getHeaders(tenantId),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to delete user');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to delete user');
-    }
+    await sendOrQueue('DELETE', `${API_BASE}/api/users/${userId}`, tenantId);
   },
 
   // Leave Requests API
@@ -354,35 +278,11 @@ export const api = {
   },
 
   updateLeaveRequest: async (tenantId: string, leaveId: string, updates: any): Promise<any> => {
-    const response = await fetch(`${API_BASE}/api/leave/requests/${leaveId}`, {
-      method: 'PUT',
-      headers: getHeaders(tenantId),
-      body: JSON.stringify(updates),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to update leave request');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to update leave request');
-    }
-    return result.data;
+    return await sendOrQueue('PUT', `${API_BASE}/api/leave/requests/${leaveId}`, tenantId, updates);
   },
 
   createLeaveRequest: async (tenantId: string, leaveData: any): Promise<any> => {
-    const response = await fetch(`${API_BASE}/api/leave/requests`, {
-      method: 'POST',
-      headers: getHeaders(tenantId),
-      body: JSON.stringify(leaveData),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to create leave request');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to create leave request');
-    }
-    return result.data;
+    return await sendOrQueue('POST', `${API_BASE}/api/leave/requests`, tenantId, leaveData);
   },
 
   // Leave Balances API
@@ -406,40 +306,11 @@ export const api = {
   },
 
   updateLeaveBalance: async (tenantId: string, employeeId: string, leaveType: string, usedDays: number): Promise<any> => {
-    try {
-      const response = await fetch(`${API_BASE}/api/leave/balances/${employeeId}`, {
-        method: 'PUT',
-        headers: getHeaders(tenantId),
-        body: JSON.stringify({ leaveType, usedDays }),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to update leave balance');
-      }
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to update leave balance');
-      }
-      return result.data;
-    } catch (error) {
-      console.warn('API call failed for updating leave balance:', error);
-      throw error; // Re-throw for Approvals component to handle
-    }
+    return await sendOrQueue('PUT', `${API_BASE}/api/leave/balances/${employeeId}`, tenantId, { leaveType, usedDays });
   },
 
   initializeLeaveBalance: async (tenantId: string, employeeId: string, leaveType: string, totalDays: number): Promise<any> => {
-    const response = await fetch(`${API_BASE}/api/leave/balances/${employeeId}/initialize`, {
-      method: 'POST',
-      headers: getHeaders(tenantId),
-      body: JSON.stringify({ leaveType, totalDays }),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to initialize leave balance');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to initialize leave balance');
-    }
-    return result.data;
+    return await sendOrQueue('POST', `${API_BASE}/api/leave/balances/${employeeId}/initialize`, tenantId, { leaveType, totalDays });
   },
 
   // Expense Claims API
@@ -462,52 +333,16 @@ export const api = {
   },
 
   createExpenseClaim: async (tenantId: string, expenseData: any): Promise<any> => {
-    const response = await fetch(`${API_BASE}/api/expenses`, {
-      method: 'POST',
-      headers: getHeaders(tenantId),
-      body: JSON.stringify(expenseData),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to create expense claim');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to create expense claim');
-    }
-    return result.data;
+    return await sendOrQueue('POST', `${API_BASE}/api/expenses`, tenantId, expenseData);
   },
 
   updateExpenseClaim: async (tenantId: string, claimId: string, updates: any): Promise<any> => {
-    const response = await fetch(`${API_BASE}/api/expenses/${claimId}`, {
-      method: 'PUT',
-      headers: getHeaders(tenantId),
-      body: JSON.stringify(updates),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to update expense claim');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to update expense claim');
-    }
-    return result.data;
+    return await sendOrQueue('PUT', `${API_BASE}/api/expenses/${claimId}`, tenantId, updates);
   },
 
   // Time Punches
   saveTimePunch: async (tenantId: string, punchData: any): Promise<any> => {
-    const response = await fetch(`${API_BASE}/api/time-punches`, {
-      method: 'POST',
-      headers: getHeaders(tenantId),
-      body: JSON.stringify(punchData),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to save time punch');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to save time punch');
-    }
-    return result.data;
+    return await sendOrQueue('POST', `${API_BASE}/api/time-punches`, tenantId, punchData);
   },
 
   getTimeEntries: async (tenantId: string, userId: string, date?: string): Promise<any[]> => {
@@ -535,19 +370,7 @@ export const api = {
     requested_value: string;
     current_value?: string;
   }): Promise<any> => {
-    const response = await fetch(`${API_BASE}/api/profile-update-requests`, {
-      method: 'POST',
-      headers: getHeaders(tenantId),
-      body: JSON.stringify(requestData),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to create profile update request');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to create profile update request');
-    }
-    return result.data;
+    return await sendOrQueue('POST', `${API_BASE}/api/profile-update-requests`, tenantId, requestData);
   },
 
   getProfileUpdateRequests: async (tenantId: string, filters?: { status?: string; userId?: string }): Promise<any[]> => {
@@ -568,50 +391,14 @@ export const api = {
   },
 
   approveProfileUpdateRequest: async (tenantId: string, requestId: string, reviewerId: string, reviewNotes?: string): Promise<any> => {
-    const response = await fetch(`${API_BASE}/api/profile-update-requests/${requestId}/approve`, {
-      method: 'PUT',
-      headers: getHeaders(tenantId),
-      body: JSON.stringify({ reviewer_id: reviewerId, review_notes: reviewNotes }),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to approve profile update request');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to approve profile update request');
-    }
-    return result.data;
+    return await sendOrQueue('PUT', `${API_BASE}/api/profile-update-requests/${requestId}/approve`, tenantId, { reviewer_id: reviewerId, review_notes: reviewNotes });
   },
 
   rejectProfileUpdateRequest: async (tenantId: string, requestId: string, reviewerId: string, reviewNotes?: string): Promise<any> => {
-    const response = await fetch(`${API_BASE}/api/profile-update-requests/${requestId}/reject`, {
-      method: 'PUT',
-      headers: getHeaders(tenantId),
-      body: JSON.stringify({ reviewer_id: reviewerId, review_notes: reviewNotes }),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to reject profile update request');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to reject profile update request');
-    }
-    return result.data;
+    return await sendOrQueue('PUT', `${API_BASE}/api/profile-update-requests/${requestId}/reject`, tenantId, { reviewer_id: reviewerId, review_notes: reviewNotes });
   },
   cancelProfileUpdateRequest: async (tenantId: string, requestId: string, userId: string): Promise<any> => {
-    const response = await fetch(`${API_BASE}/api/profile-update-requests/${requestId}/cancel`, {
-      method: 'PUT',
-      headers: getHeaders(tenantId),
-      body: JSON.stringify({ userId }),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to cancel profile update request');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to cancel profile update request');
-    }
-    return result.data;
+    return await sendOrQueue('PUT', `${API_BASE}/api/profile-update-requests/${requestId}/cancel`, tenantId, { userId });
   },
 
   // Time Adjustment API
@@ -633,34 +420,10 @@ export const api = {
   },
 
   createTimeAdjustmentRequest: async (tenantId: string, adjustmentData: any): Promise<any> => {
-    const response = await fetch(`${API_BASE}/api/time-adjustments`, {
-      method: 'POST',
-      headers: getHeaders(tenantId),
-      body: JSON.stringify(adjustmentData),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to create time adjustment request');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to create time adjustment request');
-    }
-    return result.data;
+    return await sendOrQueue('POST', `${API_BASE}/api/time-adjustments`, tenantId, adjustmentData);
   },
 
   updateTimeAdjustmentRequest: async (tenantId: string, requestId: string, updates: any): Promise<any> => {
-    const response = await fetch(`${API_BASE}/api/time-adjustments/${requestId}`, {
-      method: 'PUT',
-      headers: getHeaders(tenantId),
-      body: JSON.stringify(updates),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to update time adjustment request');
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to update time adjustment request');
-    }
-    return result.data;
+    return await sendOrQueue('PUT', `${API_BASE}/api/time-adjustments/${requestId}`, tenantId, updates);
   },
 };
