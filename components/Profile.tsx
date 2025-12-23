@@ -3,6 +3,7 @@ import { User } from '../types';
 import { UserCircleIcon, PencilIcon } from './Icons';
 import { getInitials, getAvatarColor } from '../utils/avatar';
 import { api } from '../services/api';
+import { offlineStorage } from '../services/offlineStorage';
 import Notification from './Notification';
 import './Avatar.css';
 
@@ -157,7 +158,26 @@ const Profile = ({ currentUser }: ProfileProps) => {
                     userId: currentUser.id,
                     status: 'Pending'
                 });
-                setPendingRequests(requests);
+
+                // Also include any locally queued profile update requests so users see their change immediately
+                try {
+                    const queued = await offlineStorage.getQueuedRequests(currentUser.tenantId!);
+                    const localProfileRequests = (queued || [])
+                        .filter((q: any) => q.url && q.url.includes('/api/profile-update-requests'))
+                        .map((q: any) => ({
+                            id: q.id,
+                            field_name: q.body?.field_name || 'unknown',
+                            requested_value: q.body?.requested_value,
+                            current_value: q.body?.current_value,
+                            requested_at: q.createdAt || new Date().toISOString(),
+                            status: 'Pending (queued)'
+                        }));
+
+                    setPendingRequests([...localProfileRequests, ...(requests || [])]);
+                } catch (err) {
+                    console.warn('Could not read local queued requests:', err);
+                    setPendingRequests(requests);
+                }
             } catch (error) {
                 console.error('Error fetching pending requests:', error);
             } finally {
