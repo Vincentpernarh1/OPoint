@@ -232,13 +232,20 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                         if (existingIndex === -1) {
                             combinedData.push(local);
                         } else {
-                            combinedData[existingIndex] = { ...combinedData[existingIndex], ...local };
+                            // Prefer server/API values over local cache to avoid stale local status
+                            combinedData[existingIndex] = { ...local, ...combinedData[existingIndex] };
                         }
                     }
 
                     console.log('Combined adjustment data:', combinedData);
 
                     setAdjustmentRequests(combinedData);
+                    // Persist combined adjustments so local cache reflects latest server state
+                    try {
+                        localStorage.setItem(storageKey, JSON.stringify(combinedData));
+                    } catch (e) {
+                        console.error('Failed to persist combined adjustments to localStorage on refresh', e);
+                    }
 
                     // Persist combined adjustments as a local cache (stores ISO strings for dates)
                     try {
@@ -314,7 +321,8 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                         if (existingIndex === -1) {
                             combinedData.push(local);
                         } else {
-                            combinedData[existingIndex] = { ...combinedData[existingIndex], ...local };
+                            // Prefer server/API values over local cache to avoid stale local status
+                            combinedData[existingIndex] = { ...local, ...combinedData[existingIndex] };
                         }
                     }
 
