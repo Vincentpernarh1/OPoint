@@ -205,6 +205,8 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                         userId: item.employee_id,
                         employeeName: item.employee_name || currentUser.name, // Fallback to current user name
                         date: (() => {
+                            // Prefer explicit date-only field if provided by server
+                            if (item.requested_date) return item.requested_date;
                             const d = new Date(item.clock_in || item.requested_clock_in);
                             return canonicalDate(d);
                         })(),
@@ -288,6 +290,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                         userId: item.employee_id,
                         employeeName: item.employee_name || currentUser.name, // Fallback to current user name
                         date: (() => {
+                            if (item.requested_date) return item.requested_date;
                             const d = new Date(item.clock_in || item.requested_clock_in);
                             return canonicalDate(d);
                         })(),
@@ -616,6 +619,14 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     };
 
     const handleAdjustmentSubmit = async (adjustment: Omit<AdjustmentRequest, 'id' | 'userId' | 'status'>) => {
+        // Helper: combine local date string (YYYY-MM-DD) with a time Date to produce a Date in local timezone
+        const combineLocalDateWithTime = (dateStr: string, time?: Date | undefined) => {
+            if (!time) return undefined;
+            const parts = dateStr.split('-').map(p => parseInt(p, 10));
+            if (parts.length !== 3) return new Date(time);
+            const [y, m, d] = parts;
+            return new Date(y, m - 1, d, time.getHours(), time.getMinutes(), time.getSeconds(), time.getMilliseconds());
+        };
         try {
             console.log('Submitting adjustment:', {
                 userId: currentUser.id,
@@ -645,14 +656,23 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
             }
 
             // Create new adjustment request via API
+            // Ensure we anchor the times to the chosen local `adjustment.date` so the server's
+            // UTC conversion doesn't shift the day unexpectedly.
+            const payloadOriginalClockIn = combineLocalDateWithTime(adjustment.date, adjustment.originalClockIn)?.toISOString();
+            const payloadOriginalClockOut = combineLocalDateWithTime(adjustment.date, adjustment.originalClockOut)?.toISOString();
+            const payloadRequestedClockIn = combineLocalDateWithTime(adjustment.date, adjustment.requestedClockIn)!.toISOString();
+            const payloadRequestedClockOut = combineLocalDateWithTime(adjustment.date, adjustment.requestedClockOut)!.toISOString();
+
             const response = await api.createTimeAdjustmentRequest(currentUser.tenantId || '', {
                 userId: currentUser.id,
                 employeeName: currentUser.name,
                 date: adjustment.date, // Already in YYYY-MM-DD format
-                originalClockIn: adjustment.originalClockIn?.toISOString(),
-                originalClockOut: adjustment.originalClockOut?.toISOString(),
-                requestedClockIn: adjustment.requestedClockIn.toISOString(),
-                requestedClockOut: adjustment.requestedClockOut.toISOString(),
+                // Also include an explicit date-only field to avoid timezone-driven date mismatches
+                requested_date: adjustment.date,
+                originalClockIn: payloadOriginalClockIn,
+                originalClockOut: payloadOriginalClockOut,
+                requestedClockIn: payloadRequestedClockIn,
+                requestedClockOut: payloadRequestedClockOut,
                 reason: adjustment.reason
             });
 
@@ -662,10 +682,10 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 userId: currentUser.id,
                 employeeName: currentUser.name,
                 date: adjustment.date, // Keep as string
-                originalClockIn: adjustment.originalClockIn,
-                originalClockOut: adjustment.originalClockOut,
-                requestedClockIn: adjustment.requestedClockIn,
-                requestedClockOut: adjustment.requestedClockOut,
+                originalClockIn: combineLocalDateWithTime(adjustment.date, adjustment.originalClockIn),
+                originalClockOut: combineLocalDateWithTime(adjustment.date, adjustment.originalClockOut),
+                requestedClockIn: combineLocalDateWithTime(adjustment.date, adjustment.requestedClockIn)!,
+                requestedClockOut: combineLocalDateWithTime(adjustment.date, adjustment.requestedClockOut)!,
                 reason: adjustment.reason,
                 status: RequestStatus.PENDING
             };
@@ -693,11 +713,13 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
         }
     };
     
-    const handleCancelAdjustment = (requestId: string) => {
-        if(window.confirm('Are you sure you want to cancel this adjustment request?')) {
+    const handleCancelAdjustment = async (requestId: string) => {
+        if (!window.confirm('Are you sure you want to cancel this adjustment request?')) return;
+
+        // If this is a local-only/temp request, just remove locally
+        if (requestId.startsWith('temp-')) {
             setAdjustmentRequests(prev => {
                 const updated = prev.filter(req => req.id !== requestId);
-                // Persist updated adjustments cache
                 try {
                     localStorage.setItem(`adjustmentRequests_${currentUser.id}`, JSON.stringify(updated));
                 } catch (e) {
@@ -706,6 +728,81 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 return updated;
             });
             setNotification('Adjustment request cancelled.');
+            return;
+        }
+
+        try {
+            // Optimistically update UI to show cancellation in progress
+            setAdjustmentRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: RequestStatus.CANCELLED } : r));
+            // Persist optimistic update
+            try {
+                const current = JSON.parse(localStorage.getItem(`adjustmentRequests_${currentUser.id}`) || '[]');
+                const updatedLocal = current.map((r: any) => r.id === requestId ? { ...r, status: RequestStatus.CANCELLED } : r);
+                localStorage.setItem(`adjustmentRequests_${currentUser.id}`, JSON.stringify(updatedLocal));
+            } catch (e) {
+                // ignore local persist errors
+            }
+
+            // Send cancel to server (use update API to set status to Cancelled)
+            await api.updateTimeAdjustmentRequest(currentUser.tenantId || '', requestId, { adjustment_status: RequestStatus.CANCELLED });
+
+            // Refresh adjustments from server to ensure consistent state
+            try {
+                const fresh = await api.getTimeAdjustmentRequests(currentUser.tenantId || '', { userId: currentUser.id });
+                const transformed: AdjustmentRequest[] = fresh
+                    .filter(item => {
+                        const date = new Date(item.clock_in || item.requested_clock_in);
+                        const year = date.getFullYear();
+                        return year > 2000 && year < 2100;
+                    })
+                    .map((item: any) => ({
+                        id: item.id,
+                        userId: item.employee_id,
+                        employeeName: item.employee_name || currentUser.name,
+                        date: item.requested_date ? item.requested_date : canonicalDate(new Date(item.clock_in || item.requested_clock_in)),
+                        originalClockIn: item.clock_in ? new Date(item.clock_in) : undefined,
+                        originalClockOut: item.clock_out ? new Date(item.clock_out) : undefined,
+                        requestedClockIn: new Date(item.requested_clock_in),
+                        requestedClockOut: new Date(item.requested_clock_out),
+                        reason: item.adjustment_reason,
+                        status: item.adjustment_status as RequestStatus,
+                        reviewedBy: item.adjustment_reviewed_by,
+                        reviewedAt: item.adjustment_reviewed_at ? new Date(item.adjustment_reviewed_at) : undefined
+                    }));
+
+                // Merge with any local cached adjustments
+                let localAdjustments: AdjustmentRequest[] = [];
+                try {
+                    const stored = localStorage.getItem(`adjustmentRequests_${currentUser.id}`);
+                    if (stored) localAdjustments = parseStoredAdjustments(stored);
+                } catch (e) {
+                    console.error('Error reading local adjustments during refresh after cancel', e);
+                }
+
+                const combined = [...transformed];
+                for (const local of localAdjustments) {
+                    const existingIndex = combined.findIndex(api => ((local.id && api.id === local.id) || api.date === local.date));
+                    if (existingIndex === -1) combined.push(local);
+                    else combined[existingIndex] = { ...combined[existingIndex], ...local };
+                }
+
+                setAdjustmentRequests(combined);
+                try { localStorage.setItem(`adjustmentRequests_${currentUser.id}`, JSON.stringify(combined)); } catch (e) { }
+            } catch (refreshErr) {
+                console.warn('Failed to refresh adjustments after cancel:', refreshErr);
+            }
+
+            setNotification('Adjustment request cancelled.');
+        } catch (error) {
+            console.error('Failed to cancel adjustment request:', error);
+            setNotification('Failed to cancel adjustment request. Please try again.');
+            // Revert optimistic change by reloading from cache
+            try {
+                const stored = localStorage.getItem(`adjustmentRequests_${currentUser.id}`);
+                if (stored) setAdjustmentRequests(parseStoredAdjustments(stored));
+            } catch (e) {
+                console.error('Failed to revert adjustments from local cache', e);
+            }
         }
     };
     

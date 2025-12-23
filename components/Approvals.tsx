@@ -62,7 +62,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 });
 
 
-                console.log("<anual checking : ",adjustmentData);
+                console.log("<Mnual checking : ",adjustmentData);
                 
                 const transformedAdjustmentData: AdjustmentRequest[] = adjustmentData.map((item: any) => ({
                     id: item.id,
