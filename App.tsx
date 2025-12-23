@@ -158,6 +158,75 @@ const App = () => {
         }
     }, [currentUser?.tenantId, currentUser?.id, fetchAnnouncements]);
 
+    // Refresh currentUser from API when coming back online or when a profile update occurs
+    useEffect(() => {
+        if (!currentUser) return;
+
+        const refreshCurrentUser = async (detail?: any) => {
+            try {
+                if (!currentUser?.tenantId) return;
+                // If event included a specific userId, fetch that user directly for accurate updates
+                let updated: any = null;
+                if (detail && detail.userId) {
+                    try {
+                        updated = await api.getUser(currentUser.tenantId, detail.userId);
+                    } catch (err) {
+                        // fallback to fetching all users
+                        console.warn('getUser failed, falling back to getUsers:', err);
+                    }
+                }
+
+                if (!updated) {
+                    const users = await api.getUsers(currentUser.tenantId);
+                    if (!Array.isArray(users)) return;
+                    updated = users.find((u: any) => (u.id || u.user_id || u.auth_user_id) === currentUser.id || u.id === currentUser.id);
+                }
+
+                if (updated) {
+                    const refreshedUser: User = {
+                        id: updated.id || updated.user_id || updated.auth_user_id || currentUser.id,
+                        name: updated.name || updated.full_name || currentUser.name,
+                        email: updated.email || currentUser.email,
+                        role: currentUser.role,
+                        tenantId: updated.tenant_id || updated.tenantId || currentUser.tenantId,
+                        companyName: updated.company_name || updated.companyName || currentUser.companyName,
+                        team: updated.team || currentUser.team,
+                        avatarUrl: updated.avatar_url || updated.avatarUrl || currentUser.avatarUrl,
+                        basicSalary: updated.basic_salary || updated.basicSalary || currentUser.basicSalary,
+                        hireDate: updated.hire_date ? new Date(updated.hire_date) : currentUser.hireDate,
+                        mobileMoneyNumber: updated.mobile_money_number || updated.mobileMoneyNumber || currentUser.mobileMoneyNumber,
+                    } as User;
+
+                    // Only update if something changed
+                    if (JSON.stringify(refreshedUser) !== JSON.stringify(currentUser)) {
+                        setCurrentUser(refreshedUser);
+                        try { authService.setCurrentUser(refreshedUser); } catch (e) { /* ignore */ }
+                    }
+                }
+            } catch (err) {
+                console.warn('Could not refresh current user after update/online:', err);
+            }
+        };
+
+        const handleOnline = () => refreshCurrentUser();
+        const handleEmployeeUpdated = (e: Event) => {
+            try {
+                const ce = e as CustomEvent;
+                refreshCurrentUser(ce.detail);
+            } catch (err) {
+                refreshCurrentUser();
+            }
+        };
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('employee-updated', handleEmployeeUpdated as EventListener);
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('employee-updated', handleEmployeeUpdated as EventListener);
+        };
+    }, [currentUser]);
+
     const handleLogin = async (userFromApi: any) => {
         // Normalize role string
         let role = userFromApi.role;

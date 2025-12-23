@@ -246,6 +246,21 @@ export const api = {
     return result.data || [];
   },
 
+  // Fetch single user by id
+  getUser: async (tenantId: string, userId: string): Promise<any> => {
+    const response = await fetch(`${API_BASE}/api/users/${encodeURIComponent(userId)}`, {
+      headers: getHeaders(tenantId),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch user');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch user');
+    }
+    return result.data;
+  },
+
   createUser: async (tenantId: string, userData: any): Promise<User> => {
     return await sendOrQueue('POST', `${API_BASE}/api/users`, tenantId, userData);
   },
