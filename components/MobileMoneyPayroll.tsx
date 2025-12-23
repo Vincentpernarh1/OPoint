@@ -151,6 +151,39 @@ const MobileMoneyPayroll = ({ currentUser }: MobileMoneyPayrollProps) => {
         fetchPayableEmployees();
     }, []);
 
+    // Refresh data when connection returns or when an employee is updated elsewhere
+    useEffect(() => {
+        const handleOnline = () => {
+            // When back online, refresh payable employees to avoid stale mobile numbers
+            fetchPayableEmployees();
+        };
+
+        const handleEmployeeUpdated = (e: Event) => {
+            // Custom event may include details about which user changed
+            try {
+                const ce = e as CustomEvent;
+                const detail = ce.detail || {};
+                // If the change is relevant (mobile money), refresh list
+                if (!detail.field || detail.field === 'mobile_money_number') {
+                    fetchPayableEmployees();
+                } else {
+                    // still refresh to be safe
+                    fetchPayableEmployees();
+                }
+            } catch (err) {
+                fetchPayableEmployees();
+            }
+        };
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('employee-updated', handleEmployeeUpdated as EventListener);
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('employee-updated', handleEmployeeUpdated as EventListener);
+        };
+    }, []);
+
     // Derived lists based on status
     const pendingEmployees = useMemo(() => allEmployees.filter(u => !u.isPaid), [allEmployees]);
     const paidEmployees = useMemo(() => allEmployees.filter(u => u.isPaid), [allEmployees]);

@@ -191,8 +191,34 @@ const Profile = ({ currentUser }: ProfileProps) => {
         // Set up polling every 30 seconds
         const pollInterval = setInterval(fetchPendingRequests, 30000);
 
-        // Cleanup interval on unmount
-        return () => clearInterval(pollInterval);
+        const handleOnline = () => {
+            // When back online, refresh pending requests and queued requests
+            fetchPendingRequests();
+        };
+
+        const handleEmployeeUpdated = (e: Event) => {
+            try {
+                const ce = e as CustomEvent;
+                const detail = ce.detail || {};
+                // If the update affects this user, refresh pending requests and show a notice
+                if (!detail.userId || detail.userId === currentUser.id) {
+                    fetchPendingRequests();
+                    setNotification('Your profile was updated. Refreshing data.');
+                }
+            } catch (err) {
+                fetchPendingRequests();
+            }
+        };
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('employee-updated', handleEmployeeUpdated as EventListener);
+
+        // Cleanup interval and listeners on unmount
+        return () => {
+            clearInterval(pollInterval);
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('employee-updated', handleEmployeeUpdated as EventListener);
+        };
     }, [currentUser?.tenantId, currentUser?.id]);
 
     const handleCancelRequest = async (requestId: string) => {

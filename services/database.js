@@ -1023,21 +1023,6 @@ export const db = {
 
         return { data, error };
     },
-
-    // --- AUTHENTICATION ---
-    async getUserByEmail(email) {
-        const client = getSupabaseAdminClient(); // Use admin client to bypass RLS
-        if (!client) return { data: null, error: 'Database not configured' };
-
-        const { data, error } = await client
-            .from('opoint_users')
-            .select('*')
-            .ilike('email', email)
-            .eq('status', 'Active')
-            .single();
-
-        return { data, error };
-    },
     async signIn(email, password) {
         const client = getSupabaseClient();
         if (!client) return { data: null, error: 'Database not configured' };

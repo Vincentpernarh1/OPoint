@@ -231,6 +231,23 @@ class OfflineStorageService {
 
                 if (resp && resp.ok) {
                     await this.markQueuedRequestDone(entry.id);
+                    try {
+                        // If this queued request was a profile update approval, dispatch an event
+                        if (entry.url && typeof entry.url === 'string' && entry.url.includes('/api/profile-update-requests')) {
+                            const detail = {
+                                userId: entry.body?.user_id || entry.body?.userId || entry.tenantId,
+                                field: entry.body?.field_name || entry.body?.field || 'unknown',
+                                value: entry.body?.requested_value || entry.body?.value
+                            };
+                            try {
+                                window.dispatchEvent(new CustomEvent('employee-updated', { detail }));
+                            } catch (evErr) {
+                                console.warn('Could not dispatch employee-updated from offline queue', evErr);
+                            }
+                        }
+                    } catch (dispatchErr) {
+                        console.warn('Error while handling queued request post-success dispatch:', dispatchErr);
+                    }
                 } else {
                     await this.incrementQueuedRequestRetries(entry.id);
                     console.warn('Queue entry failed, will retry later:', entry.id, resp && resp.status);

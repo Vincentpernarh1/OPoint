@@ -239,6 +239,21 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
             try {
                 if (actionType === 'approve') {
                     await api.approveProfileUpdateRequest(currentUser.tenantId, id, currentUser.id);
+
+                    // Emit a global event so other parts of the app can refresh stale user data
+                    try {
+                        const req = profileRequests.find(r => r.id === id);
+                        if (req) {
+                            const evt = new CustomEvent('employee-updated', { detail: { userId: req.employee_id, field: req.field_name, value: req.requested_value } });
+                            window.dispatchEvent(evt);
+                        } else {
+                            // Fallback: dispatch a generic employee-updated event without details
+                            window.dispatchEvent(new CustomEvent('employee-updated'));
+                        }
+                    } catch (ex) {
+                        // Non-fatal: continue even if event dispatch fails
+                        console.warn('Could not dispatch employee-updated event', ex);
+                    }
                 } else {
                     await api.rejectProfileUpdateRequest(currentUser.tenantId, id, currentUser.id);
                 }
