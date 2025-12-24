@@ -50,13 +50,13 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
     const [adjustmentRequests, setAdjustmentRequests] = useState<AdjustmentRequest[]>([]);
     const [expenseRequests, setExpenseRequests] = useState<ExpenseRequest[]>([]);
     const [profileRequests, setProfileRequests] = useState<any[]>([]);
-    const [profileStatusFilter, setProfileStatusFilter] = useState<string>('All');
     
     const [activeTab, setActiveTab] = useState('leave');
     const [viewingLog, setViewingLog] = useState<ViewingLogState | null>(null);
     const [leaveTypeFilter, setLeaveTypeFilter] = useState<string>('All');
-    const [leaveStatusFilter, setLeaveStatusFilter] = useState<string>('All');
-    const [adjustmentStatusFilter, setAdjustmentStatusFilter] = useState<string>('All');
+    const [leaveStatusFilter, setLeaveStatusFilter] = useState<string>('Pending');
+    const [adjustmentStatusFilter, setAdjustmentStatusFilter] = useState<string>('Pending');
+    const [profileStatusFilter, setProfileStatusFilter] = useState<string>('Pending');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -66,12 +66,12 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 setLoading(true);
                 setError(null);
                 
-                const statusFilter = isAdmin ? (leaveStatusFilter === 'All' ? undefined : leaveStatusFilter) : undefined;
+                const leaveStatusValue = leaveStatusFilter === 'All' ? undefined : leaveStatusFilter;
                 const userFilter = isAdmin ? undefined : currentUser.id;
                 
                 // Fetch leave requests
                 const leaveData = await api.getLeaveRequests(currentUser.tenantId, { 
-                    status: statusFilter,
+                    status: leaveStatusValue,
                     userId: userFilter
                 });
                 const transformedLeaveData: LeaveRequest[] = leaveData.map((item: any) => ({
@@ -87,7 +87,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 
                 // Fetch time adjustment requests
                 const adjustmentData = await api.getTimeAdjustmentRequests(currentUser.tenantId, { 
-                    status: isAdmin ? (adjustmentStatusFilter === 'All' ? undefined : adjustmentStatusFilter) : undefined,
+                    status: adjustmentStatusFilter === 'All' ? undefined : adjustmentStatusFilter,
                     userId: isAdmin ? undefined : currentUser.id
                 });
 
@@ -122,7 +122,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 
                 // Fetch profile update requests
                 const profileData = await api.getProfileUpdateRequests(currentUser.tenantId, {
-                    status: isAdmin ? (profileStatusFilter === 'All' ? undefined : profileStatusFilter) : undefined,
+                    status: profileStatusFilter === 'All' ? undefined : profileStatusFilter,
                     userId: isAdmin ? undefined : currentUser.id
                 });
 
