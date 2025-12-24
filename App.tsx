@@ -20,6 +20,7 @@ const Settings = lazy(() => import('./components/Settings'));
 import ManagerDashboard from './components/ManagerDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import NotificationBell from './components/NotificationBell';
+import MobileBottomNav from './components/MobileBottomNav';
 
 // Import Services
 import { authService } from './services/authService';
@@ -551,6 +552,12 @@ const CompanyLayout = ({
                     <Link
                         key={item.name}
                         to={item.path}
+                        onClick={() => {
+                            // Close sidebar on mobile when clicking navigation items
+                            if (window.innerWidth < 768) {
+                                setIsSidebarCollapsed(true);
+                            }
+                        }}
                         className={`w-full flex items-center ${isCollapsed ? 'justify-center px-2' : 'justify-between px-4'} py-2 text-sm font-medium rounded-lg transition-colors ${
                             location.pathname === item.path
                                 ? 'bg-primary-light text-primary'
@@ -614,10 +621,18 @@ const CompanyLayout = ({
                         </Link>
                     </div>
                 </header>
-                <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8">
+                <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8 pb-20 md:pb-8">
                     <Outlet />
                 </main>
             </div>
+            <MobileBottomNav
+                onNavigate={() => {
+                    // Close sidebar if open on mobile when using bottom nav
+                    if (window.innerWidth < 768 && !isSidebarCollapsed) {
+                        setIsSidebarCollapsed(true);
+                    }
+                }}
+            />
         </div>
     );
 }
