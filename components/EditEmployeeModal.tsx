@@ -59,13 +59,14 @@ const EditEmployeeModal = ({ user, currentUser, onClose, onSubmit }: EditEmploye
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md relative" onClick={e => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600" title="Close modal">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] relative flex flex-col" onClick={e => e.stopPropagation()}>
+                <button onClick={onClose} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 z-10" title="Close modal">
                     <XIcon className="h-6 w-6"/>
                 </button>
-                <h3 className="text-xl font-semibold mb-4">Edit Employee: {user.name}</h3>
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="p-6 flex-1 overflow-y-auto">
+                    <h3 className="text-xl font-semibold mb-4">Edit Employee: {user.name}</h3>
+                    <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700">Full Name</label>
                         <input type="text" id="edit-name" value={name} onChange={e => setName(e.target.value)} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"/>
@@ -115,11 +116,12 @@ const EditEmployeeModal = ({ user, currentUser, onClose, onSubmit }: EditEmploye
                         </button>
                         <p className="text-xs text-gray-500 mt-1">This will send a password reset email to the employee.</p>
                     </div>
-                    <div className="flex justify-end space-x-3 pt-2">
+                    <div className="flex justify-end space-x-3 pt-4 border-t mt-4">
                         <button type="button" onClick={onClose} className="py-2 px-4 bg-gray-200 rounded-lg">Cancel</button>
                         <button type="submit" className="py-2 px-4 bg-primary text-white rounded-lg font-bold">Save Changes</button>
                     </div>
                 </form>
+                </div>
             </div>
         </div>
     );
