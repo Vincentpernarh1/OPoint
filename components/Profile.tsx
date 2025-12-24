@@ -4,6 +4,7 @@ import { UserCircleIcon, PencilIcon } from './Icons';
 import { getInitials, getAvatarColor } from '../utils/avatar';
 import { api } from '../services/api';
 import { offlineStorage } from '../services/offlineStorage';
+import { pushService } from '../services/pushService';
 import Notification from './Notification';
 import './Avatar.css';
 
@@ -146,6 +147,66 @@ const Profile = ({ currentUser }: ProfileProps) => {
     const [notification, setNotification] = useState<string | null>(null);
     const [pendingRequests, setPendingRequests] = useState<any[]>([]);
     const [isLoadingRequests, setIsLoadingRequests] = useState(false);
+    const [pushEnabled, setPushEnabled] = useState(false);
+    const [pushSupported, setPushSupported] = useState(false);
+
+    useEffect(() => {
+        // Check if push notifications are supported
+        setPushSupported(pushService.isSupported());
+
+        // Check if already subscribed
+        const checkSubscription = async () => {
+            if (pushService.isSupported()) {
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    const subscription = await registration.pushManager.getSubscription();
+                    setPushEnabled(!!subscription);
+                } catch (error) {
+                    console.error('Error checking push subscription:', error);
+                }
+            }
+        };
+
+        checkSubscription();
+    }, []);
+
+    const handlePushToggle = async () => {
+        try {
+            if (pushEnabled) {
+                // Unsubscribe
+                await pushService.unsubscribe(currentUser.id);
+                setPushEnabled(false);
+                setNotification('Push notifications disabled');
+            } else {
+                // Subscribe
+                const permission = await pushService.requestPermission();
+                if (permission === 'granted') {
+                    const subscription = await pushService.subscribe(currentUser.id);
+                    if (subscription) {
+                        setPushEnabled(true);
+                        setNotification('Push notifications enabled! You will now receive notifications for announcements and updates.');
+                    } else {
+                        setNotification('Failed to enable push notifications. Please try again.');
+                    }
+                } else {
+                    setNotification('Notification permission denied. Please enable notifications in your browser settings.');
+                }
+            }
+        } catch (error) {
+            console.error('Error toggling push notifications:', error);
+            setNotification('Failed to update push notification settings. Please try again.');
+        }
+    };
+
+    const handleTestNotification = async () => {
+        try {
+            await pushService.sendTestNotification(currentUser.id);
+            setNotification('Test notification sent! Check your browser.');
+        } catch (error) {
+            console.error('Error sending test notification:', error);
+            setNotification('Failed to send test notification. Please try again.');
+        }
+    };
 
     // Fetch pending requests on component mount and poll for updates
     useEffect(() => {
@@ -295,6 +356,43 @@ const Profile = ({ currentUser }: ProfileProps) => {
                         Edit Profile
                     </button>
                 </div>
+
+                {/* Push Notifications Section */}
+                {pushSupported && (
+                    <div className="mt-8">
+                        <h3 className="text-xl font-bold text-gray-800 mb-4">Push Notifications</h3>
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="font-semibold text-gray-800">Enable Push Notifications</p>
+                                    <p className="text-sm text-gray-600">
+                                        Receive instant notifications for announcements, approvals, and important updates directly on your device.
+                                    </p>
+                                </div>
+                                <div className="flex items-center space-x-3">
+                                    <button
+                                        onClick={handleTestNotification}
+                                        disabled={!pushEnabled}
+                                        className="px-3 py-1 text-sm bg-blue-100 text-blue-600 rounded hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        title="Send a test notification"
+                                    >
+                                        Test
+                                    </button>
+                                    <button
+                                        onClick={handlePushToggle}
+                                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                            pushEnabled
+                                                ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                                                : 'bg-green-100 text-green-600 hover:bg-green-200'
+                                        }`}
+                                    >
+                                        {pushEnabled ? 'Disable' : 'Enable'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Pending Update Requests Section */}
                 {pendingRequests.length > 0 && (
