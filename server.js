@@ -18,6 +18,7 @@ import cors from 'cors';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import cookieParser from 'cookie-parser';
+import webPush from 'web-push';
 import db, { getSupabaseClient, getSupabaseAdminClient, setTenantContext, getCurrentTenantId } from './services/database.js';
 import { validatePasswordStrength } from './utils/passwordValidator.js';
 
@@ -60,6 +61,18 @@ const CONFIG = {
     CALLBACK_HOST: process.env.CALLBACK_HOST || 'http://localhost:3001',
     APPROVAL_PASSWORD: process.env.APPROVAL_PASSWORD || 'approve123'
 };
+
+// --- PUSH NOTIFICATION SETUP ---
+const vapidKeys = {
+    publicKey: process.env.VAPID_PUBLIC_KEY || 'BDefaultPublicKeyForTestingOnly',
+    privateKey: process.env.VAPID_PRIVATE_KEY || 'DefaultPrivateKeyForTestingOnly'
+};
+
+webPush.setVapidDetails(
+    'mailto:test@example.com',
+    vapidKeys.publicKey,
+    vapidKeys.privateKey
+);
 
 // --- FALLBACK MOCK DATA (Used when database is not configured) ---
 const MOCK_USERS = [
@@ -3124,6 +3137,20 @@ async function createNotificationsForAnnouncement(announcement) {
 
         console.log(`Created ${notifications.length} notifications for announcement`);
 
+        // Send push notifications
+        for (const employee of employees.filter(employee => employee.role !== 'SuperAdmin')) {
+            try {
+                await sendPushNotification(employee.id, {
+                    title: `New Announcement: ${announcement.title}`,
+                    body: `A new announcement has been posted by ${announcement.author_name}`,
+                    icon: '/favicon.svg',
+                    data: { url: '/announcements', announcementId: announcement.id }
+                });
+            } catch (pushError) {
+                console.error(`Failed to send push to user ${employee.id}:`, pushError);
+            }
+        }
+
     } catch (error) {
         console.error('Error creating notifications for announcement:', error);
     }
@@ -3350,6 +3377,180 @@ app.post('/api/momo/callback', async (req, res) => {
         });
     }
 });
+
+// --- PUSH NOTIFICATION ENDPOINTS ---
+
+// Subscribe to push notifications
+app.post('/api/push/subscribe', async (req, res) => {
+    try {
+        const { subscription, userId } = req.body;
+        const tenantId = getCurrentTenantId();
+
+        if (!subscription || !userId) {
+            return res.status(400).json({ error: 'Subscription and userId required' });
+        }
+
+        // Store subscription in database
+        const supabase = getSupabaseClient();
+        if (supabase) {
+            const { error } = await supabase
+                .from('push_subscriptions')
+                .upsert({
+                    user_id: userId,
+                    tenant_id: tenantId,
+                    endpoint: subscription.endpoint,
+                    p256dh: subscription.keys.p256dh,
+                    auth: subscription.keys.auth
+                });
+
+            if (error) {
+                console.error('Error storing push subscription:', error);
+                return res.status(500).json({ error: 'Failed to store subscription' });
+            }
+        }
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Push subscribe error:', error);
+        res.status(500).json({ error: 'Subscription failed' });
+    }
+});
+
+// Unsubscribe from push notifications
+app.post('/api/push/unsubscribe', async (req, res) => {
+    try {
+        const { endpoint, userId } = req.body;
+
+        if (!endpoint || !userId) {
+            return res.status(400).json({ error: 'Endpoint and userId required' });
+        }
+
+        // Remove subscription from database
+        const supabase = getSupabaseClient();
+        if (supabase) {
+            const { error } = await supabase
+                .from('push_subscriptions')
+                .delete()
+                .eq('user_id', userId)
+                .eq('endpoint', endpoint);
+
+            if (error) {
+                console.error('Error removing push subscription:', error);
+                return res.status(500).json({ error: 'Failed to unsubscribe' });
+            }
+        }
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Push unsubscribe error:', error);
+        res.status(500).json({ error: 'Unsubscribe failed' });
+    }
+});
+
+// Send push notification
+app.post('/api/push/send', async (req, res) => {
+    try {
+        const { userId, title, body, icon, badge, data } = req.body;
+        const tenantId = getCurrentTenantId();
+
+        if (!userId || !title || !body) {
+            return res.status(400).json({ error: 'userId, title, and body required' });
+        }
+
+        // Get user's push subscriptions
+        const supabase = getSupabaseClient();
+        if (!supabase) {
+            return res.status(500).json({ error: 'Database not available' });
+        }
+
+        const { data: subscriptions, error } = await supabase
+            .from('push_subscriptions')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('tenant_id', tenantId);
+
+        if (error) {
+            console.error('Error fetching subscriptions:', error);
+            return res.status(500).json({ error: 'Failed to fetch subscriptions' });
+        }
+
+        if (!subscriptions || subscriptions.length === 0) {
+            return res.json({ success: true, message: 'No subscriptions found' });
+        }
+
+        // Send push to each subscription
+        const payload = JSON.stringify({
+            title,
+            body,
+            icon: icon || '/favicon.svg',
+            badge: badge || '/favicon.svg',
+            data: data || {}
+        });
+
+        const results = [];
+        for (const sub of subscriptions) {
+            try {
+                await webPush.sendNotification({
+                    endpoint: sub.endpoint,
+                    keys: {
+                        p256dh: sub.p256dh,
+                        auth: sub.auth
+                    }
+                }, payload);
+                results.push({ endpoint: sub.endpoint, success: true });
+            } catch (pushError) {
+                console.error('Push send error:', pushError);
+                results.push({ endpoint: sub.endpoint, success: false, error: pushError.message });
+            }
+        }
+
+        res.json({ success: true, results });
+    } catch (error) {
+        console.error('Push send error:', error);
+        res.status(500).json({ error: 'Failed to send push notification' });
+    }
+});
+
+// Get VAPID public key
+app.get('/api/push/vapid-public-key', (req, res) => {
+    res.json({ publicKey: vapidKeys.publicKey });
+});
+
+// Helper function to send push notification to a user
+async function sendPushNotification(userId, notificationData) {
+    try {
+        const tenantId = getCurrentTenantId();
+        const supabase = getSupabaseClient();
+
+        if (!supabase) return;
+
+        const { data: subscriptions, error } = await supabase
+            .from('push_subscriptions')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('tenant_id', tenantId);
+
+        if (error || !subscriptions || subscriptions.length === 0) return;
+
+        const payload = JSON.stringify(notificationData);
+
+        for (const sub of subscriptions) {
+            try {
+                await webPush.sendNotification({
+                    endpoint: sub.endpoint,
+                    keys: {
+                        p256dh: sub.p256dh,
+                        auth: sub.auth
+                    }
+                }, payload);
+            } catch (pushError) {
+                console.error(`Push send error for user ${userId}:`, pushError);
+            }
+        }
+    } catch (error) {
+        console.error('Error sending push notification:', error);
+    }
+}
 
 // Error handling middleware (must be last)
 app.use(errorHandler);

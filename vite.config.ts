@@ -16,36 +16,7 @@ export default defineConfig(({ mode }) => {
           }
         }
       },
-      plugins: [react(), VitePWA({
-        registerType: 'autoUpdate',
-        workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg}']
-        },
-        includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'masked-icon.svg'],
-        manifest: {
-          name: 'Vpena OnPoint',
-          short_name: 'Vpena',
-          description: 'Payroll Management System',
-          theme_color: '#4f46e5',
-          background_color: '#ffffff',
-          display: 'standalone',
-          orientation: 'portrait',
-          scope: '/',
-          start_url: '/',
-          icons: [
-            {
-              src: 'pwa-192x192.png',
-              sizes: '192x192',
-              type: 'image/png'
-            },
-            {
-              src: 'pwa-512x512.png',
-              sizes: '512x512',
-              type: 'image/png'
-            }
-          ]
-        }
-      })],
+      plugins: [react()],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
