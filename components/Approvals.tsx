@@ -69,11 +69,13 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 const leaveStatusValue = leaveStatusFilter === 'All' ? undefined : leaveStatusFilter;
                 const userFilter = isAdmin ? undefined : currentUser.id;
                 
+                // Build filters object conditionally to avoid passing undefined values
+                const leaveFilters: { status?: string; userId?: string } = {};
+                if (leaveStatusValue !== undefined) leaveFilters.status = leaveStatusValue;
+                if (userFilter !== undefined) leaveFilters.userId = userFilter;
+                
                 // Fetch leave requests
-                const leaveData = await api.getLeaveRequests(currentUser.tenantId, { 
-                    status: leaveStatusValue,
-                    userId: userFilter
-                });
+                const leaveData = await api.getLeaveRequests(currentUser.tenantId!, leaveFilters);
                 const transformedLeaveData: LeaveRequest[] = leaveData.map((item: any) => ({
                     id: item.id,
                     userId: item.employee_id,
@@ -86,10 +88,14 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 }));
                 
                 // Fetch time adjustment requests
-                const adjustmentData = await api.getTimeAdjustmentRequests(currentUser.tenantId, { 
-                    status: adjustmentStatusFilter === 'All' ? undefined : adjustmentStatusFilter,
-                    userId: isAdmin ? undefined : currentUser.id
-                });
+                const adjustmentStatusValue = adjustmentStatusFilter === 'All' ? undefined : adjustmentStatusFilter;
+                const adjustmentUserFilter = isAdmin ? undefined : currentUser.id;
+                
+                const adjustmentFilters: { status?: string; userId?: string } = {};
+                if (adjustmentStatusValue !== undefined) adjustmentFilters.status = adjustmentStatusValue;
+                if (adjustmentUserFilter !== undefined) adjustmentFilters.userId = adjustmentUserFilter;
+                
+                const adjustmentData = await api.getTimeAdjustmentRequests(currentUser.tenantId!, adjustmentFilters);
 
 
                 console.log("<Mnual checking : ",adjustmentData);
@@ -121,16 +127,24 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 });
                 
                 // Fetch profile update requests
-                const profileData = await api.getProfileUpdateRequests(currentUser.tenantId, {
-                    status: profileStatusFilter === 'All' ? undefined : profileStatusFilter,
-                    userId: isAdmin ? undefined : currentUser.id
-                });
+                const profileStatusValue = profileStatusFilter === 'All' ? undefined : profileStatusFilter;
+                const profileUserFilter = isAdmin ? undefined : currentUser.id;
+                
+                const profileFilters: { status?: string; userId?: string } = {};
+                if (profileStatusValue !== undefined) profileFilters.status = profileStatusValue;
+                if (profileUserFilter !== undefined) profileFilters.userId = profileUserFilter;
+                
+                const profileData = await api.getProfileUpdateRequests(currentUser.tenantId!, profileFilters);
 
                 // Fetch expense claims
-                const expenseData = await api.getExpenseClaims(currentUser.tenantId, {
-                    status: isAdmin ? 'pending' : undefined,
-                    employee_id: isAdmin ? undefined : currentUser.id
-                });
+                const expenseStatusValue = isAdmin ? 'pending' : undefined;
+                const expenseUserFilter = isAdmin ? undefined : currentUser.id;
+                
+                const expenseFilters: { status?: string; employee_id?: string } = {};
+                if (expenseStatusValue !== undefined) expenseFilters.status = expenseStatusValue;
+                if (expenseUserFilter !== undefined) expenseFilters.employee_id = expenseUserFilter;
+                
+                const expenseData = await api.getExpenseClaims(currentUser.tenantId!, expenseFilters);
                 
                 // Use only API data - no mock data fallback
                 setLeaveRequests(transformedLeaveData);
@@ -169,7 +183,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 const status = actionType === 'approve' ? 'Approved' : actionType === 'reject' ? 'Rejected' : 'Cancelled';
 
                 // Make API call directly without checking local state first
-                await api.updateLeaveRequest(currentUser.tenantId, id, {
+                await api.updateLeaveRequest(currentUser.tenantId!, id, {
                     status
                 });
 
@@ -184,7 +198,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                             const endDate = new Date(leaveRequest.endDate);
                             const daysCount = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end dates
 
-                            await api.updateLeaveBalance(currentUser.tenantId, leaveRequest.userId, leaveRequest.leaveType, daysCount);
+                            await api.updateLeaveBalance(currentUser.tenantId!, leaveRequest.userId, leaveRequest.leaveType, daysCount);
                         } catch (balanceError) {
                             console.warn('Could not update leave balance (table may not exist yet):', balanceError);
                             // Don't fail the approval if balance update fails
@@ -225,7 +239,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 }
                 
                 console.log('Calling update API with:', updateData);
-                await api.updateTimeAdjustmentRequest(currentUser.tenantId, id, updateData);
+                await api.updateTimeAdjustmentRequest(currentUser.tenantId!, id, updateData);
                 console.log('API call successful');
                 
                 // Update status in local state instead of removing
@@ -249,7 +263,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
             const actionType = actionOrId;
             try {
                 if (actionType === 'approve') {
-                    await api.approveProfileUpdateRequest(currentUser.tenantId, id, currentUser.id);
+                    await api.approveProfileUpdateRequest(currentUser.tenantId!, id, currentUser.id);
 
                     // Emit a global event so other parts of the app can refresh stale user data
                     try {
@@ -266,9 +280,9 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                         console.warn('Could not dispatch employee-updated event', ex);
                     }
                 } else if (actionType === 'reject') {
-                    await api.rejectProfileUpdateRequest(currentUser.tenantId, id, currentUser.id);
+                    await api.rejectProfileUpdateRequest(currentUser.tenantId!, id, currentUser.id);
                 } else if (actionType === 'cancel') {
-                    await api.cancelProfileUpdateRequest(currentUser.tenantId, id, currentUser.id);
+                    await api.cancelProfileUpdateRequest(currentUser.tenantId!, id, currentUser.id);
                 }
 
                 // Update status in local state
@@ -291,7 +305,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
             const actionType = actionOrId;
             try {
                 const status = actionType === 'approve' ? 'approved' : actionType === 'reject' ? 'rejected' : 'cancelled';
-                await api.updateExpenseClaim(currentUser.tenantId, id, {
+                await api.updateExpenseClaim(currentUser.tenantId!, id, {
                     status,
                     reviewed_by: currentUser.id
                 });
@@ -300,7 +314,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 setExpenseRequests(prev => prev.map(req =>
                     req.id === id ? {
                         ...req,
-                        status: status as RequestStatus,
+                        status,
                         reviewed_by: currentUser.id,
                         reviewed_at: new Date().toISOString()
                     } : req
@@ -330,7 +344,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 role: UserRole.EMPLOYEE,
                 avatarUrl: '',
                 team: '',
-                tenantId: currentUser.tenantId,
+                tenantId: currentUser.tenantId!,
                 basicSalary: 0,
                 hireDate: new Date(),
             };
