@@ -40,6 +40,7 @@ const Login = ({ onLogin }: LoginProps) => {
                     headers: {
                         'Content-Type': 'application/json',
                     },
+                    credentials: 'include', // Include cookies
                     body: JSON.stringify({ password: newPassword }),
                 });
                 const data = await response.json();
@@ -98,6 +99,7 @@ const Login = ({ onLogin }: LoginProps) => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include', // Include cookies
                 body: JSON.stringify({ email, password }),
             });
             const data = await response.json();
@@ -152,6 +154,7 @@ const Login = ({ onLogin }: LoginProps) => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include', // Include cookies
                 body: JSON.stringify({
                     email: currentUserEmail,
                     currentPassword: password, // This is the temporary password for first-time login
