@@ -44,7 +44,7 @@ export function getSupabaseAdminClient() {
 export function setTenantContext(tenantId, userId = null) {
     currentTenantId = tenantId;
     currentUserId = userId;
-    console.log('✅ Tenant context set:', tenantId);
+    // console.log('✅ Tenant context set:', tenantId);
 }
 
 // Get current tenant context
