@@ -170,3 +170,7 @@ export const CogIcon = ({ className = 'h-6 w-6' }: IconProps) => (
 export const UsersGroupIcon = ({ className = 'h-6 w-6' }: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 14s-1 1.4-1 4 2 4 4 4h10c2 0 4-2 4-4 .2-2.3-1-4-1-4"/><path d="M8 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="m15.8 9.4 2.2 2.2"/><path d="m20.2 16-2.2-2.2"/><path d="M16 10a4 4 0 0 0-8 0"/></svg>
 );
+
+export const BellIcon = ({ className = 'h-6 w-6' }: IconProps) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+);

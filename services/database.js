@@ -1414,9 +1414,17 @@ export const db = {
         const tenantId = getCurrentTenantId();
         if (!tenantId) return { data: null, error: 'No tenant context set' };
 
+        const insertData = {
+            ...requestData,
+            tenant_id: tenantId,
+            requested_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+
         const { data, error } = await client
             .from('opoint_profile_update_requests')
-            .insert([{ ...requestData, tenant_id: tenantId }])
+            .insert(insertData)
             .select()
             .single();
 
