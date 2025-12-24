@@ -461,7 +461,7 @@ const App = () => {
                     <Route path="approvals" element={<Approvals currentUser={currentUser!} />} />
                     <Route path="employees" element={<EmployeeManagement currentUser={currentUser!} />} />
                     <Route path="payroll" element={<MobileMoneyPayroll currentUser={currentUser!} />} />
-                    <Route path="reports" element={<Reports />} />
+                    <Route path="reports" element={<Reports currentUser={currentUser!} />} />
                     <Route path="settings" element={<Settings />} />
                 </Route>
                 

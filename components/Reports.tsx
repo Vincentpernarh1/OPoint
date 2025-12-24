@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { FileTextIcon, LogoIcon } from './Icons';
 import { api } from '../services/api';
+import type { User } from '../types';
 
 const downloadCSV = (content: string, fileName: string) => {
     const encodedUri = encodeURI("data:text/csv;charset=utf-8," + content);
@@ -14,7 +15,11 @@ const downloadCSV = (content: string, fileName: string) => {
     document.body.removeChild(link);
 };
 
-const Reports = () => {
+interface ReportsProps {
+    currentUser: User;
+}
+
+const Reports = ({ currentUser }: ReportsProps) => {
     const [loadingReport, setLoadingReport] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -23,7 +28,7 @@ const Reports = () => {
         setError(null);
         try {
             // CHANGED: Use local API service instead of fetch
-            const data: any[] = await api.getReport(reportType);
+            const data: any[] = await api.getReport(reportType, currentUser.tenantId);
             
             if (data.length === 0) {
                 alert('No data available for this report.');
@@ -36,8 +41,9 @@ const Reports = () => {
             downloadCSV(csvContent, `${reportType}_report.csv`);
 
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'An unknown error occurred.');
-            alert(error);
+            const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+            setError(errorMessage);
+            alert(errorMessage);
         } finally {
             setLoadingReport(null);
         }
