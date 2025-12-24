@@ -73,7 +73,7 @@ const Settings = () => {
                     {activeTab !== 'integrations' && (
                         <div className="text-center py-12 text-gray-500">
                             <p className="font-semibold">
-                                {tabs.find(t => t.id === activeTab).label} settings coming soon.
+                                {tabs.find(t => t.id === activeTab)?.label || 'Settings'} settings coming soon.
                             </p>
                         </div>
                     )}

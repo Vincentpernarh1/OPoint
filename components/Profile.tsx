@@ -94,7 +94,7 @@ const EditProfileModal = ({ user, onClose, onSubmit, onSuccess, onRefresh }: Edi
                 return;
             }
 
-            if (Object.keys(updatedFields).length > 0) {
+            if (Object.keys(updatedFields).length > 0 && onSubmit) {
                 await onSubmit(updatedFields);
             }
 

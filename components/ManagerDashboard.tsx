@@ -27,7 +27,7 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
         const fetchEmployeeCount = async () => {
             try {
                 setLoadingEmployees(true);
-                const users = await api.getUsers(currentUser.tenantId);
+                const users = await api.getUsers(currentUser.tenantId!);
                 setEmployeeCount(users.length);
             } catch (error) {
                 console.error('Failed to fetch employee count:', error);
@@ -48,16 +48,16 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
                 setLoadingApprovals(true);
                 
                 // Fetch pending leave requests
-                const leaveRequests = await api.getLeaveRequests(currentUser.tenantId, { status: 'Pending' });
+                const leaveRequests = await api.getLeaveRequests(currentUser.tenantId!, { status: 'Pending' });
                 
                 // Fetch pending time adjustment requests
-                const timeAdjustments = await api.getTimeAdjustmentRequests(currentUser.tenantId, { status: 'Pending' });
+                const timeAdjustments = await api.getTimeAdjustmentRequests(currentUser.tenantId!, { status: 'Pending' });
                 
                 // Fetch pending profile update requests
-                const profileRequests = await api.getProfileUpdateRequests(currentUser.tenantId, { status: 'Pending' });
+                const profileRequests = await api.getProfileUpdateRequests(currentUser.tenantId!, { status: 'Pending' });
                 
                 // Fetch pending expense claims
-                const expenseClaims = await api.getExpenseClaims(currentUser.tenantId, { status: 'pending' });
+                const expenseClaims = await api.getExpenseClaims(currentUser.tenantId!, { status: 'pending' });
                 
                 const totalPending = leaveRequests.length + timeAdjustments.length + profileRequests.length + expenseClaims.length;
                 setPendingApprovalsCount(totalPending);
@@ -78,7 +78,7 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
         const fetchTotalMonthlyPayout = async () => {
             try {
                 setLoadingPayout(true);
-                const users = await api.getUsers(currentUser.tenantId);
+                const users = await api.getUsers(currentUser.tenantId!);
                 
                 console.log('ManagerDashboard users data:', users);
                 console.log('Total users:', users.length);

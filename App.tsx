@@ -152,7 +152,7 @@ const App = () => {
                     } else {
                         // Set tenant context
                         if (appUser.tenantId) {
-                            setTenantContext(appUser.tenantId, appUser.id);
+                            setTenantContext(appUser.tenantId);
                             setCurrentUser(appUser);
                             // Fetch announcements immediately
                             fetchAnnouncements();
@@ -363,7 +363,7 @@ const App = () => {
         if (!isSuperAdmin) {
             // Set tenant context
             if (appUser.tenantId) {
-                setTenantContext(appUser.tenantId, appUser.id);
+                setTenantContext(appUser.tenantId);
             }
         }
         // Set user in sessionStorage for persistence

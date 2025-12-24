@@ -152,7 +152,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
         if (isRefreshingRef.current) return;
         isRefreshingRef.current = true;
         try {
-            const serverEntries: any[] = await api.getTimeEntries(currentUser.tenantId, currentUser.id);
+            const serverEntries: any[] = await api.getTimeEntries(currentUser.tenantId!, currentUser.id);
             if (!serverEntries || !Array.isArray(serverEntries)) return;
 
             const serverMapped: TimeEntry[] = serverEntries.map((item: any, idx: number) => {
@@ -314,7 +314,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 // Load adjustment requests from API
                 try {
                     console.log('Loading adjustment requests from API for user:', currentUser.id, 'tenant:', currentUser.tenantId);
-                    const adjustmentData = await api.getTimeAdjustmentRequests(currentUser.tenantId, { 
+                    const adjustmentData = await api.getTimeAdjustmentRequests(currentUser.tenantId!, { 
                         userId: currentUser.id 
                     });
                     console.log('API returned adjustment data:', adjustmentData);
@@ -421,7 +421,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 localAdjustments = [];
             }
 
-            api.getTimeAdjustmentRequests(currentUser.tenantId, { userId: currentUser.id })
+            api.getTimeAdjustmentRequests(currentUser.tenantId!, { userId: currentUser.id })
                 .then(adjustmentData => {
                     const transformedAdjustmentData: AdjustmentRequest[] = adjustmentData
                         .filter(item => {
@@ -492,7 +492,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
         if (isOnline) {
             // Sync offline data
             const syncData = async () => {
-                const unsynced = await offlineStorage.getUnsyncedTimePunches(currentUser.tenantId || '');
+                const unsynced = await offlineStorage.getUnsyncedTimePunches(currentUser.tenantId!);
                 if (unsynced.length > 0) {
                     console.log("Syncing offline time punches...", unsynced);
                     // Here you would call the API to sync each punch
@@ -564,7 +564,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     useEffect(() => {
         const loadTimeEntries = async () => {
             try {
-                const punches = await offlineStorage.getTimePunches(currentUser.tenantId || '', currentUser.id);
+                const punches = await offlineStorage.getTimePunches(currentUser.tenantId!, currentUser.id);
                 const entries: TimeEntry[] = punches.map(p => ({
                     id: p.id,
                     userId: p.userId,
@@ -586,10 +586,10 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
         const syncUnsyncedPunches = async () => {
             if (!isOnline) return;
             try {
-                const unsynced = await offlineStorage.getUnsyncedTimePunches(currentUser.tenantId || '');
+                const unsynced = await offlineStorage.getUnsyncedTimePunches(currentUser.tenantId!);
                 for (const punch of unsynced) {
                     try {
-                        await api.saveTimePunch(currentUser.tenantId || '', {
+                        await api.saveTimePunch(currentUser.tenantId!, {
                             userId: punch.userId,
                             companyId: punch.companyId,
                             type: punch.type,
@@ -633,7 +633,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
             await offlineStorage.saveTimePunch({
                 id: newEntry.id,
                 userId: newEntry.userId,
-                companyId: currentUser.tenantId || '',
+                companyId: currentUser.tenantId!,
                 type: newEntry.type === TimeEntryType.CLOCK_IN ? 'clock_in' : 'clock_out',
                 timestamp: newEntry.timestamp.toISOString(),
                 location: newEntry.location,
@@ -644,9 +644,9 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
         } else {
             // Online: try to sync immediately
             try {
-                await api.saveTimePunch(currentUser.tenantId || '', {
+                await api.saveTimePunch(currentUser.tenantId!, {
                     userId: newEntry.userId,
-                    companyId: currentUser.tenantId || '',
+                    companyId: currentUser.tenantId!,
                     type: newEntry.type === TimeEntryType.CLOCK_IN ? 'clock_in' : 'clock_out',
                     timestamp: newEntry.timestamp.toISOString(),
                     location: newEntry.location,
@@ -656,7 +656,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 await offlineStorage.saveTimePunch({
                     id: newEntry.id,
                     userId: newEntry.userId,
-                    companyId: currentUser.tenantId || '',
+                    companyId: currentUser.tenantId!,
                     type: newEntry.type === TimeEntryType.CLOCK_IN ? 'clock_in' : 'clock_out',
                     timestamp: newEntry.timestamp.toISOString(),
                     location: newEntry.location,
@@ -670,7 +670,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 await offlineStorage.saveTimePunch({
                     id: newEntry.id,
                     userId: newEntry.userId,
-                    companyId: currentUser.tenantId || '',
+                    companyId: currentUser.tenantId!,
                     type: newEntry.type === TimeEntryType.CLOCK_IN ? 'clock_in' : 'clock_out',
                     timestamp: newEntry.timestamp.toISOString(),
                     location: newEntry.location,
@@ -822,7 +822,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
             const payloadRequestedClockIn = combineLocalDateWithTime(adjustment.date, adjustment.requestedClockIn)!.toISOString();
             const payloadRequestedClockOut = combineLocalDateWithTime(adjustment.date, adjustment.requestedClockOut)!.toISOString();
 
-            const response = await api.createTimeAdjustmentRequest(currentUser.tenantId || '', {
+            const response = await api.createTimeAdjustmentRequest(currentUser.tenantId!, {
                 userId: currentUser.id,
                 employeeName: currentUser.name,
                 date: adjustment.date, // Already in YYYY-MM-DD format
@@ -906,11 +906,11 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
             }
 
             // Send cancel to server (use update API to set status to Cancelled)
-            await api.updateTimeAdjustmentRequest(currentUser.tenantId || '', requestId, { status: RequestStatus.CANCELLED });
+            await api.updateTimeAdjustmentRequest(currentUser.tenantId!, requestId, { status: RequestStatus.CANCELLED });
 
             // Refresh adjustments from server to ensure consistent state
             try {
-                const fresh = await api.getTimeAdjustmentRequests(currentUser.tenantId || '', { userId: currentUser.id });
+                const fresh = await api.getTimeAdjustmentRequests(currentUser.tenantId!, { userId: currentUser.id });
                 const transformed: AdjustmentRequest[] = fresh
                     .filter(item => {
                         const date = new Date(item.clock_in || item.requested_clock_in);

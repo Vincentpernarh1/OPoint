@@ -162,7 +162,7 @@ export interface ExpenseRequest {
     amount: number;
     expense_date: string; // Date in YYYY-MM-DD format
     receipt_url?: string;
-    status: RequestStatus;
+    status: string;
     submitted_at?: string;
     reviewed_by?: string;
     reviewed_at?: string;
