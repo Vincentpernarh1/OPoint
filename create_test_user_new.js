@@ -18,7 +18,7 @@ if (!supabaseUrl || !supabaseServiceKey) {
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 async function createTestUser() {
-    console.log('🔍 Checking for existing user...');
+    // console.log('🔍 Checking for existing user...');
 
     // Check if user already exists
     const { data: existing, error: checkError } = await supabase

@@ -108,7 +108,7 @@ const App = () => {
     useEffect(() => {
         const init = async () => {
             setIsLoading(true);
-            console.log('[useEffect] Checking session...');
+            // console.log('[useEffect] Checking session...');
             try {
                 const userFromCookie: any = await authService.getCurrentUser();
                 console.log('[useEffect] User from session:', userFromCookie);

@@ -91,7 +91,7 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
                     return sum + basicSalary;
                 }, 0);
                 
-                console.log('Calculated total payout:', totalPayout);
+                // console.log('Calculated total payout:', totalPayout);
                 setTotalMonthlyPayout(totalPayout);
             } catch (error) {
                 console.error('Failed to fetch total monthly payout:', error);
