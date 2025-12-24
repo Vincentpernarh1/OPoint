@@ -906,7 +906,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
             }
 
             // Send cancel to server (use update API to set status to Cancelled)
-            await api.updateTimeAdjustmentRequest(currentUser.tenantId || '', requestId, { adjustment_status: RequestStatus.CANCELLED });
+            await api.updateTimeAdjustmentRequest(currentUser.tenantId || '', requestId, { status: RequestStatus.CANCELLED });
 
             // Refresh adjustments from server to ensure consistent state
             try {

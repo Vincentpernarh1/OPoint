@@ -88,7 +88,10 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
 
                 console.log("<Mnual checking : ",adjustmentData);
                 
-                const transformedAdjustmentData: AdjustmentRequest[] = adjustmentData.map((item: any) => {
+                // Filter out adjustment requests from the current user to prevent self-approval
+                const filteredAdjustmentData = adjustmentData.filter((item: any) => item.employee_id !== currentUser.id);
+                
+                const transformedAdjustmentData: AdjustmentRequest[] = filteredAdjustmentData.map((item: any) => {
                     // Determine a safe date string (YYYY-MM-DD) without constructing Dates from null
                     const dateFromRequestedClockIn = item.requested_clock_in ? canonicalDate(new Date(item.requested_clock_in)) : '';
                     const dateFromRequestedClockOut = item.requested_clock_out ? canonicalDate(new Date(item.requested_clock_out)) : '';

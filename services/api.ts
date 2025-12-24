@@ -200,7 +200,19 @@ export const api = {
 
   // Reports API
   getReport: async (reportType: string, tenantId: string): Promise<any[]> => {
-    return sendOrQueue('GET', `${API_BASE}/api/reports/${reportType}`, tenantId);
+    const response = await fetch(`${API_BASE}/api/reports/${reportType}`, {
+      headers: getHeaders(tenantId),
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Network error' }));
+      throw new Error(errorData.error || `HTTP ${response.status}`);
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'API error');
+    }
+    return result.data;
   },
 
   // Payslips API
