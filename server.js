@@ -82,9 +82,19 @@ const PAYROLL_HISTORY = [];
 // --- VALIDATION HELPERS ---
 const validators = {
     isValidGhanaPhone(phone) {
+        if (!phone) return false;
+        // Remove spaces and non-digit characters
+        const cleaned = phone.replace(/\s+/g, '').replace(/\D/g, '');
         // Ghana phone numbers: 0XX XXX XXXX (10 digits starting with 0)
-        const ghanaPattern = /^0[235]\d{8}$/;
-        return ghanaPattern.test(phone?.replace(/\s+/g, ''));
+        // Also accept longer numbers and take the last 10 digits
+        if (cleaned.length >= 10 && cleaned.startsWith('0')) {
+            return /^0[235]\d{8}$/.test(cleaned.slice(-10));
+        }
+        // If it doesn't start with 0 but has 10+ digits, check if last 10 start with 0
+        if (cleaned.length >= 10) {
+            return /^0[235]\d{8}$/.test(cleaned.slice(-10));
+        }
+        return false;
     },
 
     isValidEmail(email) {
@@ -97,8 +107,18 @@ const validators = {
     },
 
     sanitizePhone(phone) {
-        // Remove spaces and ensure proper format
-        return phone?.replace(/\s+/g, '').trim();
+        if (!phone) return phone;
+        // Remove spaces and non-digit characters
+        let cleaned = phone.replace(/\s+/g, '').replace(/\D/g, '');
+        // If longer than 10 digits, take the last 10 digits
+        if (cleaned.length > 10) {
+            cleaned = cleaned.slice(-10);
+        }
+        // Ensure it starts with 0
+        if (cleaned.length === 10 && !cleaned.startsWith('0')) {
+            cleaned = '0' + cleaned.slice(1);
+        }
+        return cleaned;
     }
 };
 
@@ -852,6 +872,11 @@ app.post('/api/users', async (req, res) => {
             });
         }
 
+        // Sanitize phone number if provided
+        if (userData.mobile_money_number) {
+            userData.mobile_money_number = validators.sanitizePhone(userData.mobile_money_number);
+        }
+
         // Get tenant context (set by middleware)
         const tenantId = getCurrentTenantId();
         console.log('Tenant ID from context:', tenantId);
@@ -937,6 +962,11 @@ app.put('/api/users/:id', async (req, res) => {
                 success: false, 
                 error: 'Invalid Ghana phone number format' 
             });
+        }
+
+        // Sanitize phone number if provided
+        if (updates.mobile_money_number) {
+            updates.mobile_money_number = validators.sanitizePhone(updates.mobile_money_number);
         }
 
         const { data, error } = await db.updateUser(userId, {
@@ -1043,6 +1073,11 @@ app.post('/api/profile-update-requests', async (req, res) => {
                 success: false,
                 error: 'Invalid Ghana phone number format'
             });
+        }
+
+        // Sanitize phone number if updating mobile money number
+        if (field_name === 'mobile_money_number') {
+            requested_value = validators.sanitizePhone(requested_value);
         }
 
         // Check if there's already a pending request for this field
