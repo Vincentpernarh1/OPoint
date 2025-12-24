@@ -365,6 +365,31 @@ async function getUserById(userId) {
     return data;
 }
 
+// Helper function to get current user from cookies
+function getCurrentUser(req) {
+    try {
+        const userSessionCookie = req.cookies.user_session;
+        if (!userSessionCookie) {
+            return null;
+        }
+
+        const userSession = JSON.parse(userSessionCookie);
+        if (!userSession || !userSession.id) {
+            return null;
+        }
+
+        return userSession;
+    } catch (error) {
+        console.error('Error parsing user session:', error);
+        return null;
+    }
+}
+
+// Helper function to check if user has admin/payment access
+function hasFullReportAccess(userRole) {
+    return userRole === 'Admin' || userRole === 'Payments' || userRole === 'SuperAdmin';
+}
+
 // Calculate net pay after taxes and deductions
 function calculateNetPay(basicSalary, userId, payDate) {
     // Calculate SSNIT contributions
@@ -3031,16 +3056,26 @@ app.get('/api/reports/:type', async (req, res) => {
             });
         }
 
+        // Get current user from cookies
+        const currentUser = getCurrentUser(req);
+        if (!currentUser) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required'
+            });
+        }
+
         // Set tenant context
         setTenantContext(tenantId);
 
         let reportData = [];
+        const hasFullAccess = hasFullReportAccess(currentUser.role);
 
         switch (type) {
             case 'ssnit':
                 // SSNIT Contribution Report
                 const users = await getUsers();
-                reportData = users.map(user => {
+                let ssnitData = users.map(user => {
                     const basicSalary = parseFloat(user.basicSalary) || 0;
                     const ssnitEmployee = basicSalary * 0.055; // 5.5%
                     const ssnitEmployer = basicSalary * 0.13;  // 13%
@@ -3059,12 +3094,18 @@ app.get('/api/reports/:type', async (req, res) => {
                         total_ssnit: ssnitEmployee + ssnitEmployer
                     };
                 });
+
+                // Filter data based on user role
+                if (!hasFullAccess) {
+                    ssnitData = ssnitData.filter(item => item.employee_id === currentUser.id);
+                }
+                reportData = ssnitData;
                 break;
 
             case 'paye':
                 // PAYE Tax Report
                 const payeUsers = await getUsers();
-                reportData = payeUsers.map(user => {
+                let payeData = payeUsers.map(user => {
                     const basicSalary = parseFloat(user.basicSalary) || 0;
                     let paye = 0;
                     const taxableIncome = basicSalary;
@@ -3089,6 +3130,12 @@ app.get('/api/reports/:type', async (req, res) => {
                         paye_tax: paye
                     };
                 });
+
+                // Filter data based on user role
+                if (!hasFullAccess) {
+                    payeData = payeData.filter(item => item.employee_id === currentUser.id);
+                }
+                reportData = payeData;
                 break;
 
             case 'attendance':
@@ -3141,7 +3188,13 @@ app.get('/api/reports/:type', async (req, res) => {
                         employee.absent_days = Math.max(0, workingDays - employee.present_days);
                     });
 
-                    reportData = Array.from(attendanceMap.values());
+                    let attendanceData = Array.from(attendanceMap.values());
+
+                    // Filter data based on user role
+                    if (!hasFullAccess) {
+                        attendanceData = attendanceData.filter(item => item.employee_id === currentUser.id);
+                    }
+                    reportData = attendanceData;
                 }
                 break;
 
@@ -3153,7 +3206,13 @@ app.get('/api/reports/:type', async (req, res) => {
                     console.error('Error fetching leave balances:', leaveError);
                     reportData = []; // Return empty array instead of failing
                 } else {
-                    reportData = leaveBalances || [];
+                    let leaveData = leaveBalances || [];
+
+                    // Filter data based on user role
+                    if (!hasFullAccess) {
+                        leaveData = leaveData.filter(item => item.employee_id === currentUser.id);
+                    }
+                    reportData = leaveData;
                 }
                 break;
 
@@ -3168,6 +3227,8 @@ app.get('/api/reports/:type', async (req, res) => {
             success: true,
             data: reportData,
             report_type: type,
+            user_role: currentUser.role,
+            has_full_access: hasFullAccess,
             generated_at: new Date().toISOString()
         });
 
