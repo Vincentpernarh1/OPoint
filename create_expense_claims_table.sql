@@ -36,6 +36,9 @@ SET adjustment_applied = TRUE
 WHERE adjustment_status = 'Approved';
 
 
+
+select * from opoint_users;
+
 delete from opoint_clock_logs;
 
 SELECT * from opoint_clock_logs;

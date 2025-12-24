@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { TimeEntry, TimeEntryType, User, UserRole, Announcement, AdjustmentRequest, RequestStatus } from '../types';
-import { TIME_ENTRIES, ADJUSTMENT_REQUESTS } from '../constants';
+import { ADJUSTMENT_REQUESTS } from '../constants';
 import { MapPinIcon, ArrowUpRightIcon, ArrowDownLeftIcon, MegaphoneIcon, ClockIcon, XIcon, CameraIcon } from './Icons';
 import CameraModal from './CameraModal';
 import ImagePreviewModal from './ImagePreviewModal';
@@ -188,45 +188,79 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 synced: !!p.synced
             }));
 
-            // Persist server entries into offline storage as synced punches
+            // Persist server entries into offline storage as synced punches (only if not already present)
             for (const e of serverMapped) {
                 try {
-                    await offlineStorage.saveTimePunch({
-                        id: e.id,
-                        userId: e.userId,
-                        companyId: currentUser.tenantId || '',
-                        type: e.type === TimeEntryType.CLOCK_IN ? 'clock_in' : 'clock_out',
-                        timestamp: e.timestamp.toISOString(),
-                        location: e.location,
-                        photoUrl: e.photoUrl,
-                        synced: true,
-                        createdAt: new Date().toISOString()
-                    });
+                    // Check if this server entry already exists in local storage
+                    const existingLocal = localPunchesRaw.find((p: any) => p.id === e.id);
+                    if (!existingLocal) {
+                        await offlineStorage.saveTimePunch({
+                            id: e.id,
+                            userId: e.userId,
+                            companyId: currentUser.tenantId || '',
+                            type: e.type === TimeEntryType.CLOCK_IN ? 'clock_in' : 'clock_out',
+                            timestamp: e.timestamp.toISOString(),
+                            location: e.location,
+                            photoUrl: e.photoUrl,
+                            synced: true,
+                            createdAt: new Date().toISOString()
+                        });
+                    }
                 } catch (err) {
                     console.warn('Failed to persist server time entry to offline DB', err);
                 }
             }
 
-            // Merge server and local entries, preferring local unsynced punches and server for canonical synced ones
+            // If server returned no entries, clear all local entries for this user to ensure clean sync
+            if (serverMapped.length === 0 && localPunchesRaw.length > 0) {
+                try {
+                    console.log('Server returned no entries, clearing local storage for user:', currentUser.id);
+                    await offlineStorage.clearTimePunches(currentUser.tenantId || '', currentUser.id);
+                    localPunchesRaw = []; // Clear the local array as well
+                } catch (err) {
+                    console.warn('Failed to clear local time punches', err);
+                }
+            }
+
+            // Merge server and local entries, preferring server entries for synced data
             const byId = new Map<string, TimeEntry>();
+            const byTimestampType = new Map<string, TimeEntry>();
+
+            // Helper function to create a timestamp+type key for deduplication
+            const getTimestampTypeKey = (entry: TimeEntry) => {
+                // Use exact timestamp with 30-second tolerance for deduplication
+                const time = entry.timestamp.getTime();
+                const roundedTime = Math.floor(time / 30000) * 30000; // Round to nearest 30 seconds
+                return `${roundedTime}-${entry.type}`;
+            };
+
             // Add server entries first
             for (const s of serverMapped) {
-                byId.set(s.id, s);
+                const idKey = s.id;
+                const timestampKey = getTimestampTypeKey(s);
+                byId.set(idKey, s);
+                byTimestampType.set(timestampKey, s);
             }
-            // Add local ones, but do not overwrite server entries unless local is unsynced
+
+            // Add local entries, but deduplicate with server entries
             for (const l of localMapped) {
-                if (!l.id) {
-                    // create a synthetic id based on timestamp+type
-                    const key = `local-${l.timestamp.toISOString()}-${l.type}`;
-                    if (!byId.has(key)) byId.set(key, { ...l, id: key });
-                } else if (!byId.has(l.id)) {
-                    byId.set(l.id, l);
-                } else {
-                    // If local is unsynced, prefer it (to show pending marker)
-                    const existing = byId.get(l.id)!;
-                    if (!l.synced) {
-                        byId.set(l.id, { ...existing, ...l });
+                const idKey = l.id;
+                const timestampKey = getTimestampTypeKey(l);
+
+                // Check if we already have this entry by timestamp+type
+                const existingByTimestamp = byTimestampType.get(timestampKey);
+
+                if (existingByTimestamp) {
+                    // If local is unsynced, prefer it; otherwise keep server version
+                    if (!l.synced && existingByTimestamp.synced) {
+                        byId.set(idKey, l);
+                        byTimestampType.set(timestampKey, l);
                     }
+                    // If both are synced or server is preferred, skip local
+                } else if (!byId.has(idKey)) {
+                    // No conflict, add local entry
+                    byId.set(idKey, l);
+                    byTimestampType.set(timestampKey, l);
                 }
             }
 
@@ -248,17 +282,8 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
             try {
                 setIsLoadingAdjustments(true);
                 
-                // Load time entries from constants/mock data (in real app, this would be from API)
-                const serverEntries = TIME_ENTRIES.filter(e => e.userId === currentUser.id);
-                
-                // Filter out future entries
-                const now = new Date();
-                const validEntries = serverEntries.filter(e => e.timestamp <= now);
-                
-                // Sort
-                validEntries.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-                
-                setTimeEntries(validEntries);
+                // Start with empty time entries and immediately refresh from server/local storage
+                setTimeEntries([]);
 
                 // Load local adjustments first for immediate availability
                 const stored = localStorage.getItem(storageKey);
@@ -282,6 +307,9 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
 
                 // Set local adjustments immediately so UI is consistent
                 setAdjustmentRequests(localAdjustments);
+
+                // Always refresh time entries from server and local storage first
+                try { await refreshTimeEntries(); } catch (e) { console.warn('refreshTimeEntries failed during initial load', e); }
 
                 // Load adjustment requests from API
                 try {
@@ -363,8 +391,6 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                     } catch (e) {
                         console.error('Failed to persist combined adjustments to localStorage', e);
                     }
-                    // Also refresh time entries from server so local punches reflect any approved adjustments
-                    try { await refreshTimeEntries(); } catch (e) { console.warn('refreshTimeEntries failed during initial load', e); }
                     
                 } catch (adjustmentError) {
                     console.error("Failed to load adjustment requests from API:", adjustmentError);

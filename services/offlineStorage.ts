@@ -286,6 +286,18 @@ class OfflineStorageService {
         await db.delete('timePunches', id);
     }
 
+    async clearTimePunches(companyId: string, userId: string) {
+        const db = await this.init();
+        const allPunches = await db.getAllFromIndex('timePunches', 'by-company', companyId);
+        const userPunches = allPunches.filter(p => p.userId === userId);
+        
+        for (const punch of userPunches) {
+            await db.delete('timePunches', punch.id);
+        }
+        
+        console.log(`🗑️ Cleared ${userPunches.length} time punches for user ${userId} in company ${companyId}`);
+    }
+
     // ===== LEAVE REQUESTS =====
     async saveLeaveRequest(request: OfflineDB['leaveRequests']['value']) {
         const db = await this.init();
