@@ -402,7 +402,11 @@ export const api = {
   },
 
   getProfileUpdateRequests: async (tenantId: string, filters?: { status?: string; userId?: string }): Promise<any[]> => {
-    const queryParams = filters ? new URLSearchParams(filters).toString() : '';
+    // Filter out undefined values
+    const cleanFilters = filters ? Object.fromEntries(
+      Object.entries(filters).filter(([_, value]) => value !== undefined)
+    ) : undefined;
+    const queryParams = cleanFilters ? new URLSearchParams(cleanFilters).toString() : '';
     const url = `${API_BASE}/api/profile-update-requests${queryParams ? `?${queryParams}` : ''}`;
     const response = await fetch(url, {
       method: 'GET',
@@ -431,7 +435,11 @@ export const api = {
 
   // Time Adjustment API
   getTimeAdjustmentRequests: async (tenantId: string, filters?: { status?: string; userId?: string }): Promise<any[]> => {
-    const queryParams = filters ? new URLSearchParams(filters).toString() : '';
+    // Filter out undefined values
+    const cleanFilters = filters ? Object.fromEntries(
+      Object.entries(filters).filter(([_, value]) => value !== undefined)
+    ) : undefined;
+    const queryParams = cleanFilters ? new URLSearchParams(cleanFilters).toString() : '';
     const url = `${API_BASE}/api/time-adjustments${queryParams ? `?${queryParams}` : ''}`;
     const response = await fetch(url, {
       method: 'GET',
