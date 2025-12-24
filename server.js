@@ -953,6 +953,25 @@ app.put('/api/users/:id', async (req, res) => {
             });
         }
 
+        // Create notification if mobile money number was updated
+        if (updates.mobile_money_number && data) {
+            try {
+                await db.createNotification({
+                    user_id: userId,
+                    tenant_id: data.tenant_id,
+                    type: 'profile_update',
+                    title: 'Profile Updated',
+                    message: 'Your mobile money number has been updated by an administrator.',
+                    is_read: false,
+                    created_at: new Date().toISOString()
+                });
+                console.log('Notification created for mobile money update');
+            } catch (notificationError) {
+                console.error('Error creating notification:', notificationError);
+                // Don't fail the update if notification creation fails
+            }
+        }
+
         res.json({ 
             success: true, 
             data 
@@ -2664,7 +2683,7 @@ app.post('/api/time-adjustments', async (req, res) => {
         console.log("Date received here :",date)
         console.log("Formatted request date :",requestDate  )
 
-        
+
         const hasRequestForDate = existingRequests.some(req => {
             const reqDate = new Date(req.requested_clock_in).toDateString();
             return reqDate === requestDate;
