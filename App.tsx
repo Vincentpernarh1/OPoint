@@ -37,7 +37,7 @@ const PERMISSIONS: Record<string, UserRole[]> = {
     '/expenses': [UserRole.EMPLOYEE, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
     '/announcements': [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
     '/profile': [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
-    '/approvals': [UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS],
+    '/approvals': [UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
     '/employees': [UserRole.ADMIN, UserRole.HR],
     '/payroll': [UserRole.ADMIN, UserRole.PAYMENTS],
     '/reports': [UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
@@ -458,7 +458,7 @@ const App = () => {
                     <Route path="expenses" element={<Expenses currentUser={currentUser!} />} />
                     <Route path="profile" element={<Profile currentUser={currentUser!} />} />
                     <Route path="announcements" element={<Announcements currentUser={currentUser!} announcements={announcements} onPost={handlePostAnnouncement} onDelete={() => {}} onMarkAsRead={handleMarkAnnouncementsAsRead} />} />
-                    <Route path="approvals" element={<Approvals currentUser={currentUser!} />} />
+                    <Route path="approvals" element={<ProtectedRoute currentUser={currentUser} allowedRoles={PERMISSIONS['/approvals']}><Approvals currentUser={currentUser!} /></ProtectedRoute>} />
                     <Route path="employees" element={<EmployeeManagement currentUser={currentUser!} />} />
                     <Route path="payroll" element={<MobileMoneyPayroll currentUser={currentUser!} />} />
                     <Route path="reports" element={<Reports currentUser={currentUser!} />} />
