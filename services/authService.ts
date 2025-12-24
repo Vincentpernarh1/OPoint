@@ -70,6 +70,29 @@ export const authService = {
 
   // Check if user is authenticated
   isAuthenticated: (): boolean => {
-    return !!this.getCurrentUser();
+    return !!authService.getCurrentUser();
+  },
+
+  // Reset password for a user (admin action)
+  resetPassword: async (userId: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: authService.getAuthHeaders(),
+        credentials: 'include',
+        body: JSON.stringify({ userId }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        return { success: true, message: 'Password reset email sent successfully.' };
+      } else {
+        return { success: false, message: data.error || 'Failed to reset password.' };
+      }
+    } catch (error) {
+      console.error('Failed to reset password:', error);
+      return { success: false, message: 'Network error occurred.' };
+    }
   }
 };

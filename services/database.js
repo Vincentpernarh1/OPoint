@@ -970,19 +970,28 @@ export const db = {
         return { data: transformedData, error };
     },
 
-    async updateUserPassword(userId, passwordHash) {
+    async updateUserPassword(userId, passwordHash, tempPassword = null, requiresChange = false) {
         const client = getSupabaseAdminClient(); // Use admin client to bypass RLS
         if (!client) return { data: null, error: 'Database not configured' };
 
+        const updateData = {
+            updated_at: new Date().toISOString()
+        };
+
+        if (passwordHash) {
+            updateData.password_hash = passwordHash;
+            updateData.temporary_password = null;
+            updateData.requires_password_change = false;
+            updateData.password_changed_at = new Date().toISOString();
+        } else if (tempPassword) {
+            updateData.password_hash = null;
+            updateData.temporary_password = tempPassword;
+            updateData.requires_password_change = requiresChange;
+        }
+
         const { data, error } = await client
             .from('opoint_users')
-            .update({
-                password_hash: passwordHash,
-                temporary_password: null, // Clear temporary password
-                requires_password_change: false,
-                password_changed_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            })
+            .update(updateData)
             .eq('id', userId)
             .select()
             .single();
