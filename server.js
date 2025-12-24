@@ -2747,6 +2747,9 @@ app.get('/api/time-entries', async (req, res) => {
             });
         }
 
+        // Exclude adjustment request entries from time entries
+        filteredData = filteredData.filter(entry => !entry.adjustment_status);
+
         // Transform to TimeEntry format
         const timeEntries = filteredData.map(entry => ({
             id: entry.id,
