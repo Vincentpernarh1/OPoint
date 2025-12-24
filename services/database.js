@@ -1441,16 +1441,20 @@ export const db = {
         let query = client
             .from('opoint_profile_update_requests')
             .select('*')
-            // Temporarily remove tenant filter
-            // .eq('tenant_id', tenantId)
+            .eq('tenant_id', tenantId)
             ;
 
         if (filters.status) {
             query = query.eq('status', filters.status);
         }
 
-        if (filters.userId) {
-            query = query.eq('user_id', filters.userId);
+        if (filters.userId !== undefined) {
+            if (filters.userId && filters.userId.trim()) {
+                query = query.eq('user_id', filters.userId);
+            } else {
+                // If userId is empty, return empty array to prevent data leak
+                return { data: [], error: null };
+            }
         }
 
         query = query.order('requested_at', { ascending: false });

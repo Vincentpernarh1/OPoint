@@ -21,6 +21,7 @@ const getUser = (userId: string): User | undefined => USERS.find(u => u.id === u
 const formatCurrency = (amount: number) => new Intl.NumberFormat('en-GH', { style: 'currency', currency: 'GHS' }).format(amount);
 
 const Approvals = ({ currentUser }: ApprovalsProps) => {
+    const isAdmin = useMemo(() => currentUser.role === UserRole.ADMIN, [currentUser.role]);
     // Helper to format/normalize server-provided dates to local YYYY-MM-DD
     const canonicalDate = (d: Date | string | undefined) => {
         if (!d) return '';
@@ -49,13 +50,13 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
     const [adjustmentRequests, setAdjustmentRequests] = useState<AdjustmentRequest[]>([]);
     const [expenseRequests, setExpenseRequests] = useState<ExpenseRequest[]>([]);
     const [profileRequests, setProfileRequests] = useState<any[]>([]);
-    const [profileStatusFilter, setProfileStatusFilter] = useState<string>('Pending');
+    const [profileStatusFilter, setProfileStatusFilter] = useState<string>('All');
     
     const [activeTab, setActiveTab] = useState('leave');
     const [viewingLog, setViewingLog] = useState<ViewingLogState | null>(null);
     const [leaveTypeFilter, setLeaveTypeFilter] = useState<string>('All');
-    const [leaveStatusFilter, setLeaveStatusFilter] = useState<string>('Pending');
-    const [adjustmentStatusFilter, setAdjustmentStatusFilter] = useState<string>('Pending');
+    const [leaveStatusFilter, setLeaveStatusFilter] = useState<string>('All');
+    const [adjustmentStatusFilter, setAdjustmentStatusFilter] = useState<string>('All');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -65,9 +66,13 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 setLoading(true);
                 setError(null);
                 
+                const statusFilter = isAdmin ? (leaveStatusFilter === 'All' ? undefined : leaveStatusFilter) : undefined;
+                const userFilter = isAdmin ? undefined : currentUser.id;
+                
                 // Fetch leave requests
                 const leaveData = await api.getLeaveRequests(currentUser.tenantId, { 
-                    status: leaveStatusFilter === 'All' ? undefined : leaveStatusFilter 
+                    status: statusFilter,
+                    userId: userFilter
                 });
                 const transformedLeaveData: LeaveRequest[] = leaveData.map((item: any) => ({
                     id: item.id,
@@ -82,14 +87,15 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 
                 // Fetch time adjustment requests
                 const adjustmentData = await api.getTimeAdjustmentRequests(currentUser.tenantId, { 
-                    status: adjustmentStatusFilter === 'All' ? undefined : adjustmentStatusFilter 
+                    status: isAdmin ? (adjustmentStatusFilter === 'All' ? undefined : adjustmentStatusFilter) : undefined,
+                    userId: isAdmin ? undefined : currentUser.id
                 });
 
 
                 console.log("<Mnual checking : ",adjustmentData);
                 
-                // Filter out adjustment requests from the current user to prevent self-approval
-                const filteredAdjustmentData = adjustmentData.filter((item: any) => item.employee_id !== currentUser.id);
+                // For non-admin, no need to filter out own requests since we already filtered at DB
+                const filteredAdjustmentData = isAdmin ? adjustmentData.filter((item: any) => item.employee_id !== currentUser.id) : adjustmentData;
                 
                 const transformedAdjustmentData: AdjustmentRequest[] = filteredAdjustmentData.map((item: any) => {
                     // Determine a safe date string (YYYY-MM-DD) without constructing Dates from null
@@ -116,12 +122,14 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 
                 // Fetch profile update requests
                 const profileData = await api.getProfileUpdateRequests(currentUser.tenantId, {
-                    status: profileStatusFilter === 'All' ? undefined : profileStatusFilter
+                    status: isAdmin ? (profileStatusFilter === 'All' ? undefined : profileStatusFilter) : undefined,
+                    userId: isAdmin ? undefined : currentUser.id
                 });
 
                 // Fetch expense claims
                 const expenseData = await api.getExpenseClaims(currentUser.tenantId, {
-                    status: 'pending' // Only show pending for approval
+                    status: isAdmin ? 'pending' : undefined,
+                    employee_id: isAdmin ? undefined : currentUser.id
                 });
                 
                 // Use only API data - no mock data fallback
@@ -236,7 +244,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
             }
         }
         // Handle profile update requests: handleAction(id, action, 'profile')
-        else if (typeof idOrSetter === 'string' && typeof actionOrId === 'string' && (actionOrId === 'approve' || actionOrId === 'reject') && action === 'profile') {
+        else if (typeof idOrSetter === 'string' && typeof actionOrId === 'string' && (actionOrId === 'approve' || actionOrId === 'reject' || actionOrId === 'cancel') && action === 'profile') {
             const id = idOrSetter;
             const actionType = actionOrId;
             try {
@@ -257,16 +265,18 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                         // Non-fatal: continue even if event dispatch fails
                         console.warn('Could not dispatch employee-updated event', ex);
                     }
-                } else {
+                } else if (actionType === 'reject') {
                     await api.rejectProfileUpdateRequest(currentUser.tenantId, id, currentUser.id);
+                } else if (actionType === 'cancel') {
+                    await api.cancelProfileUpdateRequest(currentUser.tenantId, id, currentUser.id);
                 }
 
                 // Update status in local state
                 setProfileRequests(prev => prev.map(req =>
                     req.id === id ? {
                         ...req,
-                        status: actionType === 'approve' ? 'Approved' : 'Rejected',
-                        reviewed_by: currentUser.id,
+                        status: actionType === 'approve' ? 'Approved' : actionType === 'reject' ? 'Rejected' : 'Cancelled',
+                        reviewed_by: actionType === 'cancel' ? currentUser.id : currentUser.id,
                         reviewed_at: new Date().toISOString()
                     } : req
                 ));
@@ -276,11 +286,11 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
             }
         }
         // Handle expense claims: handleAction(id, action, 'expense')
-        else if (typeof idOrSetter === 'string' && typeof actionOrId === 'string' && (actionOrId === 'approve' || actionOrId === 'reject') && action === 'expense') {
+        else if (typeof idOrSetter === 'string' && typeof actionOrId === 'string' && (actionOrId === 'approve' || actionOrId === 'reject' || actionOrId === 'cancel') && action === 'expense') {
             const id = idOrSetter;
             const actionType = actionOrId;
             try {
-                const status = actionType === 'approve' ? 'approved' : 'rejected';
+                const status = actionType === 'approve' ? 'approved' : actionType === 'reject' ? 'rejected' : 'cancelled';
                 await api.updateExpenseClaim(currentUser.tenantId, id, {
                     status,
                     reviewed_by: currentUser.id
@@ -535,7 +545,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                                 <button title="Reject expense claim" onClick={() => handleAction(req.id, 'reject', 'expense')} className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200"><XIcon className="h-5 w-5"/></button>
                                             </>
                                         ) : req.status === 'pending' && currentUser.role !== UserRole.ADMIN ? (
-                                            <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-800">Pending</span>
+                                            <button title="Cancel expense claim" onClick={() => handleAction(req.id, 'cancel', 'expense')} className="p-2 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200"><XIcon className="h-5 w-5"/></button>
                                         ) : (
                                             <span className={`text-xs px-2 py-1 rounded ${req.status === 'approved' ? 'bg-green-100 text-green-800' : req.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
                                                 {req.status}
@@ -599,6 +609,14 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                                         <XIcon className="h-5 w-5"/>
                                                     </button>
                                                 </>
+                                            ) : (req.status === 'Pending' || req.status === 'pending') && currentUser.role !== UserRole.ADMIN ? (
+                                                <button
+                                                    title="Cancel profile update"
+                                                    onClick={() => handleAction(req.id, 'cancel', 'profile')}
+                                                    className="p-2 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200"
+                                                >
+                                                    <XIcon className="h-5 w-5"/>
+                                                </button>
                                             ) : (
                                                 <span className={`text-xs px-2 py-1 rounded ${
                                                     req.status === 'Approved' || req.status === 'approved' ? 'bg-green-100 text-green-800' :

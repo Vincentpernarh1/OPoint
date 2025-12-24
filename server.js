@@ -1337,7 +1337,7 @@ app.get('/api/profile-update-requests', async (req, res) => {
 
         const filters = {};
         if (status) filters.status = status;
-        if (userId) filters.userId = userId;
+        filters.userId = userId;
 
         const { data, error } = await db.getProfileUpdateRequests(filters);
 
