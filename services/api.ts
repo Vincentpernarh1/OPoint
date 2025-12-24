@@ -2,7 +2,7 @@ import type { Company, NewCompanyData, User, Announcement } from '../types';
 import { UserRole } from '../types';
 import { offlineStorage } from './offlineStorage';
 
-const API_BASE = 'http://localhost:3001';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3001';
 
 // Helper to send a request or enqueue it when offline / on network failure
 const sendOrQueue = async (method: string, url: string, tenantId?: string, body?: any) => {
