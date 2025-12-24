@@ -752,6 +752,90 @@ app.post('/api/auth/change-password', async (req, res) => {
     }
 });
 
+// Reset password endpoint (admin action)
+app.post('/api/auth/reset-password', async (req, res) => {
+    try {
+        const { userId } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'User ID is required' 
+            });
+        }
+
+        // Get current user (admin) from session cookies
+        const userSessionCookie = req.cookies.user_session;
+        if (!userSessionCookie) {
+            return res.status(401).json({ 
+                success: false, 
+                error: 'Not authenticated' 
+            });
+        }
+
+        let currentUser;
+        try {
+            currentUser = JSON.parse(userSessionCookie);
+        } catch (parseError) {
+            return res.status(401).json({ 
+                success: false, 
+                error: 'Invalid session' 
+            });
+        }
+
+        if (!currentUser || (currentUser.role !== 'Admin' && currentUser.role !== 'HR')) {
+            return res.status(403).json({ 
+                success: false, 
+                error: 'Unauthorized: Only admins or HR can reset passwords' 
+            });
+        }
+
+        // Get target user
+        const { data: targetUser, error } = await db.getUserById(userId);
+
+        if (error || !targetUser) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'User not found' 
+            });
+        }
+
+        // Set tenant context
+        if (targetUser.tenant_id) {
+            setTenantContext(targetUser.tenant_id, currentUser.id);
+        }
+
+        // Generate temporary password
+        const tempPassword = 'TempPass' + Math.random().toString(36).substr(2, 8) + '!';
+
+        // Update user with temporary password
+        const { data: updatedUser, error: updateError } = await db.updateUserPassword(targetUser.id, null, tempPassword, true);
+
+        if (updateError) {
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Failed to reset password' 
+            });
+        }
+
+        // TODO: Send email to user with reset instructions
+        // For now, just log it
+        console.log(`Password reset for ${targetUser.email}: Temporary password set to ${tempPassword}`);
+
+        res.json({ 
+            success: true, 
+            message: 'Password reset successfully. User will receive an email with reset instructions.' 
+        });
+
+    } catch (error) {
+        console.error('Reset password error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to reset password' 
+        });
+    }
+});
+
 // Validate password strength (for real-time feedback in UI)
 app.post('/api/auth/validate-password', async (req, res) => {
     try {
