@@ -1604,6 +1604,86 @@ export const db = {
             .single();
 
         return { data, error };
+    },
+
+    // --- REPORT METHODS ---
+    async getClockLogsForReport(tenantId, month, year) {
+        const client = getSupabaseClient();
+        if (!client) return { data: [], error: null }; // Return empty array if no database
+
+        // Get start and end dates for the month
+        const startDate = new Date(year, month - 1, 1);
+        const endDate = new Date(year, month, 0); // Last day of month
+
+        const { data, error } = await client
+            .from('opoint_clock_logs')
+            .select('employee_id, employee_name, clock_in, clock_out')
+            .eq('tenant_id', tenantId)
+            .gte('clock_in', startDate.toISOString())
+            .lte('clock_in', endDate.toISOString())
+            .order('clock_in', { ascending: true });
+
+        // If table doesn't exist or query fails, return empty array
+        if (error) {
+            console.log('Clock logs table may not exist or query failed:', error.message);
+            return { data: [], error: null };
+        }
+
+        return { data: data || [], error };
+    },
+
+    async getAllLeaveBalances(tenantId) {
+        const client = getSupabaseClient();
+        if (!client) return { data: [], error: null }; // Return empty array if no database
+
+        // Get all users with their leave balances
+        const { data: users, error: usersError } = await client
+            .from('opoint_users')
+            .select('id, name')
+            .eq('tenant_id', tenantId);
+
+        if (usersError) {
+            console.log('Users table query failed:', usersError.message);
+            return { data: [], error: null };
+        }
+
+        if (!users || users.length === 0) {
+            return { data: [], error: null };
+        }
+
+        // Get leave balances for each user
+        const leaveBalances = [];
+        for (const user of users) {
+            const { data: balances, error: balanceError } = await client
+                .from('opoint_leave_balances')
+                .select('*')
+                .eq('employee_id', user.id);
+
+            if (!balanceError && balances && balances.length > 0) {
+                balances.forEach(balance => {
+                    leaveBalances.push({
+                        employee_id: user.id,
+                        employee_name: user.name,
+                        leave_type: balance.leave_type,
+                        total_days: balance.total_days,
+                        used_days: balance.used_days,
+                        remaining_days: balance.remaining_days
+                    });
+                });
+            } else {
+                // If no leave balances exist, add default values
+                leaveBalances.push({
+                    employee_id: user.id,
+                    employee_name: user.name,
+                    leave_type: 'annual',
+                    total_days: 25, // Default annual leave
+                    used_days: 0,
+                    remaining_days: 25
+                });
+            }
+        }
+
+        return { data: leaveBalances, error: null };
     }
 };
 

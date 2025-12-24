@@ -3017,6 +3017,169 @@ async function createNotificationsForAnnouncement(announcement) {
     }
 }
 
+// --- REPORTS ENDPOINTS ---
+app.get('/api/reports/:type', async (req, res) => {
+    try {
+        const { type } = req.params;
+        const tenantId = req.headers['x-tenant-id'];
+        const { month, year } = req.query;
+
+        if (!tenantId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Tenant ID required'
+            });
+        }
+
+        // Set tenant context
+        setTenantContext(tenantId);
+
+        let reportData = [];
+
+        switch (type) {
+            case 'ssnit':
+                // SSNIT Contribution Report
+                const users = await getUsers();
+                reportData = users.map(user => {
+                    const basicSalary = parseFloat(user.basicSalary) || 0;
+                    const ssnitEmployee = basicSalary * 0.055; // 5.5%
+                    const ssnitEmployer = basicSalary * 0.13;  // 13%
+                    const applicableSalary = Math.min(basicSalary, 1500); // SSNIT ceiling
+                    const ssnitTier1 = applicableSalary * 0.135; // 13.5% to SSNIT
+                    const ssnitTier2 = applicableSalary * 0.05;  // 5% to private fund
+
+                    return {
+                        employee_id: user.id,
+                        employee_name: user.name,
+                        basic_salary: basicSalary,
+                        ssnit_employee: ssnitEmployee,
+                        ssnit_employer: ssnitEmployer,
+                        ssnit_tier1: ssnitTier1,
+                        ssnit_tier2: ssnitTier2,
+                        total_ssnit: ssnitEmployee + ssnitEmployer
+                    };
+                });
+                break;
+
+            case 'paye':
+                // PAYE Tax Report
+                const payeUsers = await getUsers();
+                reportData = payeUsers.map(user => {
+                    const basicSalary = parseFloat(user.basicSalary) || 0;
+                    let paye = 0;
+                    const taxableIncome = basicSalary;
+
+                    if (taxableIncome <= 3828) {
+                        paye = 0;
+                    } else if (taxableIncome <= 4828) {
+                        paye = (taxableIncome - 3828) * 0.05;
+                    } else if (taxableIncome <= 5828) {
+                        paye = 1000 * 0.05 + (taxableIncome - 4828) * 0.10;
+                    } else if (taxableIncome <= 6828) {
+                        paye = 1000 * 0.05 + 1000 * 0.10 + (taxableIncome - 5828) * 0.175;
+                    } else {
+                        paye = 1000 * 0.05 + 1000 * 0.10 + 1000 * 0.175 + (taxableIncome - 6828) * 0.25;
+                    }
+
+                    return {
+                        employee_id: user.id,
+                        employee_name: user.name,
+                        basic_salary: basicSalary,
+                        taxable_income: taxableIncome,
+                        paye_tax: paye
+                    };
+                });
+                break;
+
+            case 'attendance':
+                // Attendance Summary Report
+                const currentMonth = month ? parseInt(month) : new Date().getMonth() + 1;
+                const currentYear = year ? parseInt(year) : new Date().getFullYear();
+
+                // Get all clock logs for the month
+                const { data: clockLogs, error: logsError } = await db.getClockLogsForReport(tenantId, currentMonth, currentYear);
+
+                if (logsError) {
+                    console.error('Error fetching clock logs:', logsError);
+                    reportData = []; // Return empty array instead of failing
+                } else {
+                    // Group by employee and calculate totals
+                    const attendanceMap = new Map();
+
+                    clockLogs.forEach(log => {
+                        const employeeId = log.employee_id;
+                        if (!attendanceMap.has(employeeId)) {
+                            attendanceMap.set(employeeId, {
+                                employee_id: employeeId,
+                                employee_name: log.employee_name,
+                                total_days: 0,
+                                total_hours: 0,
+                                present_days: 0,
+                                absent_days: 0
+                            });
+                        }
+
+                        const employee = attendanceMap.get(employeeId);
+
+                        if (log.clock_in && log.clock_out) {
+                            // Calculate hours worked
+                            const clockIn = new Date(log.clock_in);
+                            const clockOut = new Date(log.clock_out);
+                            const hoursWorked = (clockOut - clockIn) / (1000 * 60 * 60); // Convert to hours
+
+                            employee.total_hours += hoursWorked;
+                            employee.present_days += 1;
+                        }
+                    });
+
+                    // Calculate working days in month
+                    const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+                    const workingDays = Math.floor(daysInMonth * 5 / 7); // Approximate working days
+
+                    attendanceMap.forEach(employee => {
+                        employee.total_days = workingDays;
+                        employee.absent_days = Math.max(0, workingDays - employee.present_days);
+                    });
+
+                    reportData = Array.from(attendanceMap.values());
+                }
+                break;
+
+            case 'leave':
+                // Leave Balance Report
+                const { data: leaveBalances, error: leaveError } = await db.getAllLeaveBalances(tenantId);
+
+                if (leaveError) {
+                    console.error('Error fetching leave balances:', leaveError);
+                    reportData = []; // Return empty array instead of failing
+                } else {
+                    reportData = leaveBalances || [];
+                }
+                break;
+
+            default:
+                return res.status(400).json({
+                    success: false,
+                    error: 'Invalid report type. Supported types: ssnit, paye, attendance, leave'
+                });
+        }
+
+        res.json({
+            success: true,
+            data: reportData,
+            report_type: type,
+            generated_at: new Date().toISOString()
+        });
+
+    } catch (error) {
+        console.error('Error generating report:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to generate report'
+        });
+    }
+});
+
 // --- MOMO CALLBACK ENDPOINT ---
 app.post('/api/momo/callback', async (req, res) => {
     try {

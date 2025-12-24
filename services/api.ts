@@ -199,9 +199,18 @@ export const api = {
   },
 
   // Reports API
-  getReport: async (reportType: string): Promise<any[]> => {
-    // Mock implementation
-    return [];
+  getReport: async (reportType: string, tenantId: string): Promise<any[]> => {
+    const response = await fetch(`${API_BASE}/api/reports/${reportType}`, {
+      headers: getHeaders(tenantId),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch report data');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch report data');
+    }
+    return result.data;
   },
 
   // Payslips API
