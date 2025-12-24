@@ -100,6 +100,7 @@ export const api = {
   getAnnouncements: async (tenantId: string, userId: string): Promise<Announcement[]> => {
     const response = await fetch(`${API_BASE}/api/announcements?userId=${userId}`, {
       headers: getHeaders(tenantId),
+      cache: 'no-cache',
     });
     if (!response.ok) {
       throw new Error('Failed to fetch announcements');

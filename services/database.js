@@ -1141,15 +1141,59 @@ export const db = {
         if (!tenantId) return { error: 'No tenant context set' };
 
         try {
-            // Update all unread notifications for this user to read
-            const { error } = await client
-                .from('opoint_notifications')
-                .update({ is_read: true })
-                .eq('user_id', userId)
-                .eq('tenant_id', tenantId)
-                .eq('is_read', false); // Only update unread ones
+            // Get all announcements for the tenant
+            const { data: announcements, error: annError } = await client
+                .from('opoint_announcements')
+                .select('id')
+                .eq('tenant_id', tenantId);
 
-            return { error };
+            if (annError) return { error: annError };
+
+            // Get existing notifications for this user
+            const { data: existingNotifications, error: notifError } = await client
+                .from('opoint_notifications')
+                .select('announcement_id')
+                .eq('user_id', userId)
+                .eq('tenant_id', tenantId);
+
+            if (notifError) return { error: notifError };
+
+            const existingAnnouncementIds = new Set(existingNotifications.map(n => n.announcement_id));
+
+            // Update existing notifications to read
+            if (existingNotifications.length > 0) {
+                const { error: updateError } = await client
+                    .from('opoint_notifications')
+                    .update({ is_read: true })
+                    .eq('user_id', userId)
+                    .eq('tenant_id', tenantId)
+                    .eq('is_read', false);
+
+                if (updateError) return { error: updateError };
+            }
+
+            // Insert notifications for announcements that don't have one
+            const missingAnnouncements = announcements.filter(ann => !existingAnnouncementIds.has(ann.id));
+            if (missingAnnouncements.length > 0) {
+                const newNotifications = missingAnnouncements.map(ann => ({
+                    user_id: userId,
+                    tenant_id: tenantId,
+                    announcement_id: ann.id,
+                    is_read: true,
+                    type: 'announcement_read',
+                    title: 'Announcement Read',
+                    message: 'Announcement marked as read',
+                    created_at: new Date().toISOString()
+                }));
+
+                const { error: insertError } = await client
+                    .from('opoint_notifications')
+                    .insert(newNotifications);
+
+                if (insertError) return { error: insertError };
+            }
+
+            return { error: null };
 
         } catch (error) {
             console.error('Error in markAnnouncementsAsRead:', error);

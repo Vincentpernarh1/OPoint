@@ -68,8 +68,8 @@ const App = () => {
     }, [currentUser?.tenantId, currentUser?.id]);
 
     const handlePostAnnouncement = useCallback(async (newAnnouncement: Announcement) => {
-        setAnnouncements(prev => [newAnnouncement, ...prev]);
-    }, []);
+        setAnnouncements(prev => [{ ...newAnnouncement, readBy: [currentUser!.id] }, ...prev]);
+    }, [currentUser]);
 
     const handleMarkAnnouncementsAsRead = useCallback(async () => {
         if (!currentUser?.tenantId || !currentUser?.id) return;
@@ -126,11 +126,17 @@ const App = () => {
 
                     if (isSuperAdmin) {
                         setCurrentUser(appUser);
+                        // Fetch announcements immediately
+                        if (appUser.tenantId && appUser.id) {
+                            fetchAnnouncements();
+                        }
                     } else {
                         // Set tenant context
                         if (appUser.tenantId) {
                             setTenantContext(appUser.tenantId, appUser.id);
                             setCurrentUser(appUser);
+                            // Fetch announcements immediately
+                            fetchAnnouncements();
                         } else {
                             console.log('[useEffect] No tenant ID found, clearing session');
                             authService.logout();
@@ -161,6 +167,8 @@ const App = () => {
     // Refresh currentUser from API when coming back online or when a profile update occurs
     useEffect(() => {
         if (!currentUser) return;
+
+        let userPollInterval: NodeJS.Timeout | null = null;
 
         const refreshCurrentUser = async (detail?: any) => {
             try {
@@ -208,7 +216,29 @@ const App = () => {
             }
         };
 
-        const handleOnline = () => refreshCurrentUser();
+        const startUserPolling = () => {
+            if (userPollInterval) clearInterval(userPollInterval);
+            userPollInterval = setInterval(async () => {
+                if (navigator.onLine) {
+                    await refreshCurrentUser();
+                }
+            }, 10000); // Poll user data every 10 seconds
+        };
+
+        const stopUserPolling = () => {
+            if (userPollInterval) {
+                clearInterval(userPollInterval);
+                userPollInterval = null;
+            }
+        };
+
+        const handleOnline = async () => {
+            await refreshCurrentUser();
+            // Fetch announcements immediately when coming online
+            if (currentUser?.tenantId && currentUser?.id) {
+                await fetchAnnouncements();
+            }
+        };
         const handleEmployeeUpdated = (e: Event) => {
             try {
                 const ce = e as CustomEvent;
@@ -221,11 +251,68 @@ const App = () => {
         window.addEventListener('online', handleOnline);
         window.addEventListener('employee-updated', handleEmployeeUpdated as EventListener);
 
+        // Start polling if online
+        if (navigator.onLine) {
+            startUserPolling();
+        }
+
+        const handleOnlineForPolling = () => startUserPolling();
+        const handleOfflineForPolling = () => stopUserPolling();
+
+        window.addEventListener('online', handleOnlineForPolling);
+        window.addEventListener('offline', handleOfflineForPolling);
+
         return () => {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('employee-updated', handleEmployeeUpdated as EventListener);
+            window.removeEventListener('online', handleOnlineForPolling);
+            window.removeEventListener('offline', handleOfflineForPolling);
+            stopUserPolling();
         };
-    }, [currentUser]);
+    }, [currentUser, fetchAnnouncements]);
+
+    // Polling for announcements when online
+    useEffect(() => {
+        if (!currentUser?.tenantId || !currentUser?.id) return;
+
+        let pollInterval: NodeJS.Timeout | null = null;
+
+        const startPolling = () => {
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = setInterval(async () => {
+                if (navigator.onLine) {
+                    try {
+                        await fetchAnnouncements();
+                    } catch (error) {
+                        console.error('Error polling announcements:', error);
+                    }
+                }
+            }, 10000); // Poll every 10 seconds
+        };
+
+        const stopPolling = () => {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+            }
+        };
+
+        if (navigator.onLine) {
+            startPolling();
+        }
+
+        const handleOnline = () => startPolling();
+        const handleOffline = () => stopPolling();
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        return () => {
+            stopPolling();
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, [currentUser?.tenantId, currentUser?.id, fetchAnnouncements]);
 
     const handleLogin = async (userFromApi: any) => {
         // Normalize role string
