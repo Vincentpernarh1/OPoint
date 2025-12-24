@@ -18,6 +18,7 @@ import cors from 'cors';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import cookieParser from 'cookie-parser';
+import path from 'path';
 import webPush from 'web-push';
 import db, { getSupabaseClient, getSupabaseAdminClient, setTenantContext, getCurrentTenantId } from './services/database.js';
 import { validatePasswordStrength } from './utils/passwordValidator.js';
@@ -3551,6 +3552,18 @@ async function sendPushNotification(userId, notificationData) {
         console.error('Error sending push notification:', error);
     }
 }
+
+// Serve static files from dist directory
+app.use(express.static(path.join(process.cwd(), 'dist')));
+
+// Handle client-side routing - serve index.html for all non-API routes
+app.get('*', (req, res) => {
+  // Skip API routes
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'API endpoint not found' });
+  }
+  res.sendFile(path.join(process.cwd(), 'dist', 'index.html'));
+});
 
 // Error handling middleware (must be last)
 app.use(errorHandler);
