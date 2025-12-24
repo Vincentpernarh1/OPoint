@@ -19,6 +19,7 @@ const MobileMoneyPayroll = lazy(() => import('./components/MobileMoneyPayroll'))
 const Settings = lazy(() => import('./components/Settings'));
 import ManagerDashboard from './components/ManagerDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
+import NotificationBell from './components/NotificationBell';
 
 // Import Services
 import { authService } from './services/authService';
@@ -26,7 +27,7 @@ import { getCurrentTenantId, setTenantContext } from './services/database';
 import db from './services/database';
 import { api } from './services/api';
 
-import { LogoIcon, LogOutIcon, LayoutDashboardIcon, BriefcaseIcon, CheckSquareIcon, UsersIcon, DollarSignIcon, MenuIcon, XIcon, FileTextIcon, MegaphoneIcon, ReceiptIcon, UserCircleIcon, SmartphoneIcon, CogIcon, ChevronLeftIcon, ChevronRightIcon } from './components/Icons';
+import { LogoIcon, LogOutIcon, LayoutDashboardIcon, BriefcaseIcon, CheckSquareIcon, UsersIcon, DollarSignIcon, MenuIcon, XIcon, FileTextIcon, MegaphoneIcon, ReceiptIcon, UserCircleIcon, SmartphoneIcon, CogIcon, ChevronLeftIcon, ChevronRightIcon, BellIcon } from './components/Icons';
 
 const PERMISSIONS: Record<string, UserRole[]> = {
     '/dashboard': [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
@@ -47,6 +48,7 @@ const App = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+    const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
 
     const fetchAnnouncements = useCallback(async () => {
         if (!currentUser?.tenantId || !currentUser?.id) return;
@@ -66,6 +68,22 @@ const App = () => {
             setAnnouncements(mockData);
         }
     }, [currentUser?.tenantId, currentUser?.id]);
+
+    const fetchPendingApprovalsCount = useCallback(async () => {
+        if (!currentUser?.tenantId || !PERMISSIONS['/approvals']?.includes(currentUser.role)) return;
+        try {
+            const [leaveData, adjustmentData, expenseData] = await Promise.all([
+                api.getLeaveRequests(currentUser.tenantId, { status: 'Pending' }),
+                api.getTimeAdjustmentRequests(currentUser.tenantId, { status: 'Pending' }),
+                api.getExpenseClaims(currentUser.tenantId, { status: 'pending' })
+            ]);
+            const total = (leaveData?.length || 0) + (adjustmentData?.length || 0) + (expenseData?.length || 0);
+            setPendingApprovalsCount(total);
+        } catch (error) {
+            console.error('Error fetching pending approvals:', error);
+            setPendingApprovalsCount(0);
+        }
+    }, [currentUser?.tenantId, currentUser?.role]);
 
     const handlePostAnnouncement = useCallback(async (newAnnouncement: Announcement) => {
         setAnnouncements(prev => [{ ...newAnnouncement, readBy: [currentUser!.id] }, ...prev]);
@@ -161,8 +179,9 @@ const App = () => {
     useEffect(() => {
         if (currentUser?.tenantId && currentUser?.id) {
             fetchAnnouncements();
+            fetchPendingApprovalsCount();
         }
-    }, [currentUser?.tenantId, currentUser?.id, fetchAnnouncements]);
+    }, [currentUser?.tenantId, currentUser?.id, fetchAnnouncements, fetchPendingApprovalsCount]);
 
     // Refresh currentUser from API when coming back online or when a profile update occurs
     useEffect(() => {
@@ -237,6 +256,7 @@ const App = () => {
             // Fetch announcements immediately when coming online
             if (currentUser?.tenantId && currentUser?.id) {
                 await fetchAnnouncements();
+                await fetchPendingApprovalsCount();
             }
         };
         const handleEmployeeUpdated = (e: Event) => {
@@ -283,8 +303,9 @@ const App = () => {
                 if (navigator.onLine) {
                     try {
                         await fetchAnnouncements();
+                        await fetchPendingApprovalsCount();
                     } catch (error) {
-                        console.error('Error polling announcements:', error);
+                        console.error('Error polling notifications:', error);
                     }
                 }
             }, 10000); // Poll every 10 seconds
@@ -312,7 +333,7 @@ const App = () => {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
         };
-    }, [currentUser?.tenantId, currentUser?.id, fetchAnnouncements]);
+    }, [currentUser?.tenantId, currentUser?.id, fetchAnnouncements, fetchPendingApprovalsCount]);
 
     const handleLogin = async (userFromApi: any) => {
         // Normalize role string
@@ -367,13 +388,20 @@ const App = () => {
 
     const unreadNotificationCount = useMemo(() => {
         if (!currentUser) return 0;
-        // Admins don't see unread announcement counts
-        if (currentUser.role === UserRole.ADMIN) return 0;
-        return announcements.filter(ann => 
-            ann.tenant_id === currentUser.tenantId && 
-            (!ann.readBy || !ann.readBy.includes(currentUser.id))
-        ).length;
-    }, [announcements, currentUser]);
+        let count = 0;
+        // Announcements (only for non-admins)
+        if (currentUser.role !== UserRole.ADMIN) {
+            count += announcements.filter(ann => 
+                ann.tenant_id === currentUser.tenantId && 
+                (!ann.readBy || !ann.readBy.includes(currentUser.id))
+            ).length;
+        }
+        // Approvals (only for users who can approve)
+        if (PERMISSIONS['/approvals']?.includes(currentUser.role)) {
+            count += pendingApprovalsCount;
+        }
+        return count;
+    }, [announcements, currentUser, pendingApprovalsCount]);
 
     if (isLoading) {
         return <div className="h-screen w-screen flex items-center justify-center"><LogoIcon className="h-16 w-16 animate-pulse" /></div>;
@@ -463,6 +491,7 @@ const CompanyLayout = ({
 }) => {
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const location = useLocation();
+    const navigate = useNavigate();
 
     // Default modules for tenant-based system
     const defaultModules = {
@@ -573,6 +602,10 @@ const CompanyLayout = ({
                         <h1 className="text-xl font-semibold text-gray-800 capitalize">{pageTitle}</h1>
                     </div>
                     <div className="flex items-center space-x-6">
+                        <NotificationBell 
+                            count={unreadNotificationCount} 
+                            onClick={() => navigate('/announcements')} 
+                        />
                         <Link to="/profile" className="flex items-center space-x-3 hover:bg-slate-50 p-2 rounded-lg">
                             <span className="text-right text-sm hidden sm:block"><p className="font-semibold">{currentUser.name}</p><p className="text-gray-500">{currentUser.role}</p></span>
                             {currentUser.avatarUrl && (

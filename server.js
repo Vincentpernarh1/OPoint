@@ -1204,7 +1204,8 @@ app.delete('/api/users/:id', async (req, res) => {
 // --- PROFILE UPDATE REQUEST ENDPOINTS ---
 app.post('/api/profile-update-requests', async (req, res) => {
     try {
-        const { field_name, requested_value, current_value } = req.body;
+        const { field_name, current_value } = req.body;
+        let { requested_value } = req.body;
         const tenantId = req.headers['x-tenant-id'];
         const userId = req.body.user_id; // From authenticated user
 
@@ -2241,78 +2242,6 @@ app.put('/api/time-adjustments/:id', async (req, res) => {
 });
 
 // --- PROFILE UPDATE REQUESTS ENDPOINTS ---
-app.get('/api/profile-update-requests', async (req, res) => {
-    try {
-        const { status, userId } = req.query;
-        const tenantId = req.headers['x-tenant-id'];
-        
-        const filters = {};
-        if (status) filters.status = status;
-        if (userId) filters.userId = userId;
-
-        const { data, error } = await db.getProfileUpdateRequests(filters, tenantId);
-
-        if (error) {
-            return res.status(500).json({ 
-                success: false, 
-                error: 'Failed to fetch profile update requests' 
-            });
-        }
-
-        res.json({ 
-            success: true, 
-            data 
-        });
-
-    } catch (error) {
-        console.error('Error fetching profile update requests:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Failed to fetch profile update requests' 
-        });
-    }
-});
-
-app.post('/api/profile-update-requests', async (req, res) => {
-    try {
-        const requestData = req.body;
-        const tenantId = req.headers['x-tenant-id'];
-
-        // Set tenant context
-        if (tenantId) {
-            setTenantContext(tenantId);
-        }
-
-        // Validation
-        if (!requestData.user_id || !requestData.field_name || !requestData.requested_value) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Missing required fields' 
-            });
-        }
-
-        const { data, error } = await db.createProfileUpdateRequest(requestData);
-
-        if (error) {
-            return res.status(400).json({ 
-                success: false, 
-                error: error.message 
-            });
-        }
-
-        res.status(201).json({ 
-            success: true, 
-            data 
-        });
-
-    } catch (error) {
-        console.error('Error creating profile update request:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Failed to create profile update request' 
-        });
-    }
-});
 
 app.put('/api/profile-update-requests/:id/approve', async (req, res) => {
     try {
