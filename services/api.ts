@@ -19,6 +19,7 @@ const sendOrQueue = async (method: string, url: string, tenantId?: string, body?
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
+      credentials: 'include', // Include cookies in requests
     });
     if (!response.ok) throw new Error('Network response not ok');
     const result = await response.json();

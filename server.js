@@ -17,6 +17,7 @@ import express from 'express';
 import cors from 'cors';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
+import cookieParser from 'cookie-parser';
 import db, { getSupabaseClient, getSupabaseAdminClient, setTenantContext, getCurrentTenantId } from './services/database.js';
 import { validatePasswordStrength } from './utils/passwordValidator.js';
 
@@ -27,6 +28,7 @@ app.use(cors({
     origin: ['http://192.168.0.93:5173', 'http://192.168.0.93:5174', 'http://localhost:5173', 'http://localhost:5174'],
     credentials: true
 }));
+app.use(cookieParser()); // Parse cookies
 app.use(express.json({ limit: '10mb' }));
 
 // Tenant context middleware
@@ -547,6 +549,34 @@ app.post('/api/auth/login', async (req, res) => {
         // Remove sensitive data before sending response
         const { password_hash, temporary_password, ...userWithoutPassword } = user;
 
+        // Set HttpOnly cookies for authentication
+        const isProduction = process.env.NODE_ENV === 'production';
+        const cookieOptions = {
+            httpOnly: true,
+            secure: isProduction, // HTTPS only in production
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+            path: '/'
+        };
+
+        // Store user session data in cookies
+        res.cookie('user_session', JSON.stringify({
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            tenant_id: user.tenant_id,
+            company_id: user.company_id
+        }), cookieOptions);
+
+        // Store authentication token
+        res.cookie('auth_token', Buffer.from(`${user.id}:${Date.now()}`).toString('base64'), {
+            ...cookieOptions,
+            httpOnly: true
+        });
+
+        console.log('✅ Cookies set for user:', user.email);
+
         res.json({
             success: true,
             user: userWithoutPassword,
@@ -653,6 +683,34 @@ app.post('/api/auth/change-password', async (req, res) => {
         // Remove sensitive data
         const { password_hash, temporary_password, ...userWithoutPassword } = updatedUser;
 
+        // Set HttpOnly cookies for authentication after password change
+        const isProduction = process.env.NODE_ENV === 'production';
+        const cookieOptions = {
+            httpOnly: true,
+            secure: isProduction, // HTTPS only in production
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+            path: '/'
+        };
+
+        // Store user session data in cookies
+        res.cookie('user_session', JSON.stringify({
+            id: updatedUser.id,
+            email: updatedUser.email,
+            name: updatedUser.name,
+            role: updatedUser.role,
+            tenant_id: updatedUser.tenant_id,
+            company_id: updatedUser.company_id
+        }), cookieOptions);
+
+        // Store authentication token
+        res.cookie('auth_token', Buffer.from(`${updatedUser.id}:${Date.now()}`).toString('base64'), {
+            ...cookieOptions,
+            httpOnly: true
+        });
+
+        console.log('✅ Cookies set after password change for user:', updatedUser.email);
+
         res.json({ 
             success: true, 
             message: 'Password updated successfully',
@@ -696,6 +754,92 @@ app.post('/api/auth/validate-password', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: 'Failed to validate password' 
+        });
+    }
+});
+
+// Get current user session (reads HttpOnly cookies)
+app.get('/api/auth/me', async (req, res) => {
+    try {
+        // Check if user_session cookie exists
+        const userSessionCookie = req.cookies.user_session;
+        const authTokenCookie = req.cookies.auth_token;
+
+        if (!userSessionCookie || !authTokenCookie) {
+            return res.json({
+                success: false,
+                authenticated: false,
+                user: null
+            });
+        }
+
+        // Parse user session data
+        let userSession;
+        try {
+            userSession = JSON.parse(userSessionCookie);
+        } catch (parseError) {
+            console.error('Failed to parse user session cookie:', parseError);
+            return res.json({
+                success: false,
+                authenticated: false,
+                user: null
+            });
+        }
+
+        // Validate session data
+        if (!userSession || !userSession.id || !userSession.email) {
+            return res.json({
+                success: false,
+                authenticated: false,
+                user: null
+            });
+        }
+
+        // Set tenant context first (required for getUserById)
+        if (userSession.tenant_id) {
+            setTenantContext(userSession.tenant_id, userSession.id);
+        }
+
+        // Verify user still exists in database
+        const { data: dbUser, error } = await db.getUserById(userSession.id);
+
+        if (error || !dbUser) {
+            console.log('User session invalid - user not found in database');
+            // Clear invalid cookies
+            const isProduction = process.env.NODE_ENV === 'production';
+            const cookieOptions = {
+                httpOnly: true,
+                secure: isProduction,
+                sameSite: 'strict',
+                path: '/',
+                maxAge: 0
+            };
+            res.clearCookie('user_session', cookieOptions);
+            res.clearCookie('auth_token', cookieOptions);
+
+            return res.json({
+                success: false,
+                authenticated: false,
+                user: null
+            });
+        }
+
+        // Return user data (without sensitive fields)
+        const { password_hash, temporary_password, ...userWithoutPassword } = dbUser;
+
+        res.json({
+            success: true,
+            authenticated: true,
+            user: userWithoutPassword
+        });
+
+    } catch (error) {
+        console.error('Session check error:', error);
+        res.status(500).json({
+            success: false,
+            authenticated: false,
+            user: null,
+            error: 'Session check failed'
         });
     }
 });
@@ -801,12 +945,28 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/logout', async (req, res) => {
     try {
         await db.signOut();
+
+        // Clear authentication cookies
+        const isProduction = process.env.NODE_ENV === 'production';
+        const cookieOptions = {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: 'strict',
+            path: '/',
+            maxAge: 0 // Expire immediately
+        };
+
+        res.clearCookie('user_session', cookieOptions);
+        res.clearCookie('auth_token', cookieOptions);
+
+        console.log('✅ Cookies cleared for logout');
+
         res.json({ success: true });
     } catch (error) {
         console.error('Logout error:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Logout failed' 
+        res.status(500).json({
+            success: false,
+            error: 'Logout failed'
         });
     }
 });

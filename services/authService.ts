@@ -1,5 +1,6 @@
 import type { User } from '../types';
 import { UserRole } from '../types';
+import Cookies from 'js-cookie';
 
 export const authService = {
   login: (email: string, password: string): User | null => {
@@ -16,44 +17,59 @@ export const authService = {
         hireDate: new Date(),
         tenantId: '1', // Add tenantId for mock user
       };
-      sessionStorage.setItem('currentUser', JSON.stringify(user));
+      // Store in cookies instead of sessionStorage
+      Cookies.set('user_session', JSON.stringify(user), {
+        expires: 7,
+        secure: window.location.protocol === 'https:',
+        sameSite: 'strict'
+      });
       return user;
     }
     return null;
   },
 
   setCurrentUser: (user: User): void => {
-    try {
-      sessionStorage.setItem('currentUser', JSON.stringify(user));
-    } catch (error) {
-      console.error('Failed to store user session:', error);
-    }
+    // User session is now managed server-side with HttpOnly cookies
+    // No client-side storage needed for security
+    console.log('User session managed server-side via HttpOnly cookies');
   },
 
-  getCurrentUser: (): User | null => {
+  getCurrentUser: async (): Promise<User | null> => {
     try {
-      const userStr = sessionStorage.getItem('currentUser');
-      if (!userStr) return null;
-      
-      const user = JSON.parse(userStr);
-      // Validate that the user object has required fields
-      if (!user || !user.id || !user.email) {
-        console.warn('Invalid user data in session storage, clearing...');
-        sessionStorage.removeItem('currentUser');
-        return null;
+      const response = await fetch('/api/auth/me', {
+        method: 'GET',
+        credentials: 'include', // Include cookies in request
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.authenticated && data.user) {
+        return data.user;
       }
-      
-      return user;
+
+      return null;
     } catch (error) {
-      console.error('Failed to parse user session:', error);
-      sessionStorage.removeItem('currentUser');
+      console.error('Failed to get current user from server:', error);
       return null;
     }
   },
 
   logout: (): void => {
-    sessionStorage.removeItem('currentUser');
-    // Also clear any cached data
+    // Cookies are cleared server-side in the logout API call
+    // Clear any client-side cached data
     localStorage.clear();
   },
+
+  // Get auth headers for API calls
+  getAuthHeaders: (): Record<string, string> => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    return headers;
+  },
+
+  // Check if user is authenticated
+  isAuthenticated: (): boolean => {
+    return !!this.getCurrentUser();
+  }
 };

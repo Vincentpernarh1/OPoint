@@ -11,12 +11,15 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.86.2",
     "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "crypto-js": "^4.2.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "idb": "^8.0.3",
     "js-cookie": "^3.0.5",
+    "jsdom": "^27.3.0",
+    "node-fetch": "^3.3.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.10.1"

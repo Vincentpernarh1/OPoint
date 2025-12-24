@@ -91,7 +91,7 @@ const App = () => {
             setIsLoading(true);
             console.log('[useEffect] Checking session...');
             try {
-                const userFromCookie: any = authService.getCurrentUser();
+                const userFromCookie: any = await authService.getCurrentUser();
                 console.log('[useEffect] User from session:', userFromCookie);
                 
                 if (userFromCookie && userFromCookie.id && userFromCookie.email) {
@@ -349,7 +349,18 @@ const App = () => {
         setIsLoading(false);
     };
 
-    const handleLogout = useCallback(() => {
+    const handleLogout = useCallback(async () => {
+        try {
+            // Call API logout to clear server-side cookies
+            await fetch('/api/auth/logout', {
+                method: 'POST',
+                credentials: 'include', // Include cookies
+            });
+        } catch (error) {
+            console.error('Logout API call failed:', error);
+        }
+
+        // Clear local state
         authService.logout();
         setCurrentUser(null);
     }, []);
