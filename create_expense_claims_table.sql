@@ -37,7 +37,8 @@ WHERE adjustment_status = 'Approved';
 
 
 
-select * from opoint_users;
+delete  from opoint_clock_logs
+where employee_name like 'Renata %';
 
 delete from opoint_clock_logs;
 
