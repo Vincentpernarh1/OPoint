@@ -87,7 +87,7 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
                 // Calculate total monthly payroll (sum of all basic salaries)
                 const totalPayout = users.reduce((sum, user) => {
                     const basicSalary = user.basicSalary || 0;
-                    console.log(`User ${user.name}: basicSalary = ${basicSalary}`);
+                    // console.log(`User ${user.name}: basicSalary = ${basicSalary}`);
                     return sum + basicSalary;
                 }, 0);
                 

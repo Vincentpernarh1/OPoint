@@ -1352,8 +1352,94 @@ export const db = {
         return { data: count || 0, error };
     },
 
-    // Clock Logs
-    async createClockLog(logData) {
+    // Clock Logs - New one-row-per-day architecture
+    async createOrUpdateClockLog(logData) {
+        const client = getSupabaseClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const { tenant_id, employee_id, employee_name, company_name, type, timestamp, location, photo_url } = logData;
+        
+        // Check if migration has run by testing for date column
+        const testQuery = await client
+            .from('opoint_clock_logs')
+            .select('date')
+            .limit(1);
+        
+        const migrationHasRun = !testQuery.error || testQuery.error.code !== '42703';
+
+        if (!migrationHasRun) {
+            // Migration hasn't run yet, use old behavior
+            return await this.createClockLogLegacy(logData);
+        }
+
+        // Extract date from timestamp
+        const punchDate = new Date(timestamp);
+        const dateStr = punchDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+        
+        // Check if a log entry exists for this date
+        const { data: existing, error: findError } = await client
+            .from('opoint_clock_logs')
+            .select('*')
+            .eq('tenant_id', tenant_id)
+            .eq('employee_id', employee_id)
+            .eq('date', dateStr)
+            .maybeSingle();
+        
+        if (findError) return { data: null, error: findError };
+        
+        // Create punch object
+        const punch = {
+            type: type === 'clock_in' ? 'in' : 'out',
+            time: timestamp,
+            location: location || null,
+            photo: photo_url || null
+        };
+        
+        if (existing) {
+            // Update existing row by appending to punches array
+            const currentPunches = existing.punches || [];
+            const updatedPunches = [...currentPunches, punch];
+            
+            const { data, error } = await client
+                .from('opoint_clock_logs')
+                .update({ 
+                    punches: updatedPunches,
+                    // Update old columns for backwards compatibility
+                    clock_out: type === 'clock_out' ? timestamp : existing.clock_out,
+                    location: location || existing.location,
+                    photo_url: photo_url || existing.photo_url
+                })
+                .eq('id', existing.id)
+                .select()
+                .single();
+            
+            return { data, error };
+        } else {
+            // Create new row with punch in array
+            const { data, error } = await client
+                .from('opoint_clock_logs')
+                .insert({
+                    tenant_id,
+                    employee_id,
+                    employee_name,
+                    company_name,
+                    date: dateStr,
+                    punches: [punch],
+                    // Set old columns for backwards compatibility
+                    clock_in: type === 'clock_in' ? timestamp : null,
+                    clock_out: type === 'clock_out' ? timestamp : null,
+                    location: location || null,
+                    photo_url: photo_url || null
+                })
+                .select()
+                .single();
+            
+            return { data, error };
+        }
+    },
+
+    // Legacy function for when migration hasn't run
+    async createClockLogLegacy(logData) {
         const client = getSupabaseClient();
         if (!client) return { data: null, error: 'Database not configured' };
 
@@ -1364,6 +1450,19 @@ export const db = {
             .single();
 
         return { data, error };
+    },
+
+    // Legacy support - redirect to new function
+    async createClockLog(logData) {
+        // Extract type from clock_in/clock_out fields
+        const type = logData.clock_in ? 'clock_in' : 'clock_out';
+        const timestamp = logData.clock_in || logData.clock_out;
+        
+        return await this.createOrUpdateClockLog({
+            ...logData,
+            type,
+            timestamp
+        });
     },
 
     async updateClockLog(id, updates) {
@@ -1387,17 +1486,52 @@ export const db = {
         const tenantId = getCurrentTenantId();
         if (!tenantId) return { data: null, error: 'No tenant context set' };
 
-        const { data, error } = await client
+        // Check if migration has run by testing for date column
+        const testQuery = await client
             .from('opoint_clock_logs')
-            .select('*')
-            .eq('tenant_id', tenantId)
-            .eq('employee_id', employeeId)
-            .is('clock_out', null)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
+            .select('date')
+            .limit(1);
+        
+        const migrationHasRun = !testQuery.error || testQuery.error.code !== '42703';
 
-        return { data, error };
+        if (migrationHasRun) {
+            // New behavior: Query for today's log entry and check if last punch is "in" type
+            const today = new Date().toISOString().split('T')[0];
+            
+            const { data, error } = await client
+                .from('opoint_clock_logs')
+                .select('*')
+                .eq('tenant_id', tenantId)
+                .eq('employee_id', employeeId)
+                .eq('date', today)
+                .maybeSingle();
+            
+            if (error || !data) return { data: null, error };
+            
+            // Check if the last punch is "in" type (incomplete)
+            const punches = data.punches || [];
+            if (punches.length === 0) return { data: null, error: null };
+            
+            const lastPunch = punches[punches.length - 1];
+            if (lastPunch.type === 'in') {
+                return { data, error: null };
+            }
+            
+            return { data: null, error: null };
+        } else {
+            // Old behavior: Look for entries without clock_out
+            const { data, error } = await client
+                .from('opoint_clock_logs')
+                .select('*')
+                .eq('tenant_id', tenantId)
+                .eq('employee_id', employeeId)
+                .is('clock_out', null)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            return { data, error };
+        }
     },
 
     async getClockLogs(employeeId, date = null) {
@@ -1413,10 +1547,68 @@ export const db = {
             .eq('tenant_id', tenantId)
             .eq('employee_id', employeeId);
 
-        // Remove date filtering from here - it's done in the server
-        query = query.order('clock_in', { ascending: false });
+        // Try to use new date column if migration has run
+        // Otherwise fall back to old behavior
+        try {
+            if (date) {
+                // First try to query with new date column
+                const testQuery = await client
+                    .from('opoint_clock_logs')
+                    .select('date')
+                    .limit(1);
+                
+                // If date column exists, use it
+                if (!testQuery.error || testQuery.error.code !== '42703') {
+                    query = query.eq('date', date);
+                }
+            }
+            
+            // Try to order by date column (new) or fall back to clock_in (old)
+            const orderTest = await client
+                .from('opoint_clock_logs')
+                .select('date')
+                .limit(1);
+            
+            if (!orderTest.error || orderTest.error.code !== '42703') {
+                query = query.order('date', { ascending: false });
+            } else {
+                query = query.order('clock_in', { ascending: false });
+            }
+        } catch (e) {
+            // If any error, just use old ordering
+            query = query.order('clock_in', { ascending: false });
+        }
 
         const { data, error } = await query;
+        
+        // Flatten punches array into separate entries for backwards compatibility
+        if (data && data.length > 0) {
+            const flattenedData = [];
+            data.forEach(log => {
+                const punches = log.punches || [];
+                if (punches.length === 0) {
+                    // Fallback to old clock_in/clock_out if no punches
+                    flattenedData.push(log);
+                } else {
+                    // Create an entry for each punch
+                    punches.forEach((punch, index) => {
+                        flattenedData.push({
+                            ...log,
+                            id: `${log.id}_${index}`, // Unique ID for each punch
+                            original_id: log.id, // Keep original ID for updates
+                            punch_index: index,
+                            clock_in: punch.type === 'in' ? punch.time : null,
+                            clock_out: punch.type === 'out' ? punch.time : null,
+                            location: punch.location || log.location,
+                            photo_url: punch.photo || log.photo_url,
+                            punch_type: punch.type
+                        });
+                    });
+                }
+            });
+            return { data: flattenedData, error };
+        }
+        
         return { data, error };
     },
 

@@ -72,6 +72,7 @@ const App = () => {
 
     const fetchPendingApprovalsCount = useCallback(async () => {
         if (!currentUser?.tenantId || !PERMISSIONS['/approvals']?.includes(currentUser.role)) return;
+        console.log('[fetchPendingApprovalsCount] Using tenantId:', currentUser.tenantId);
         try {
             const [leaveData, adjustmentData, expenseData] = await Promise.all([
                 api.getLeaveRequests(currentUser.tenantId, { status: 'Pending' }),
@@ -141,7 +142,7 @@ const App = () => {
                         hireDate: userFromCookie?.hire_date ? new Date(userFromCookie?.hire_date) : new Date(),
                         mobileMoneyNumber: userFromCookie?.mobile_money_number || userFromCookie?.mobileMoneyNumber,
                     };
-                    // console.log('[useEffect] Mapped appUser:', appUser);
+                    console.log('[useEffect] Mapped appUser tenantId:', appUser.tenantId, 'from cookie:', userFromCookie?.tenantId, userFromCookie?.tenant_id);
 
                     if (isSuperAdmin) {
                         setCurrentUser(appUser);

@@ -22,6 +22,7 @@ import path from 'path';
 import webPush from 'web-push';
 import db, { getSupabaseClient, getSupabaseAdminClient, setTenantContext, getCurrentTenantId } from './services/database.js';
 import { validatePasswordStrength } from './utils/passwordValidator.js';
+import { scheduleAutoClose, forceAutoClose } from './services/auto-close.js';
 
 const app = express();
 
@@ -562,6 +563,19 @@ app.get('/api/health', (req, res) => {
         momo: CONFIG.MOMO_API_KEY ? 'live' : 'simulation',
         timestamp: new Date().toISOString()
     });
+});
+
+// Force auto-close endpoint (for testing)
+app.post('/api/admin/force-auto-close', async (req, res) => {
+    try {
+        const result = await forceAutoClose();
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
 });
 
 // Test endpoint to check if user exists
@@ -3052,68 +3066,30 @@ app.post('/api/time-punches', async (req, res) => {
             });
         }
 
+        // Use new one-row-per-day architecture
         const punchData = {
             tenant_id: companyId,
             company_name: company.name,
             employee_id: userId,
             employee_name: user.name,
-            clock_in: type === 'clock_in' ? timestamp : null,
-            clock_out: type === 'clock_out' ? timestamp : null,
+            type: type, // 'clock_in' or 'clock_out'
+            timestamp: timestamp,
             location: location || null,
             photo_url: photoUrl || null
         };
 
-        if (type === 'clock_out') {
-            // For clock out, find the last clock in without clock out and update it
-            const { data: lastEntry, error: findError } = await db.getLastIncompleteClockLog(userId);
-            if (findError) {
-                console.error('Error finding last entry:', findError);
-                // If no last entry, create new
-                const { data, error } = await db.createClockLog(punchData);
-                if (error) {
-                    return res.status(500).json({ 
-                        success: false, 
-                        error: 'Failed to save clock out' 
-                    });
-                }
-                return res.json({ success: true, data });
-            }
-            if (lastEntry) {
-                // Update the existing entry with clock_out
-                const { error: updateError } = await db.updateClockLog(lastEntry.id, { 
-                    clock_out: timestamp,
-                    location: location || lastEntry.location,
-                    photo_url: photoUrl || lastEntry.photo_url
-                });
-                if (updateError) {
-                    return res.status(500).json({ 
-                        success: false, 
-                        error: 'Failed to update clock out' 
-                    });
-                }
-                return res.json({ success: true });
-            } else {
-                // No last entry, create new
-                const { data, error } = await db.createClockLog(punchData);
-                if (error) {
-                    return res.status(500).json({ 
-                        success: false, 
-                        error: 'Failed to save clock out' 
-                    });
-                }
-                return res.json({ success: true, data });
-            }
-        } else {
-            // For clock in, create new entry
-            const { data, error } = await db.createClockLog(punchData);
-            if (error) {
-                return res.status(500).json({ 
-                    success: false, 
-                    error: 'Failed to save clock in' 
-                });
-            }
-            res.json({ success: true, data });
+        // createOrUpdateClockLog handles both clock in and clock out
+        const { data, error } = await db.createOrUpdateClockLog(punchData);
+        
+        if (error) {
+            console.error('Error saving time punch:', error);
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Failed to save time punch' 
+            });
         }
+
+        res.json({ success: true, data });
 
     } catch (error) {
         console.error('Error saving time punch:', error);
@@ -3900,6 +3876,10 @@ app.listen(PORT, () => {
     // Database Status
     if (getSupabaseClient()) {
         console.log(`✅ Database:    Connected (Supabase)`);
+        
+        // Start auto-close scheduler
+        scheduleAutoClose();
+        console.log(`⏰ Auto-close:  Enabled (10 PM daily)`);
     } else {
         console.log(`⚠️  Database:    Fallback Mode (Mock Data)`);
         console.log(`   💡 Add SUPABASE_URL and SUPABASE_ANON_KEY to .env`);

@@ -16,8 +16,8 @@ const MessageOverlay: React.FC<MessageOverlayProps> = ({ message, onClose }) => 
     if (!message) return null;
 
     return (
-        <div className="fixed inset-0 flex items-center justify-center z-80 p-4 pointer-events-none">
-            <div className="w-full max-w-xs pointer-events-auto animate-fade-in">
+        <div className="fixed inset-0 flex items-center justify-center z-[9999] p-4 pointer-events-none">
+            <div className="w-full max-w-xs pointer-events-auto animate-fade-in z-[10000]">
                 <div className={`bg-white border-2 rounded-xl shadow-2xl p-6 ${message.type === 'success' ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
                     <div className={`text-center ${message.type === 'success' ? 'text-green-800' : 'text-red-800'}`}>
                         <div className="mb-4">

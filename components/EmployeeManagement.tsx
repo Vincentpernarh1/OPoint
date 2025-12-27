@@ -32,7 +32,7 @@ const EmployeeManagement = ({ currentUser }: EmployeeManagementProps) => {
             setError(null);
             const data = await api.getUsers(currentUser.tenantId!);
             
-            console.log('Raw user data from API:', data);
+            // console.log('Raw user data from API:', data);
             
             // Transform dates and ensure proper types
             const mappedUsers = data.map((user: any) => ({
@@ -40,7 +40,7 @@ const EmployeeManagement = ({ currentUser }: EmployeeManagementProps) => {
                 hireDate: user.hireDate ? new Date(user.hireDate) : new Date(),
             }));
             
-            console.log('Mapped users:', mappedUsers);
+            // console.log('Mapped users:', mappedUsers);
             setUsers(mappedUsers);
         } catch (err) {
             console.error('Error fetching users:', err);

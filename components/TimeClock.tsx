@@ -327,7 +327,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                     const adjustmentData = await api.getTimeAdjustmentRequests(currentUser.tenantId!, { 
                         userId: currentUser.id 
                     });
-                    console.log('API returned adjustment data:', adjustmentData);
+                    // console.log('API returned adjustment data:', adjustmentData);
                     const transformedAdjustmentData: AdjustmentRequest[] = adjustmentData
                         .filter(item => {
                             // Filter out invalid dates (like 1969-12-31)
@@ -355,7 +355,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                         reviewedAt: item.adjustment_reviewed_at ? new Date(item.adjustment_reviewed_at) : undefined
                     }));
                     
-                    console.log('Transformed API data:', transformedAdjustmentData);
+                    // console.log('Transformed API data:', transformedAdjustmentData);
                     
                     // Combine API data with local adjustments. Keep only local-temp (unsynced) entries
                     // if the server returned no matching record to avoid stale cached entries.
@@ -384,8 +384,6 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                             combinedData[existingIndex] = { ...local, ...combinedData[existingIndex] };
                         }
                     }
-
-                    console.log('Combined adjustment data:', combinedData);
 
                     setAdjustmentRequests(combinedData);
                     // Persist combined adjustments so local cache reflects latest server state
