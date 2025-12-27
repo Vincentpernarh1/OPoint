@@ -161,11 +161,19 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
     // Fetch leave requests and balances for current user
     useEffect(() => {
         const fetchData = async () => {
+            if (!currentUser.tenantId) {
+                console.error('No tenantId available');
+                setLoading(false);
+                return;
+            }
+            
+            const tenantId = currentUser.tenantId;
+            
             try {
                 setLoading(true);
                 
                 // Fetch leave requests
-                const data = await api.getLeaveRequests(currentUser.tenantId, { userId: currentUser.id });
+                const data = await api.getLeaveRequests(tenantId, { userId: currentUser.id });
                 // Transform the data to match the LeaveRequest interface
                 const transformedData: LeaveRequest[] = data.map((item: any) => {
                     const startDate = new Date(item.start_date);
@@ -192,7 +200,7 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
 
                 // Fetch leave balances
                 try {
-                    const balances = await api.getLeaveBalances(currentUser.tenantId, currentUser.id);
+                    const balances = await api.getLeaveBalances(tenantId, currentUser.id);
                     const balanceMap = { 
                         annual: { remaining: 0, used: 0 }, 
                         maternity: { remaining: 0, used: 0 }, 
@@ -232,10 +240,8 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
             }
         };
 
-        if (currentUser.tenantId) {
-            fetchData();
-        }
-    }, [currentUser.tenantId, currentUser.id]);
+        fetchData();
+    }, [currentUser.tenantId, currentUser.id, isEligibleForAnnualLeave]);
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -250,6 +256,8 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
         }
 
         const submitLeaveRequest = async () => {
+            const tenantId = currentUser.tenantId!; // Already checked above
+            
             try {
                 if (!startDate || !endDate) {
                     throw new Error('Start date and end date are required');
@@ -281,10 +289,10 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
 
                 console.log('Sending leave data:', JSON.stringify(leaveData, null, 2));
 
-                await api.createLeaveRequest(currentUser.tenantId, leaveData);
+                await api.createLeaveRequest(tenantId, leaveData);
 
                 // Refresh the leave requests
-                const data = await api.getLeaveRequests(currentUser.tenantId, { userId: currentUser.id });
+                const data = await api.getLeaveRequests(tenantId, { userId: currentUser.id });
                 const transformedData: LeaveRequest[] = data.map((item: any) => ({
                     id: item.id,
                     userId: item.employee_id,
@@ -323,11 +331,18 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
     
     const handleCancelRequest = async (requestId: string) => {
         if(window.confirm('Are you sure you want to cancel this leave request?')) {
+            if (!currentUser.tenantId) {
+                setNotification('Error: No tenant context');
+                return;
+            }
+            
+            const tenantId = currentUser.tenantId;
+            
             try {
-                await api.updateLeaveRequest(currentUser.tenantId, requestId, { status: 'cancelled' });
+                await api.updateLeaveRequest(tenantId, requestId, { status: 'cancelled' });
                 
                 // Refresh the leave requests
-                const data = await api.getLeaveRequests(currentUser.tenantId, { userId: currentUser.id });
+                const data = await api.getLeaveRequests(tenantId, { userId: currentUser.id });
                 const transformedData: LeaveRequest[] = data.map((item: any) => {
                     const startDate = new Date(item.start_date);
                     const endDate = new Date(item.end_date);

@@ -16,9 +16,9 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
     if (!isVisible) return null;
 
     return (
-        <div className="fixed inset-0 flex items-center justify-center z-70 p-4 pointer-events-none">
+        <div className="fixed inset-0 flex items-center justify-center z-[9999] p-4">
             <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onCancel}></div>
-            <div className="relative w-full max-w-sm pointer-events-auto animate-fade-in">
+            <div className="relative w-full max-w-sm pointer-events-auto animate-fade-in z-[10000]">
                 <div className="bg-white border-2 border-yellow-200 bg-yellow-50 rounded-xl shadow-2xl p-6">
                     <div className="text-center text-yellow-800">
                         <div className="mb-4">

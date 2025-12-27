@@ -729,13 +729,18 @@ export const db = {
         console.log('Final existing adjustment check:', { existingAdjustment });
 
         if (existingAdjustment) {
-            console.log('Found existing adjustment - blocking submission');
+            // Only block if status is Pending or Approved
+            // Allow new requests if previous was Rejected or Cancelled
             if (existingAdjustment.adjustment_status === 'Pending') {
+                console.log('Blocking: Pending adjustment exists');
                 return { data: null, error: 'A time adjustment request is already pending for this day' };
             }
             if (existingAdjustment.adjustment_status === 'Approved' || existingAdjustment.adjustment_applied) {
+                console.log('Blocking: Approved/Applied adjustment exists');
                 return { data: null, error: 'This day has already been adjusted and cannot be modified' };
             }
+            // If status is Rejected or Cancelled, allow new request
+            console.log('Allowing new request: Previous status was', existingAdjustment.adjustment_status);
         }
 
         const { data: existingLog, error: findError } = await client

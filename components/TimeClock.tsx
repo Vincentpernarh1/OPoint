@@ -7,6 +7,7 @@ import CameraModal from './CameraModal';
 import ImagePreviewModal from './ImagePreviewModal';
 import ManualAdjustmentModal from './ManualAdjustmentModal';
 import MessageOverlay from './MessageOverlay';
+import ConfirmationDialog from './ConfirmationDialog';
 import { offlineStorage } from '../services/offlineStorage';
 import { api } from '../services/api';
 import './TimeClock.css';
@@ -107,6 +108,15 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     const [adjustmentTarget, setAdjustmentTarget] = useState<{date: string, clockIn?: Date, clockOut?: Date} | null>(null);
     
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [confirmationDialog, setConfirmationDialog] = useState<{
+        isVisible: boolean;
+        message: string;
+        onConfirm: () => void;
+    }>({
+        isVisible: false,
+        message: '',
+        onConfirm: () => {}
+    });
     const [isProcessing, setIsProcessing] = useState(false);
     const [isLoadingAdjustments, setIsLoadingAdjustments] = useState(true);
     
@@ -902,22 +912,24 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     };
     
     const handleCancelAdjustment = async (requestId: string) => {
-        if (!window.confirm('Are you sure you want to cancel this adjustment request?')) return;
-
-        // If this is a local-only/temp request, just remove locally
-        if (requestId.startsWith('temp-')) {
-            setAdjustmentRequests(prev => {
-                const updated = prev.filter(req => req.id !== requestId);
-                try {
-                    localStorage.setItem(`adjustmentRequests_${currentUser.id}`, JSON.stringify(updated));
-                } catch (e) {
-                    console.error('Failed to update adjustments cache', e);
-                }
-                return updated;
-            });
-            setMessage({ type: 'success', text: 'Adjustment request cancelled.' });
-            return;
-        }
+        const performCancel = async () => {
+            // Close the confirmation dialog
+            setConfirmationDialog({ isVisible: false, message: '', onConfirm: () => {} });
+            
+            // If this is a local-only/temp request, just remove locally
+            if (requestId.startsWith('temp-')) {
+                setAdjustmentRequests(prev => {
+                    const updated = prev.filter(req => req.id !== requestId);
+                    try {
+                        localStorage.setItem(`adjustmentRequests_${currentUser.id}`, JSON.stringify(updated));
+                    } catch (e) {
+                        console.error('Failed to update adjustments cache', e);
+                    }
+                    return updated;
+                });
+                setMessage({ type: 'success', text: 'Adjustment request cancelled.' });
+                return;
+            }
 
         try {
             // Optimistically update UI to show cancellation in progress
@@ -1009,6 +1021,14 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
             }
         }
     };
+
+        // Show confirmation dialog
+        setConfirmationDialog({
+            isVisible: true,
+            message: 'Are you sure you want to cancel this adjustment request?',
+            onConfirm: performCancel
+        });
+    };
     
     const getStatus = () => {
         if (!isClockedIn) return { text: "Clocked Out", color: "bg-gray-500", textColor: "text-gray-500" };
@@ -1082,6 +1102,12 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 />
             )}
             {message && <MessageOverlay message={message} onClose={() => setMessage(null)} />}
+            <ConfirmationDialog
+                isVisible={confirmationDialog.isVisible}
+                message={confirmationDialog.message}
+                onConfirm={confirmationDialog.onConfirm}
+                onCancel={() => setConfirmationDialog({ isVisible: false, message: '', onConfirm: () => {} })}
+            />
             
             <div className="space-y-8">
                 {latestAnnouncement && (

@@ -96,9 +96,6 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 if (adjustmentUserFilter !== undefined) adjustmentFilters.userId = adjustmentUserFilter;
                 
                 const adjustmentData = await api.getTimeAdjustmentRequests(currentUser.tenantId!, adjustmentFilters);
-
-
-                console.log("<Mnual checking : ",adjustmentData);
                 
                 // For non-admin, no need to filter out own requests since we already filtered at DB
                 const filteredAdjustmentData = isAdmin ? adjustmentData.filter((item: any) => item.employee_id !== currentUser.id) : adjustmentData;
