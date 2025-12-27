@@ -31,13 +31,14 @@ interface EmployeeLogModalProps {
 const EmployeeLogModal = ({ user, date, onClose, adjustment }: EmployeeLogModalProps) => {
     const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
     const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
+    const [adjustments, setAdjustments] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const dateToUse = adjustment?.originalClockIn ? new Date(adjustment.originalClockIn) : date;
 
     useEffect(() => {
-        const fetchTimeEntries = async () => {
+        const fetchData = async () => {
             if (!user.tenantId) {
                 setError('Invalid user data');
                 setLoading(false);
@@ -54,21 +55,76 @@ const EmployeeLogModal = ({ user, date, onClose, adjustment }: EmployeeLogModalP
                     timestamp: new Date(entry.timestamp)
                 }));
                 setTimeEntries(entries);
+
+                if (!dateToUse) {
+                    // Fetch adjustments for full log
+                    const adjustmentData = await api.getTimeAdjustmentRequests(user.tenantId!, { userId: user.id });
+                    setAdjustments(adjustmentData);
+                }
             } catch (err) {
-                console.error('Failed to fetch time entries:', err);
+                console.error('Failed to fetch data:', err);
                 setError('Failed to load time entries');
                 setTimeEntries([]);
+                setAdjustments([]);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchTimeEntries();
+        fetchData();
     }, [user, dateToUse]);
 
     const userTimeEntries = useMemo(() => {
         return timeEntries.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
     }, [timeEntries]);
+
+    const dailyLogs = useMemo(() => {
+        const entriesByDate = timeEntries.reduce((acc, entry) => {
+            const dateKey = new Date(entry.timestamp).toDateString();
+            if (!acc[dateKey]) {
+                acc[dateKey] = [];
+            }
+            acc[dateKey].push(entry);
+            return acc;
+        }, {} as Record<string, TimeEntry[]>);
+
+        return Object.keys(entriesByDate)
+            .map(dateKey => {
+                const dayEntries = entriesByDate[dateKey].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+                const clockIns = dayEntries.filter(e => e.type === TimeEntryType.CLOCK_IN);
+                const clockOuts = dayEntries.filter(e => e.type === TimeEntryType.CLOCK_OUT);
+
+                // Check for approved adjustment
+                const dateStr = new Date(dateKey).toISOString().split('T')[0];
+                const approvedAdjustment = adjustments.find(adj => 
+                    adj.adjustment_status === 'Approved' && 
+                    (adj.requested_date === dateStr || new Date(adj.requested_clock_in).toDateString() === dateKey)
+                );
+
+                let displayClockIn: Date | undefined;
+                let displayClockOut: Date | undefined;
+
+                if (approvedAdjustment) {
+                    displayClockIn = new Date(approvedAdjustment.requested_clock_in);
+                    displayClockOut = approvedAdjustment.requested_clock_out ? new Date(approvedAdjustment.requested_clock_out) : undefined;
+                } else {
+                    displayClockIn = clockIns.length > 0 ? clockIns[0].timestamp : undefined;
+                    displayClockOut = clockOuts.length > 0 ? clockOuts[clockOuts.length - 1].timestamp : undefined;
+                }
+
+                const totalWorkedMs = displayClockIn && displayClockOut ? displayClockOut.getTime() - displayClockIn.getTime() : 0;
+
+                return {
+                    date: new Date(dateKey),
+                    clockIn: displayClockIn,
+                    clockOut: displayClockOut,
+                    totalWorked: totalWorkedMs,
+                    entries: dayEntries,
+                    hasAdjustment: !!approvedAdjustment
+                };
+            })
+            .sort((a, b) => b.date.getTime() - a.date.getTime());
+    }, [timeEntries, adjustments]);
 
     const monthlyWorkHistory = useMemo(() => {
         const entriesByDate = timeEntries.reduce((acc, entry) => {
@@ -130,11 +186,12 @@ const EmployeeLogModal = ({ user, date, onClose, adjustment }: EmployeeLogModalP
         <>
             {previewImageUrl && <ImagePreviewModal imageUrl={previewImageUrl} onClose={() => setPreviewImageUrl(null)} isSecureContext={true} />}
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40" onClick={onClose}>
-                <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl relative" onClick={e => e.stopPropagation()}>
-                    <button  title="Close" onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-4xl relative max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+                    <button  title="Close" onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
                         <XIcon className="h-6 w-6"/>
                     </button>
                     <h3 className="text-xl font-bold mb-4 text-gray-800">{title}</h3>
+                    <div className="overflow-y-auto" style={{ maxHeight: 'calc(90vh - 120px)' }}>
                     {adjustment && (
                         <div className="mb-4 p-4 bg-blue-50 rounded-md border">
                             <h4 className="font-semibold text-gray-800 mb-2">Time Adjustment Request</h4>
@@ -166,7 +223,6 @@ const EmployeeLogModal = ({ user, date, onClose, adjustment }: EmployeeLogModalP
                             </div>
                         </div>
                     )}
-                    <div className="max-h-[70vh] overflow-y-auto">
                         {loading ? (
                             <div className="text-center py-10">
                                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -176,33 +232,43 @@ const EmployeeLogModal = ({ user, date, onClose, adjustment }: EmployeeLogModalP
                             <div className="text-center py-10">
                                 <p className="text-red-500">{error}</p>
                             </div>
-                        ) : userTimeEntries.length > 0 ? (
-                            <ul className="space-y-3">
-                                {userTimeEntries.map(entry => (
-                                    <li key={entry.id} className="p-3 bg-gray-50 rounded-md border">
-                                        <div className="flex justify-between items-center">
-                                            <p className="font-semibold text-gray-700">{entry.type}</p>
-                                            <p className="text-sm font-medium text-gray-600">{entry.timestamp.toLocaleString()}</p>
+                        ) : dailyLogs.length > 0 ? (
+                            <div className="space-y-4">
+                                {dailyLogs.map(day => (
+                                    <div key={day.date.toISOString()} className="p-4 bg-gray-50 rounded-md border">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <h4 className="font-semibold text-gray-800">{day.date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h4>
+                                            <div className="text-sm text-gray-600">
+                                                Total: {formatDuration(day.totalWorked)}
+                                                {day.hasAdjustment && <span className="ml-2 text-green-600">(Adjusted)</span>}
+                                            </div>
                                         </div>
-                                        <div className="mt-2 text-sm text-gray-500 space-y-1">
-                                            {entry.location && (
-                                                <div className="flex items-center">
-                                                    <MapPinIcon className="h-4 w-4 mr-2 text-gray-400" />
-                                                    <span>{entry.location}</span>
-                                                </div>
-                                            )}
-                                            {entry.photoUrl && (
-                                                <div className="flex items-center">
-                                                    <CameraIcon className="h-4 w-4 mr-2 text-gray-400" />
-                                                    <button onClick={() => setPreviewImageUrl(entry.photoUrl!)} className="text-primary hover:underline">
-                                                        View Photo
-                                                    </button>
-                                                </div>
-                                            )}
+                                        <div className="grid grid-cols-2 gap-4 text-sm">
+                                            <div>
+                                                <strong>Clock In:</strong> {day.clockIn ? day.clockIn.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'N/A'}
+                                            </div>
+                                            <div>
+                                                <strong>Clock Out:</strong> {day.clockOut ? day.clockOut.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'N/A'}
+                                            </div>
                                         </div>
-                                    </li>
+                                        {day.entries.some(e => e.location) && (
+                                            <div className="mt-2 text-sm text-gray-500">
+                                                <strong>Location:</strong> {day.entries.find(e => e.location)?.location}
+                                            </div>
+                                        )}
+                                        {day.entries.some(e => e.photoUrl) && (
+                                            <div className="mt-2">
+                                                <button 
+                                                    onClick={() => setPreviewImageUrl(day.entries.find(e => e.photoUrl)?.photoUrl!)} 
+                                                    className="text-primary hover:underline text-sm"
+                                                >
+                                                    View Photo
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
                                 ))}
-                            </ul>
+                            </div>
                         ) : (
                             <p className="text-center text-gray-500 py-10">No time entries found for this period.</p>
                         )}
