@@ -71,9 +71,15 @@ const EmployeeManagement = ({ currentUser }: EmployeeManagementProps) => {
             // Refresh users list
             await fetchUsers();
             setIsAddModalOpen(false);
-        } catch (err) {
+        } catch (err: any) {
             console.error('Error adding employee:', err);
-            setError('Failed to add employee');
+            
+            // Check if it's a license limit error
+            if (err.message && err.message.includes('License limit reached')) {
+                setError('License limit reached. Your company has used all available employee licenses. Please contact support to increase your license limit.');
+            } else {
+                setError('Failed to add employee');
+            }
         }
     };
 
@@ -117,7 +123,7 @@ const EmployeeManagement = ({ currentUser }: EmployeeManagementProps) => {
     return (
         <>
             {viewingUserLog && <EmployeeLogModal user={viewingUserLog} onClose={() => setViewingUserLog(null)} />}
-            {isAddModalOpen && <AddEmployeeModal onClose={() => setIsAddModalOpen(false)} onSubmit={handleAddEmployee} />}
+            {isAddModalOpen && <AddEmployeeModal tenantId={currentUser.tenantId!} onClose={() => setIsAddModalOpen(false)} onSubmit={handleAddEmployee} />}
             {editingUser && <EditEmployeeModal user={editingUser} currentUser={currentUser} onClose={() => setEditingUser(null)} onSubmit={handleEditEmployee} />}
             <div className="bg-white p-6 rounded-xl shadow-lg">
                 <div className="flex justify-between items-center mb-4">

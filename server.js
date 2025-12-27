@@ -1285,6 +1285,47 @@ app.post('/api/users', async (req, res) => {
             });
         }
 
+        // Check license limit
+        const adminClient = getSupabaseAdminClient();
+        if (adminClient) {
+            // Get current active employee count and license limit
+            const { count: activeEmployeeCount } = await adminClient
+                .from('opoint_users')
+                .select('*', { count: 'exact', head: true })
+                .eq('tenant_id', tenantId)
+                .eq('is_active', true);
+
+            const { data: company } = await adminClient
+                .from('opoint_companies')
+                .select('license_count, used_licenses')
+                .eq('id', tenantId)
+                .single();
+
+            if (company && company.license_count) {
+                const currentUsed = activeEmployeeCount || 0;
+                const licenseLimit = company.license_count;
+
+                // Check if adding this employee would exceed the limit
+                if (currentUsed >= licenseLimit) {
+                    return res.status(403).json({
+                        success: false,
+                        error: 'License limit reached',
+                        licenseInfo: {
+                            used: currentUsed,
+                            limit: licenseLimit,
+                            message: `Your company has reached its license limit (${currentUsed}/${licenseLimit} licenses used). Please contact support to increase your license limit.`
+                        }
+                    });
+                }
+
+                // Show warning if approaching limit (90% threshold)
+                const usagePercent = (currentUsed / licenseLimit) * 100;
+                if (usagePercent >= 90) {
+                    console.warn(`License usage warning: ${currentUsed}/${licenseLimit} (${usagePercent.toFixed(1)}%)`);
+                }
+            }
+        }
+
         // Fetch company name based on tenant_id
         let companyName = null;
         console.log('Looking up company for tenant:', tenantId);
@@ -1322,6 +1363,20 @@ app.post('/api/users', async (req, res) => {
                 error: `Database error: ${error.message || 'Unknown error'}`,
                 code: error.code || 'UNKNOWN'
             });
+        }
+
+        // Update used_licenses count (only count active employees)
+        if (adminClient && data.is_active !== false) {
+            const { count: activeCount } = await adminClient
+                .from('opoint_users')
+                .select('*', { count: 'exact', head: true })
+                .eq('tenant_id', tenantId)
+                .eq('is_active', true);
+
+            await adminClient
+                .from('opoint_companies')
+                .update({ used_licenses: activeCount || 0 })
+                .eq('id', tenantId);
         }
 
         res.status(201).json({ 
@@ -1380,6 +1435,24 @@ app.put('/api/users/:id', async (req, res) => {
             });
         }
 
+        // Update used_licenses if is_active status changed
+        if (updates.is_active !== undefined && data) {
+            const tenantId = getCurrentTenantId();
+            const adminClient = getSupabaseAdminClient();
+            if (adminClient && tenantId) {
+                const { count: activeCount } = await adminClient
+                    .from('opoint_users')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('tenant_id', tenantId)
+                    .eq('is_active', true);
+
+                await adminClient
+                    .from('opoint_companies')
+                    .update({ used_licenses: activeCount || 0 })
+                    .eq('id', tenantId);
+            }
+        }
+
         // Create notification if mobile money number was updated
         if (updates.mobile_money_number && data) {
             try {
@@ -1422,6 +1495,22 @@ app.delete('/api/users/:id', async (req, res) => {
                 success: false, 
                 error: error.message 
             });
+        }
+
+        // Update used_licenses count after deletion
+        const tenantId = getCurrentTenantId();
+        const adminClient = getSupabaseAdminClient();
+        if (adminClient && tenantId) {
+            const { count: activeCount } = await adminClient
+                .from('opoint_users')
+                .select('*', { count: 'exact', head: true })
+                .eq('tenant_id', tenantId)
+                .eq('is_active', true);
+
+            await adminClient
+                .from('opoint_companies')
+                .update({ used_licenses: activeCount || 0 })
+                .eq('id', tenantId);
         }
 
         res.json({ 
@@ -1481,7 +1570,7 @@ app.get('/api/company/settings', async (req, res) => {
 
         const { data: company, error } = await adminClient
             .from('opoint_companies')
-            .select('id, name, working_hours_per_day, created_at, updated_at')
+            .select('id, name, working_hours_per_day, license_count, used_licenses, created_at, updated_at')
             .eq('id', tenantId)
             .single();
 
@@ -1505,7 +1594,9 @@ app.get('/api/company/settings', async (req, res) => {
             data: {
                 id: company.id,
                 name: company.name,
-                workingHoursPerDay: company.working_hours_per_day || 8.00
+                workingHoursPerDay: company.working_hours_per_day || 8.00,
+                licenseCount: company.license_count || 0,
+                usedLicenses: company.used_licenses || 0
             }
         });
 

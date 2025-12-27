@@ -260,7 +260,27 @@ export const api = {
   },
 
   createUser: async (tenantId: string, userData: any): Promise<User> => {
-    return await sendOrQueue('POST', `${API_BASE}/api/users`, tenantId, userData);
+    const headers = getHeaders(tenantId);
+    const response = await fetch(`${API_BASE}/api/users`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(userData),
+      credentials: 'include',
+    });
+    
+    const result = await response.json();
+    
+    // Handle license limit error specially
+    if (!result.success) {
+      if (result.error === 'License limit reached' && result.licenseInfo) {
+        const error = new Error(result.licenseInfo.message || result.error);
+        (error as any).licenseInfo = result.licenseInfo;
+        throw error;
+      }
+      throw new Error(result.error || 'Failed to create user');
+    }
+    
+    return result.data;
   },
 
   updateUser: async (tenantId: string, userId: string, userData: any): Promise<User> => {

@@ -98,3 +98,7 @@ END $$;
 -- Add comment to table
 COMMENT ON COLUMN opoint_clock_logs.punches IS 'JSON array of punch objects: [{type: "in"|"out", time: timestamp, location: text, photo: text}]';
 COMMENT ON COLUMN opoint_clock_logs.date IS 'Date of the work day (local timezone)';
+
+
+
+select * from opoint_companies;
