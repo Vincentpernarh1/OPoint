@@ -111,7 +111,7 @@ const App = () => {
             // console.log('[useEffect] Checking session...');
             try {
                 const userFromCookie: any = await authService.getCurrentUser();
-                console.log('[useEffect] User from session:', userFromCookie);
+                // console.log('[useEffect] User from session:', userFromCookie);
                 
                 if (userFromCookie && userFromCookie.id && userFromCookie.email) {
                     // Normalize role string

@@ -6,7 +6,7 @@ import { MapPinIcon, ArrowUpRightIcon, ArrowDownLeftIcon, MegaphoneIcon, ClockIc
 import CameraModal from './CameraModal';
 import ImagePreviewModal from './ImagePreviewModal';
 import ManualAdjustmentModal from './ManualAdjustmentModal';
-import Notification from './Notification';
+import MessageOverlay from './MessageOverlay';
 import { offlineStorage } from '../services/offlineStorage';
 import { api } from '../services/api';
 import './TimeClock.css';
@@ -106,7 +106,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     
     const [adjustmentTarget, setAdjustmentTarget] = useState<{date: string, clockIn?: Date, clockOut?: Date} | null>(null);
     
-    const [notification, setNotification] = useState<string | null>(null);
+    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isLoadingAdjustments, setIsLoadingAdjustments] = useState(true);
     
@@ -501,7 +501,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                         await offlineStorage.markTimePunchSynced(punch.id);
                         await offlineStorage.deleteTimePunch(punch.id);
                     }
-                    setNotification(`${unsynced.length} offline record(s) synced successfully!`);
+                    setMessage({ type: 'success', text: `${unsynced.length} offline record(s) synced successfully!` });
                 }
             };
             syncData();
@@ -829,12 +829,12 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
             if (existingAdjustment) {
                 console.log('Found existing adjustment in local state:', existingAdjustment);
                 if (existingAdjustment.status === RequestStatus.PENDING) {
-                    setNotification('A time adjustment request is already pending for this day');
+                    setMessage({ type: 'error', text: 'A time adjustment request is already pending for this day' });
                     setAdjustmentTarget(null);
                     return;
                 }
                 if (existingAdjustment.status === RequestStatus.APPROVED) {
-                    setNotification('This day has already been adjusted and cannot be modified');
+                    setMessage({ type: 'error', text: 'This day has already been adjusted and cannot be modified' });
                     setAdjustmentTarget(null);
                     return;
                 }
@@ -893,11 +893,11 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
             try { await refreshTimeEntries(); } catch (e) { console.warn('refreshTimeEntries failed after submit', e); }
 
             setAdjustmentTarget(null);
-            setNotification('Time adjustment request submitted successfully!');
+            setMessage({ type: 'success', text: 'Time adjustment request submitted successfully!' });
         } catch (error: any) {
             console.error('Failed to submit adjustment request:', error);
             const errorMessage = error.message || 'Failed to submit time adjustment request. Please try again.';
-            setNotification(errorMessage);
+            setMessage({ type: 'error', text: errorMessage });
         }
     };
     
@@ -915,7 +915,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 }
                 return updated;
             });
-            setNotification('Adjustment request cancelled.');
+            setMessage({ type: 'success', text: 'Adjustment request cancelled.' });
             return;
         }
 
@@ -996,10 +996,10 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 console.warn('Failed to refresh adjustments after cancel:', refreshErr);
             }
 
-            setNotification('Adjustment request cancelled.');
+            setMessage({ type: 'success', text: 'Adjustment request cancelled.' });
         } catch (error) {
             console.error('Failed to cancel adjustment request:', error);
-            setNotification('Failed to cancel adjustment request. Please try again.');
+            setMessage({ type: 'error', text: 'Failed to cancel adjustment request. Please try again.' });
             // Revert optimistic change by reloading from cache
             try {
                 const stored = localStorage.getItem(`adjustmentRequests_${currentUser.id}`);
@@ -1081,7 +1081,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                     existingClockOut={adjustmentTarget.clockOut}
                 />
             )}
-            {notification && <Notification message={notification} type="success" onClose={() => setNotification(null)} />}
+            {message && <MessageOverlay message={message} onClose={() => setMessage(null)} />}
             
             <div className="space-y-8">
                 {latestAnnouncement && (

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { User } from '../types';
 import './Settings.css';
+import MessageOverlay from './MessageOverlay';
 
 const Settings = ({ currentUser }: { currentUser: User }) => {
     const [activeTab, setActiveTab] = useState('working-hours');
@@ -89,11 +90,6 @@ const Settings = ({ currentUser }: { currentUser: User }) => {
                                 Set the standard working hours per day for your company. This affects payroll calculations and time tracking.
                             </p>
 
-                            {message && (
-                                <div className={`mb-4 p-3 rounded-md ${message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
-                                    {message.text}
-                                </div>
-                            )}
 
                             <div className="space-y-4 max-w-md">
                                 <div>
@@ -206,7 +202,8 @@ const Settings = ({ currentUser }: { currentUser: User }) => {
                     )}
                 </div>
             </div>
-        </div>
+            </div>
+            <MessageOverlay message={message} onClose={() => setMessage(null)} />
         </>
     );
 };
