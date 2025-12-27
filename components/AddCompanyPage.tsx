@@ -35,7 +35,7 @@ const AddCompanyPage = () => {
         setError(null);
         setSuccess(null);
 
-        const data: NewCompanyData = { name, licenseCount, modules, adminName, adminEmail };
+        const data: NewCompanyData = { name, licenseCount, workingHoursPerDay: 8, modules, adminName, adminEmail };
 
         try {
             const result = await api.createCompanyAndAdmin(data);

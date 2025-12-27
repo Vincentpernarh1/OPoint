@@ -59,6 +59,7 @@ export const api = {
       name: data.name,
       encryptedId: Math.random().toString(36).substr(2, 9), // Generate encrypted ID
       licenseCount: data.licenseCount,
+      workingHoursPerDay: 8,
       modules: data.modules,
     };
     const user: User = {
@@ -84,6 +85,7 @@ export const api = {
       name: data.name,
       encryptedId: Math.random().toString(36).substr(2, 9), // Generate encrypted ID
       licenseCount: data.licenseCount,
+      workingHoursPerDay: 8,
       modules: data.modules,
     };
     // Simulate async
@@ -463,5 +465,38 @@ export const api = {
       throw new Error(result.error || `Failed to fetch ${reportType} report`);
     }
     return result.data || [];
+  },
+
+  // Company Settings API
+  getCompanySettings: async (tenantId: string): Promise<any> => {
+    const response = await fetch(`${API_BASE}/api/company/settings`, {
+      headers: getHeaders(tenantId),
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch company settings`);
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || `Failed to fetch company settings`);
+    }
+    return result.data;
+  },
+
+  updateCompanySettings: async (tenantId: string, settings: { workingHoursPerDay: number }): Promise<any> => {
+    const response = await fetch(`${API_BASE}/api/company/settings`, {
+      method: 'PUT',
+      headers: getHeaders(tenantId),
+      credentials: 'include',
+      body: JSON.stringify(settings),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to update company settings`);
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || `Failed to update company settings`);
+    }
+    return result.data;
   },
 };

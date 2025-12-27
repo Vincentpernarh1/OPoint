@@ -405,13 +405,30 @@ function hasFullReportAccess(userRole) {
 }
 
 // Calculate net pay after taxes and deductions
-function calculateNetPay(basicSalary, userId, payDate) {
-    // Calculate SSNIT contributions
-    const ssnitEmployee = basicSalary * 0.055; // 5.5%
+function calculateNetPay(basicSalary, userId, payDate, workingHoursPerDay = 8.00, actualHoursWorked = null) {
+    let grossPay = basicSalary;
+    let hourlyRate = 0;
+    let expectedHoursThisMonth = 0;
 
-    // Calculate PAYE tax (Ghana tax brackets)
+    // If we have actual hours worked, calculate pay based on hours
+    if (actualHoursWorked !== null && actualHoursWorked >= 0) {
+        // Calculate expected hours for the month (approximate)
+        const daysInMonth = new Date(payDate.getFullYear(), payDate.getMonth() + 1, 0).getDate();
+        expectedHoursThisMonth = workingHoursPerDay * daysInMonth;
+
+        // Calculate hourly rate: basic salary / expected monthly hours
+        hourlyRate = basicSalary / expectedHoursThisMonth;
+
+        // Calculate gross pay based on actual hours worked
+        grossPay = hourlyRate * actualHoursWorked;
+    }
+
+    // Calculate SSNIT contributions (5.5% of gross pay)
+    const ssnitEmployee = grossPay * 0.055;
+
+    // Calculate PAYE tax (Ghana tax brackets) based on gross pay
     let paye = 0;
-    const taxableIncome = basicSalary;
+    const taxableIncome = grossPay;
 
     if (taxableIncome <= 3828) {
         paye = 0;
@@ -426,21 +443,104 @@ function calculateNetPay(basicSalary, userId, payDate) {
     }
 
     // For now, we'll assume no additional deductions from payroll history
-    // In a real implementation, you might want to check for pending deductions
     const otherDeductions = 0;
 
     // Calculate totals
     const totalDeductions = ssnitEmployee + paye + otherDeductions;
-    const netPay = basicSalary - totalDeductions;
+    const netPay = grossPay - totalDeductions;
 
     return {
-        grossPay: basicSalary,
+        grossPay: Math.max(0, grossPay),
         netPay: Math.max(0, netPay), // Ensure net pay is not negative
         totalDeductions,
         ssnitEmployee,
         paye,
-        otherDeductions
+        otherDeductions,
+        hourlyRate,
+        expectedHoursThisMonth,
+        actualHoursWorked,
+        workingHoursPerDay
     };
+}
+
+// Function to calculate actual hours worked for a user in the current month
+async function calculateHoursWorked(userId, tenantId, payDate) {
+    try {
+        const currentMonth = payDate.getMonth();
+        const currentYear = payDate.getFullYear();
+
+        // Get time entries for the current month
+        const { data: timeEntries, error } = await db.getTimeEntries({
+            userId,
+            tenantId,
+            month: currentMonth + 1,
+            year: currentYear
+        });
+
+        if (error || !timeEntries) {
+            console.log(`No time entries found for user ${userId}, using default hours`);
+            return null; // Return null to use default salary calculation
+        }
+
+        let totalHoursWorked = 0;
+
+        // Group entries by date
+        const entriesByDate = {};
+        timeEntries.forEach(entry => {
+            const dateKey = new Date(entry.timestamp).toDateString();
+            if (!entriesByDate[dateKey]) {
+                entriesByDate[dateKey] = [];
+            }
+            entriesByDate[dateKey].push(entry);
+        });
+
+        // Calculate hours for each day
+        Object.keys(entriesByDate).forEach(dateKey => {
+            const dayEntries = entriesByDate[dateKey].sort((a, b) =>
+                new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+            );
+
+            const clockIns = dayEntries.filter(e => e.type === 'clock_in').map(e => new Date(e.timestamp));
+            const clockOuts = dayEntries.filter(e => e.type === 'clock_out').map(e => new Date(e.timestamp));
+
+            if (clockIns.length > 0 && clockOuts.length > 0) {
+                const earliestIn = new Date(Math.min(...clockIns.map(d => d.getTime())));
+                const latestOut = new Date(Math.max(...clockOuts.map(d => d.getTime())));
+                const hoursWorked = (latestOut.getTime() - earliestIn.getTime()) / (1000 * 60 * 60);
+                totalHoursWorked += hoursWorked;
+            }
+        });
+
+        // Check for approved time adjustments
+        const { data: adjustments } = await db.getTimeAdjustmentRequests({
+            userId,
+            status: 'Approved'
+        });
+
+        if (adjustments && adjustments.length > 0) {
+            // Filter adjustments for current month
+            const monthAdjustments = adjustments.filter(adj => {
+                const adjDate = new Date(adj.requested_clock_in);
+                return adjDate.getMonth() === currentMonth && adjDate.getFullYear() === currentYear;
+            });
+
+            // Add adjustment hours
+            monthAdjustments.forEach(adj => {
+                if (adj.adjustment_type === 'add') {
+                    const requestedIn = new Date(adj.requested_clock_in);
+                    const requestedOut = new Date(adj.requested_clock_out);
+                    const adjustmentHours = (requestedOut.getTime() - requestedIn.getTime()) / (1000 * 60 * 60);
+                    totalHoursWorked += adjustmentHours;
+                }
+            });
+        }
+
+        return totalHoursWorked;
+
+    } catch (error) {
+        console.error(`Error calculating hours worked for user ${userId}:`, error);
+        return null; // Return null to fall back to default calculation
+    }
 }
 
 // --- API ENDPOINTS ---
@@ -1324,6 +1424,180 @@ app.delete('/api/users/:id', async (req, res) => {
     }
 });
 
+// --- COMPANY SETTINGS ENDPOINTS ---
+app.get('/api/company/settings', async (req, res) => {
+    try {
+        const tenantId = req.headers['x-tenant-id'];
+
+        if (!tenantId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Tenant ID required'
+            });
+        }
+
+        // Get current user from cookies
+        const currentUser = getCurrentUser(req);
+        if (!currentUser) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required'
+            });
+        }
+
+        // Only admins can view company settings
+        if (currentUser.role !== 'Admin') {
+            return res.status(403).json({
+                success: false,
+                error: 'Admin access required'
+            });
+        }
+
+        // Set tenant context
+        setTenantContext(tenantId);
+
+        // Get company settings from database
+        const adminClient = getSupabaseAdminClient();
+        if (!adminClient) {
+            return res.status(500).json({
+                success: false,
+                error: 'Database connection not available'
+            });
+        }
+
+        const { data: company, error } = await adminClient
+            .from('opoint_companies')
+            .select('id, name, working_hours_per_day, created_at, updated_at')
+            .eq('id', tenantId)
+            .single();
+
+        if (error) {
+            console.error('Error fetching company settings:', error);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to fetch company settings'
+            });
+        }
+
+        if (!company) {
+            return res.status(404).json({
+                success: false,
+                error: 'Company not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: {
+                id: company.id,
+                name: company.name,
+                workingHoursPerDay: company.working_hours_per_day || 8.00
+            }
+        });
+
+    } catch (error) {
+        console.error('Error fetching company settings:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch company settings'
+        });
+    }
+});
+
+app.put('/api/company/settings', async (req, res) => {
+    try {
+        const { workingHoursPerDay } = req.body;
+        const tenantId = req.headers['x-tenant-id'];
+
+        if (!tenantId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Tenant ID required'
+            });
+        }
+
+        // Get current user from cookies
+        const currentUser = getCurrentUser(req);
+        if (!currentUser) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required'
+            });
+        }
+
+        // Only admins can update company settings
+        if (currentUser.role !== 'Admin') {
+            return res.status(403).json({
+                success: false,
+                error: 'Admin access required'
+            });
+        }
+
+        // Validate working hours
+        if (workingHoursPerDay === undefined || workingHoursPerDay === null) {
+            return res.status(400).json({
+                success: false,
+                error: 'Working hours per day is required'
+            });
+        }
+
+        const hours = parseFloat(workingHoursPerDay);
+        if (isNaN(hours) || hours < 1 || hours > 24) {
+            return res.status(400).json({
+                success: false,
+                error: 'Working hours must be between 1 and 24'
+            });
+        }
+
+        // Set tenant context
+        setTenantContext(tenantId);
+
+        // Update company settings in database
+        const adminClient = getSupabaseAdminClient();
+        if (!adminClient) {
+            return res.status(500).json({
+                success: false,
+                error: 'Database connection not available'
+            });
+        }
+
+        const { data: company, error } = await adminClient
+            .from('opoint_companies')
+            .update({
+                working_hours_per_day: hours,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', tenantId)
+            .select('id, name, working_hours_per_day, updated_at')
+            .single();
+
+        if (error) {
+            console.error('Error updating company settings:', error);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to update company settings'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: {
+                id: company.id,
+                name: company.name,
+                workingHoursPerDay: company.working_hours_per_day
+            },
+            message: 'Company settings updated successfully'
+        });
+
+    } catch (error) {
+        console.error('Error updating company settings:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to update company settings'
+        });
+    }
+});
+
 // --- PROFILE UPDATE REQUEST ENDPOINTS ---
 app.post('/api/profile-update-requests', async (req, res) => {
     try {
@@ -1608,8 +1882,34 @@ app.get('/api/payroll/payable-employees', async (req, res) => {
     try {
         const currentMonth = new Date().getMonth();
         const currentYear = new Date().getFullYear();
+        const tenantId = req.headers['x-tenant-id'];
+
+        if (!tenantId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Tenant ID required'
+            });
+        }
 
         const users = await getUsers();
+
+        // Get company working hours
+        let workingHoursPerDay = 8.00; // Default
+        try {
+            const adminClient = getSupabaseAdminClient();
+            if (adminClient) {
+                const { data: company } = await adminClient
+                    .from('opoint_companies')
+                    .select('working_hours_per_day')
+                    .eq('id', tenantId)
+                    .single();
+                if (company && company.working_hours_per_day) {
+                    workingHoursPerDay = company.working_hours_per_day;
+                }
+            }
+        } catch (error) {
+            console.log('Could not fetch company working hours, using default:', error.message);
+        }
 
         // Get payroll history from database
         const { data: historyData } = await db.getPayrollHistory({
@@ -1617,25 +1917,34 @@ app.get('/api/payroll/payable-employees', async (req, res) => {
             year: currentYear
         });
 
-        const payableEmployees = users.map(user => {
-            // Use proper tax calculations instead of mock 90%
-            const payCalculation = calculateNetPay(user.basicSalary || 0, user.id, new Date());
+        const payableEmployees = await Promise.all(users.map(async (user) => {
+            // Calculate actual hours worked for this user
+            const actualHoursWorked = await calculateHoursWorked(user.id, tenantId, new Date());
+
+            // Use proper tax calculations with hours-based pay
+            const payCalculation = calculateNetPay(
+                user.basicSalary || 0,
+                user.id,
+                new Date(),
+                workingHoursPerDay,
+                actualHoursWorked
+            );
             const netPay = payCalculation.netPay;
-            
+
             // Check if paid this month (from database or fallback)
             let paymentLog;
-            
+
             if (historyData && historyData.length > 0) {
-                paymentLog = historyData.find(log => 
-                    log.user_id === user.id && 
+                paymentLog = historyData.find(log =>
+                    log.user_id === user.id &&
                     (log.status === 'SUCCESS' || log.status === 'PENDING')
                 );
             } else {
                 // Fallback to in-memory
                 paymentLog = PAYROLL_HISTORY.find(log => {
                     const logDate = new Date(log.date);
-                    return log.userId === user.id && 
-                           logDate.getMonth() === currentMonth && 
+                    return log.userId === user.id &&
+                           logDate.getMonth() === currentMonth &&
                            logDate.getFullYear() === currentYear &&
                            (log.status === 'SUCCESS' || log.status === 'PENDING');
                 });
@@ -1653,23 +1962,27 @@ app.get('/api/payroll/payable-employees', async (req, res) => {
                 ssnitEmployee: payCalculation.ssnitEmployee,
                 paye: payCalculation.paye,
                 otherDeductions: payCalculation.otherDeductions,
+                hoursWorked: actualHoursWorked,
+                expectedHoursThisMonth: payCalculation.expectedHoursThisMonth,
+                hourlyRate: payCalculation.hourlyRate,
+                workingHoursPerDay: workingHoursPerDay,
                 isPaid: !!paymentLog,
                 paidAmount: paymentLog ? paymentLog.amount : 0,
                 paidDate: paymentLog ? paymentLog.created_at || paymentLog.date : null,
                 paidReason: paymentLog ? paymentLog.reason : null
             };
-        });
+        }));
 
-        res.json({ 
-            success: true, 
-            data: payableEmployees 
+        res.json({
+            success: true,
+            data: payableEmployees
         });
 
     } catch (error) {
         console.error("Error fetching payables:", error);
-        res.status(500).json({ 
-            success: false, 
-            error: "Failed to fetch payable employees" 
+        res.status(500).json({
+            success: false,
+            error: "Failed to fetch payable employees"
         });
     }
 });
