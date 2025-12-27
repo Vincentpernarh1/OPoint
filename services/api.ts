@@ -469,9 +469,11 @@ export const api = {
   },
 
   // Reports API
-  getReport: async (reportType: string, tenantId: string, userId?: string): Promise<any[]> => {
+  getReport: async (reportType: string, tenantId: string, userId?: string, month?: number, year?: number): Promise<any[]> => {
     const params = new URLSearchParams({ type: reportType });
     if (userId) params.append('userId', userId);
+    if (month) params.append('month', month.toString());
+    if (year) params.append('year', year.toString());
 
     const response = await fetch(`${API_BASE}/api/reports?${params}`, {
       headers: getHeaders(tenantId),

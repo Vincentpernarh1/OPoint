@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { FileTextIcon, LogoIcon } from './Icons';
 import { api } from '../services/api';
 import type { User } from '../types';
+import { UserRole } from '../types';
 
 const downloadCSV = (content: string, fileName: string) => {
     const encodedUri = encodeURI("data:text/csv;charset=utf-8," + content);
@@ -25,6 +26,14 @@ const Reports = ({ currentUser }: ReportsProps) => {
     const [employees, setEmployees] = useState<User[]>([]);
     const [selectedEmployee, setSelectedEmployee] = useState<User | null>(null);
     const [loadingEmployees, setLoadingEmployees] = useState(true);
+    
+    // Month and Year filters
+    const currentDate = new Date();
+    const [selectedMonth, setSelectedMonth] = useState<number>(currentDate.getMonth() + 1);
+    const [selectedYear, setSelectedYear] = useState<number>(currentDate.getFullYear());
+    
+    // Check if user has full report access (Admin or Payments)
+    const hasFullAccess = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PAYMENTS;
 
     useEffect(() => {
         const fetchEmployees = async () => {
@@ -49,7 +58,14 @@ const Reports = ({ currentUser }: ReportsProps) => {
         setLoadingReport(reportType);
         setError(null);
         try {
-            const data: any[] = await api.getReport(reportType, currentUser.tenantId, selectedEmployee?.id);
+            // Pass month and year to the API
+            const data: any[] = await api.getReport(
+                reportType, 
+                currentUser.tenantId, 
+                selectedEmployee?.id,
+                selectedMonth,
+                selectedYear
+            );
             
             if (data.length === 0) {
                 const scope = selectedEmployee ? `for ${selectedEmployee.name}` : 'for all employees';
@@ -77,54 +93,130 @@ const Reports = ({ currentUser }: ReportsProps) => {
 
 
     const reportCards = [
-        { key: 'ssnit', title: 'SSNIT Contribution Report', description: selectedEmployee ? `Monthly SSNIT report for ${selectedEmployee.name}.` : 'Monthly report for filing with SSNIT for all employees.' },
-        { key: 'paye', title: 'PAYE Tax Report', description: selectedEmployee ? `Monthly PAYE report for ${selectedEmployee.name}.` : 'Monthly report for filing with the GRA for all employees.' },
-        { key: 'attendance', title: 'Attendance Summary', description: selectedEmployee ? `Work hours summary for ${selectedEmployee.name}.` : 'Overview of employee work hours for the month for all employees.' },
-        { key: 'leave', title: 'Leave Balance Report', description: selectedEmployee ? `Leave balances for ${selectedEmployee.name}.` : 'Current leave balances for all employees.' },
+        { 
+            key: 'ssnit', 
+            title: 'SSNIT Contribution Report', 
+            description: selectedEmployee 
+                ? `Monthly SSNIT report for ${selectedEmployee.name}.` 
+                : hasFullAccess 
+                    ? 'Monthly report for filing with SSNIT for all employees.' 
+                    : 'Your monthly SSNIT contribution report.'
+        },
+        { 
+            key: 'paye', 
+            title: 'PAYE Tax Report', 
+            description: selectedEmployee 
+                ? `Monthly PAYE report for ${selectedEmployee.name}.` 
+                : hasFullAccess 
+                    ? 'Monthly report for filing with the GRA for all employees.' 
+                    : 'Your monthly PAYE tax report.'
+        },
+        { 
+            key: 'attendance', 
+            title: 'Attendance Summary', 
+            description: selectedEmployee 
+                ? `Work hours summary for ${selectedEmployee.name}.` 
+                : hasFullAccess 
+                    ? 'Overview of employee work hours for the month for all employees.' 
+                    : 'Your work hours summary for the month.'
+        },
+        { 
+            key: 'leave', 
+            title: 'Leave Balance Report', 
+            description: selectedEmployee 
+                ? `Leave balances for ${selectedEmployee.name}.` 
+                : hasFullAccess 
+                    ? 'Current leave balances for all employees.' 
+                    : 'Your current leave balances.'
+        },
     ];
 
     return (
         <div className="space-y-8">
             <div>
                 <h1 className="text-3xl font-bold text-gray-800">Reports</h1>
-                <p className="text-gray-500 mt-1">Generate and download company reports for compliance and management.</p>
+                <p className="text-gray-500 mt-1">
+                    {hasFullAccess 
+                        ? 'Generate and download company reports for compliance and management.'
+                        : 'Generate and download your personal reports.'}
+                </p>
             </div>
 
+            {/* Month/Year Filter - Available to all users */}
             <div className="bg-white p-6 rounded-xl shadow-lg">
-                <h2 className="text-xl font-bold text-gray-800 mb-4">Report Scope</h2>
+                <h2 className="text-xl font-bold text-gray-800 mb-4">Report Period</h2>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-4 sm:space-y-0">
-                    <label htmlFor="employee-select" className="text-sm font-medium text-gray-700">
-                        Generate reports for:
+                    <label className="text-sm font-medium text-gray-700">
+                        Select Month & Year:
                     </label>
                     <select
-                        id="employee-select"
-                        value={selectedEmployee?.id || ''}
-                        onChange={(e) => {
-                            const employeeId = e.target.value;
-                            const employee = employees.find(emp => emp.id === employeeId) || null;
-                            setSelectedEmployee(employee);
-                        }}
-                        className="w-full sm:flex-1 sm:max-w-md px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
-                        disabled={loadingEmployees}
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                        className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
                     >
-                        <option value="">All Employees</option>
-                        {employees.map(employee => (
-                            <option key={employee.id} value={employee.id}>
-                                {employee.name}
-                            </option>
+                        <option value={1}>January</option>
+                        <option value={2}>February</option>
+                        <option value={3}>March</option>
+                        <option value={4}>April</option>
+                        <option value={5}>May</option>
+                        <option value={6}>June</option>
+                        <option value={7}>July</option>
+                        <option value={8}>August</option>
+                        <option value={9}>September</option>
+                        <option value={10}>October</option>
+                        <option value={11}>November</option>
+                        <option value={12}>December</option>
+                    </select>
+                    <select
+                        value={selectedYear}
+                        onChange={(e) => setSelectedYear(Number(e.target.value))}
+                        className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                    >
+                        {Array.from({ length: 5 }, (_, i) => currentDate.getFullYear() - i).map(year => (
+                            <option key={year} value={year}>{year}</option>
                         ))}
                     </select>
-                    {selectedEmployee && (
-                        <button
-                            onClick={() => setSelectedEmployee(null)}
-                            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 underline"
-                        >
-                            Clear Selection
-                        </button>
-                    )}
                 </div>
-                {loadingEmployees && <p className="text-sm text-gray-500 mt-2">Loading employees...</p>}
             </div>
+
+            {/* Report Scope - Only visible to Admin and Payments roles */}
+            {hasFullAccess && (
+                <div className="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 className="text-xl font-bold text-gray-800 mb-4">Report Scope</h2>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-4 sm:space-y-0">
+                        <label htmlFor="employee-select" className="text-sm font-medium text-gray-700">
+                            Generate reports for:
+                        </label>
+                        <select
+                            id="employee-select"
+                            value={selectedEmployee?.id || ''}
+                            onChange={(e) => {
+                                const employeeId = e.target.value;
+                                const employee = employees.find(emp => emp.id === employeeId) || null;
+                                setSelectedEmployee(employee);
+                            }}
+                            className="w-full sm:flex-1 sm:max-w-md px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                            disabled={loadingEmployees}
+                        >
+                            <option value="">All Employees</option>
+                            {employees.map(employee => (
+                                <option key={employee.id} value={employee.id}>
+                                    {employee.name}
+                                </option>
+                            ))}
+                        </select>
+                        {selectedEmployee && (
+                            <button
+                                onClick={() => setSelectedEmployee(null)}
+                                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 underline"
+                            >
+                                Clear Selection
+                            </button>
+                        )}
+                    </div>
+                    {loadingEmployees && <p className="text-sm text-gray-500 mt-2">Loading employees...</p>}
+                </div>
+            )}
 
             {error && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
