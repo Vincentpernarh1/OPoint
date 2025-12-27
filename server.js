@@ -511,8 +511,8 @@ app.post('/api/auth/login', async (req, res) => {
         // Get user from database
         const { data: user, error } = await db.getUserByEmail(email);
 
-        console.log(`Login attempt for: ${email}`);
-        console.log('Database query result:', { user: user ? 'Found' : 'Not found', error: error?.message });
+        // console.log(`Login attempt for: ${email}`);
+        // console.log('Database query result:', { user: user ? 'Found' : 'Not found', error: error?.message });
 
         if (error) {
             console.error('Database error during login:', error);

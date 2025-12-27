@@ -1,10 +1,25 @@
 
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { User, TimeEntry } from '../types';
+import { User, TimeEntry, TimeEntryType } from '../types';
 import { XIcon, CameraIcon, MapPinIcon } from './Icons';
 import ImagePreviewModal from './ImagePreviewModal';
 import { api } from '../services/api';
+
+const formatDuration = (ms: number, withSign = false) => {
+    if (isNaN(ms)) return "00:00:00";
+    const isNegative = ms < 0;
+    if (isNegative) ms = -ms;
+    
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    
+    const sign = isNegative ? '-' : (withSign ? '+' : '');
+
+    return `${sign}${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+};
 
 interface EmployeeLogModalProps {
     user: User;
@@ -23,11 +38,21 @@ const EmployeeLogModal = ({ user, date, onClose, adjustment }: EmployeeLogModalP
 
     useEffect(() => {
         const fetchTimeEntries = async () => {
+            if (!user.tenantId) {
+                setError('Invalid user data');
+                setLoading(false);
+                return;
+            }
             try {
                 setLoading(true);
                 setError(null);
                 const dateString = dateToUse ? dateToUse.toISOString().split('T')[0] : undefined;
-                const entries = await api.getTimeEntries(user.tenantId, user.id, dateString);
+                const rawEntries = await api.getTimeEntries(user.tenantId, user.id, dateString);
+                const entries = rawEntries.map((entry: any) => ({
+                    ...entry,
+                    type: entry.type === 'clock_in' ? TimeEntryType.CLOCK_IN : TimeEntryType.CLOCK_OUT,
+                    timestamp: new Date(entry.timestamp)
+                }));
                 setTimeEntries(entries);
             } catch (err) {
                 console.error('Failed to fetch time entries:', err);
@@ -44,6 +69,58 @@ const EmployeeLogModal = ({ user, date, onClose, adjustment }: EmployeeLogModalP
     const userTimeEntries = useMemo(() => {
         return timeEntries.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
     }, [timeEntries]);
+
+    const monthlyWorkHistory = useMemo(() => {
+        const entriesByDate = timeEntries.reduce((acc, entry) => {
+            const dateKey = new Date(entry.timestamp).toDateString();
+            if (!acc[dateKey]) {
+                acc[dateKey] = [];
+            }
+            acc[dateKey].push(entry);
+            return acc;
+        }, {} as Record<string, TimeEntry[]>);
+
+        const dailySummaries = Object.keys(entriesByDate).map(dateKey => {
+            const dayEntries = entriesByDate[dateKey].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+            const clockIns = dayEntries.filter(e => e.type === TimeEntryType.CLOCK_IN).map(e => new Date(e.timestamp));
+            const clockOuts = dayEntries.filter(e => e.type === TimeEntryType.CLOCK_OUT).map(e => new Date(e.timestamp));
+            
+            let totalWorkedMs = 0;
+            if (clockIns.length > 0 && clockOuts.length > 0) {
+                const earliestIn = new Date(Math.min(...clockIns.map(d => d.getTime())));
+                const latestOut = new Date(Math.max(...clockOuts.map(d => d.getTime())));
+                totalWorkedMs = latestOut.getTime() - earliestIn.getTime();
+            }
+            
+            return {
+                date: new Date(dateKey),
+                worked: totalWorkedMs
+            };
+        });
+
+        const months = dailySummaries.reduce((acc, day) => {
+            const monthKey = `${day.date.getFullYear()}-${(day.date.getMonth() + 1).toString().padStart(2, '0')}`;
+            if (!acc[monthKey]) {
+                acc[monthKey] = 0;
+            }
+            acc[monthKey] += day.worked;
+            return acc;
+        }, {} as Record<string, number>);
+
+        return Object.keys(months)
+            .map(monthKey => ({
+                month: monthKey,
+                totalWorked: months[monthKey]
+            }))
+            .sort((a, b) => b.month.localeCompare(a.month));
+    }, [timeEntries]);
+
+    const currentMonthTotal = useMemo(() => {
+        const now = new Date();
+        const currentMonth = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+        const monthData = monthlyWorkHistory.find(m => m.month === currentMonth);
+        return monthData ? monthData.totalWorked : 0;
+    }, [monthlyWorkHistory]);
 
     const title = dateToUse 
         ? `Time Log for ${user.name} on ${dateToUse.toLocaleDateString()}`
@@ -68,6 +145,24 @@ const EmployeeLogModal = ({ user, date, onClose, adjustment }: EmployeeLogModalP
                                 <p><strong>Requested Clock In:</strong> {adjustment.requestedClockIn.toLocaleString()}</p>
                                 {adjustment.requestedClockOut && <p><strong>Requested Clock Out:</strong> {adjustment.requestedClockOut.toLocaleString()}</p>}
                                 <p><strong>Status:</strong> {adjustment.adjustment_status}</p>
+                            </div>
+                        </div>
+                    )}
+                    {!dateToUse && (
+                        <div className="mb-4 p-4 bg-blue-50 rounded-md border">
+                            <h4 className="font-semibold text-gray-800 mb-2">Monthly Summary</h4>
+                            <div className="text-sm text-gray-600 space-y-1">
+                                <p><strong>Total Hours This Month:</strong> {formatDuration(currentMonthTotal)}</p>
+                                <div className="mt-2">
+                                    <strong>Monthly History:</strong>
+                                    <ul className="list-disc list-inside mt-1">
+                                        {monthlyWorkHistory.slice(0, 5).map(month => (
+                                            <li key={month.month}>
+                                                {new Date(month.month + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'short' })}: {formatDuration(month.totalWorked)}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
                             </div>
                         </div>
                     )}
