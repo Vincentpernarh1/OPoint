@@ -401,12 +401,12 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                     {error}
                                 </div>
                             )}
-                            <div className="flex justify-end space-x-4">
+                            <div className="flex flex-col sm:flex-row justify-end sm:space-x-4 space-y-2 sm:space-y-0">
                                 <select 
                                     title="Filter by status"
                                     value={leaveStatusFilter} 
                                     onChange={(e) => setLeaveStatusFilter(e.target.value)}
-                                    className="block pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md border"
+                                    className="w-full sm:w-auto block pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md border"
                                 >
                                     <option value="All">All Statuses</option>
                                     <option value="Pending">Pending</option>
@@ -417,7 +417,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                     title="Filter by leave type"
                                     value={leaveTypeFilter} 
                                     onChange={(e) => setLeaveTypeFilter(e.target.value)}
-                                    className="block pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md border"
+                                    className="w-full sm:w-auto block pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md border"
                                 >
                                     <option value="All">All Leave Types</option>
                                     <option value={LeaveType.ANNUAL}>{LeaveType.ANNUAL}</option>
@@ -483,12 +483,12 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                     )}
                     {activeTab === 'adjustments' && (
                          <div className="space-y-4">
-                            <div className="flex justify-end">
+                            <div className="flex justify-start sm:justify-end">
                                 <select 
                                     title="Filter by status"
                                     value={adjustmentStatusFilter} 
                                     onChange={(e) => setAdjustmentStatusFilter(e.target.value)}
-                                    className="block pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md border"
+                                    className="w-full sm:w-auto block pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md border"
                                 >
                                     <option value="All">All Statuses</option>
                                     <option value="Pending">Pending</option>
@@ -573,12 +573,12 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                     )}
                     {activeTab === 'profile' && (
                         <div className="space-y-4">
-                            <div className="flex justify-end space-x-4">
+                            <div className="flex justify-start sm:justify-end">
                                 <select
                                     title="Filter by status"
                                     value={profileStatusFilter}
                                     onChange={(e) => setProfileStatusFilter(e.target.value)}
-                                    className="block pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md border"
+                                    className="w-full sm:w-auto block pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md border"
                                 >
                                     <option value="All">All Statuses</option>
                                     <option value="Pending">Pending</option>
