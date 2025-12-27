@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Link, Navigate, useLocation, Outlet, useParams, useNavigate } from 'react-router-dom';
 import { User, UserRole, Company, Announcement, View } from './types';
-import { COMPANIES, ANNOUNCEMENTS } from './constants';
+import {ANNOUNCEMENTS } from './constants';
 
 // Import Components with lazy loading
 const Login = lazy(() => import('./components/Login'));
@@ -462,7 +462,7 @@ const App = () => {
                     <Route path="employees" element={<EmployeeManagement currentUser={currentUser!} />} />
                     <Route path="payroll" element={<MobileMoneyPayroll currentUser={currentUser!} />} />
                     <Route path="reports" element={<Reports currentUser={currentUser!} />} />
-                    <Route path="settings" element={<Settings />} />
+                    <Route path="settings" element={<Settings currentUser={currentUser!} />} />
                 </Route>
                 
                 {/* Fallback redirect */}

@@ -1,35 +1,5 @@
 import { User, UserRole, LeaveRequest, AdjustmentRequest, RequestStatus, TimeEntry, TimeEntryType, Payslip, LeaveType, LeaveBalance, Deduction, Announcement, ExpenseRequest, ProfileUpdateRequest, Company } from './types';
 
-export const COMPANIES: Company[] = [
-    {
-        id: 'c1',
-        name: 'Vertex Innovations Ltd.',
-        encryptedId: 'enc_c1',
-        licenseCount: 50,
-        modules: { payroll: true, leave: true, expenses: true, reports: true, announcements: true }
-    },
-    {
-        id: 'c2',
-        name: 'Summit Solutions Inc.',
-        encryptedId: 'enc_c2',
-        licenseCount: 10,
-        modules: { payroll: true, leave: true, expenses: false, reports: true, announcements: false }
-    },
-    {
-        id: '1c8296f4-edad-4934-9638-d6ed933eeead',
-        name: 'Vpena Teck',
-        encryptedId: 'enc_1c8296f4',
-        licenseCount: 50,
-        modules: { payroll: true, leave: true, expenses: true, reports: true, announcements: true }
-    },
-    {
-        id: '19333055-ca7a-4cc0-a4e6-1b5e444cf96e',
-        name: 'Vpena Teck',
-        encryptedId: 'enc_19333055',
-        licenseCount: 50,
-        modules: { payroll: true, leave: true, expenses: true, reports: true, announcements: true }
-    }
-];
 
 // Dummy data with emails and passwords for domain-based login
 export const USERS: User[] = [

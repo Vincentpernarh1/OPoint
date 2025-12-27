@@ -30,7 +30,7 @@ const AddCompanyModal = ({ onClose, onSubmit, isLoading, error }: AddCompanyModa
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (isLoading) return;
-        onSubmit({ name, licenseCount, modules, adminName, adminEmail });
+        onSubmit({ name, licenseCount, workingHoursPerDay: 8, modules, adminName, adminEmail });
     };
 
     const moduleKeys = Object.keys(modules) as (keyof typeof modules)[];

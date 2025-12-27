@@ -12,6 +12,7 @@ export interface Company {
   name: string;
   encryptedId: string;
   licenseCount: number;
+  workingHoursPerDay: number;
   modules: {
     payroll: boolean;
     leave: boolean;
