@@ -185,17 +185,17 @@ const EmployeeLogModal = ({ user, date, onClose, adjustment }: EmployeeLogModalP
     return (
         <>
             {previewImageUrl && <ImagePreviewModal imageUrl={previewImageUrl} onClose={() => setPreviewImageUrl(null)} isSecureContext={true} />}
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40" onClick={onClose}>
-                <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-4xl relative max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40 p-2 sm:p-4" onClick={onClose}>
+                <div className="bg-white rounded-lg shadow-xl p-2 sm:p-3 md:p-6 w-full max-w-[280px] sm:max-w-sm md:max-w-md lg:max-w-2xl xl:max-w-4xl relative max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
                     <button  title="Close" onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
                         <XIcon className="h-6 w-6"/>
                     </button>
-                    <h3 className="text-xl font-bold mb-4 text-gray-800">{title}</h3>
+                    <h3 className="text-lg sm:text-xl font-bold mb-2 sm:mb-4 text-gray-800">{title}</h3>
                     <div className="overflow-y-auto" style={{ maxHeight: 'calc(90vh - 120px)' }}>
                     {adjustment && (
-                        <div className="mb-4 p-4 bg-blue-50 rounded-md border">
-                            <h4 className="font-semibold text-gray-800 mb-2">Time Adjustment Request</h4>
-                            <div className="text-sm text-gray-600 space-y-1">
+                        <div className="mb-2 sm:mb-4 p-2 sm:p-4 bg-blue-50 rounded-md border">
+                            <h4 className="font-semibold text-gray-800 mb-2 text-sm sm:text-base">Time Adjustment Request</h4>
+                            <div className="text-xs sm:text-sm text-gray-600 space-y-1">
                                 <p><strong>Reason:</strong> {adjustment.adjustment_reason}</p>
                                 {adjustment.originalClockIn && <p><strong>Original Clock In:</strong> {adjustment.originalClockIn.toLocaleString()}</p>}
                                 {adjustment.originalClockOut && <p><strong>Original Clock Out:</strong> {adjustment.originalClockOut.toLocaleString()}</p>}
@@ -206,13 +206,13 @@ const EmployeeLogModal = ({ user, date, onClose, adjustment }: EmployeeLogModalP
                         </div>
                     )}
                     {!dateToUse && (
-                        <div className="mb-4 p-4 bg-blue-50 rounded-md border">
-                            <h4 className="font-semibold text-gray-800 mb-2">Monthly Summary</h4>
-                            <div className="text-sm text-gray-600 space-y-1">
+                        <div className="mb-2 sm:mb-4 p-2 sm:p-4 bg-blue-50 rounded-md border">
+                            <h4 className="font-semibold text-gray-800 mb-2 text-sm sm:text-base">Monthly Summary</h4>
+                            <div className="text-xs sm:text-sm text-gray-600 space-y-1">
                                 <p><strong>Total Hours This Month:</strong> {formatDuration(currentMonthTotal)}</p>
-                                <div className="mt-2">
-                                    <strong>Monthly History:</strong>
-                                    <ul className="list-disc list-inside mt-1">
+                                <div className="mt-1 sm:mt-2">
+                                    <strong className="text-xs sm:text-sm">Monthly History:</strong>
+                                    <ul className="list-disc list-inside mt-1 text-xs sm:text-sm">
                                         {monthlyWorkHistory.slice(0, 5).map(month => (
                                             <li key={month.month}>
                                                 {new Date(month.month + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'short' })}: {formatDuration(month.totalWorked)}
@@ -233,17 +233,20 @@ const EmployeeLogModal = ({ user, date, onClose, adjustment }: EmployeeLogModalP
                                 <p className="text-red-500">{error}</p>
                             </div>
                         ) : dailyLogs.length > 0 ? (
-                            <div className="space-y-4">
+                            <div className="space-y-2 sm:space-y-4">
                                 {dailyLogs.map(day => (
-                                    <div key={day.date.toISOString()} className="p-4 bg-gray-50 rounded-md border">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <h4 className="font-semibold text-gray-800">{day.date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h4>
-                                            <div className="text-sm text-gray-600">
+                                    <div key={day.date.toISOString()} className="p-1 sm:p-2 md:p-4 bg-gray-50 rounded-md border">
+                                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-1 sm:mb-2 gap-1">
+                                            <h4 className="font-semibold text-gray-800 text-sm sm:text-base">
+                                                <span className="sm:hidden">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                                <span className="hidden sm:inline">{day.date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                                            </h4>
+                                            <div className="text-xs sm:text-sm text-gray-600">
                                                 Total: {formatDuration(day.totalWorked)}
-                                                {day.hasAdjustment && <span className="ml-2 text-green-600">(Adjusted)</span>}
+                                                {day.hasAdjustment && <span className="ml-1 sm:ml-2 text-green-600">(Adj)</span>}
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-4 text-sm">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 sm:gap-2 md:gap-4 text-xs sm:text-sm">
                                             <div>
                                                 <strong>Clock In:</strong> {day.clockIn ? day.clockIn.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'N/A'}
                                             </div>
@@ -252,15 +255,15 @@ const EmployeeLogModal = ({ user, date, onClose, adjustment }: EmployeeLogModalP
                                             </div>
                                         </div>
                                         {day.entries.some(e => e.location) && (
-                                            <div className="mt-2 text-sm text-gray-500">
+                                            <div className="mt-0.5 sm:mt-1 md:mt-2 text-xs sm:text-sm text-gray-500">
                                                 <strong>Location:</strong> {day.entries.find(e => e.location)?.location}
                                             </div>
                                         )}
                                         {day.entries.some(e => e.photoUrl) && (
-                                            <div className="mt-2">
+                                            <div className="mt-0.5 sm:mt-1 md:mt-2">
                                                 <button 
                                                     onClick={() => setPreviewImageUrl(day.entries.find(e => e.photoUrl)?.photoUrl!)} 
-                                                    className="text-primary hover:underline text-sm"
+                                                    className="text-primary hover:underline text-xs sm:text-sm"
                                                 >
                                                     View Photo
                                                 </button>

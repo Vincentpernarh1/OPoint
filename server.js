@@ -3158,11 +3158,10 @@ async function createNotificationsForAnnouncement(announcement) {
 }
 
 // --- REPORTS ENDPOINTS ---
-app.get('/api/reports/:type', async (req, res) => {
+app.get('/api/reports', async (req, res) => {
     try {
-        const { type } = req.params;
+        const { type, userId } = req.query;
         const tenantId = req.headers['x-tenant-id'];
-        const { month, year } = req.query;
 
         if (!tenantId) {
             return res.status(400).json({
@@ -3210,8 +3209,10 @@ app.get('/api/reports/:type', async (req, res) => {
                     };
                 });
 
-                // Filter data based on user role
-                if (!hasFullAccess) {
+                // Filter data based on user role and userId parameter
+                if (userId) {
+                    ssnitData = ssnitData.filter(item => item.employee_id === userId);
+                } else if (!hasFullAccess) {
                     ssnitData = ssnitData.filter(item => item.employee_id === currentUser.id);
                 }
                 reportData = ssnitData;
@@ -3246,8 +3247,10 @@ app.get('/api/reports/:type', async (req, res) => {
                     };
                 });
 
-                // Filter data based on user role
-                if (!hasFullAccess) {
+                // Filter data based on user role and userId parameter
+                if (userId) {
+                    payeData = payeData.filter(item => item.employee_id === userId);
+                } else if (!hasFullAccess) {
                     payeData = payeData.filter(item => item.employee_id === currentUser.id);
                 }
                 reportData = payeData;
@@ -3305,8 +3308,10 @@ app.get('/api/reports/:type', async (req, res) => {
 
                     let attendanceData = Array.from(attendanceMap.values());
 
-                    // Filter data based on user role
-                    if (!hasFullAccess) {
+                    // Filter data based on user role and userId parameter
+                    if (userId) {
+                        attendanceData = attendanceData.filter(item => item.employee_id === userId);
+                    } else if (!hasFullAccess) {
                         attendanceData = attendanceData.filter(item => item.employee_id === currentUser.id);
                     }
                     reportData = attendanceData;
@@ -3323,8 +3328,10 @@ app.get('/api/reports/:type', async (req, res) => {
                 } else {
                     let leaveData = leaveBalances || [];
 
-                    // Filter data based on user role
-                    if (!hasFullAccess) {
+                    // Filter data based on user role and userId parameter
+                    if (userId) {
+                        leaveData = leaveData.filter(item => item.employee_id === userId);
+                    } else if (!hasFullAccess) {
                         leaveData = leaveData.filter(item => item.employee_id === currentUser.id);
                     }
                     reportData = leaveData;

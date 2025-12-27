@@ -198,23 +198,6 @@ export const api = {
     return await sendOrQueue('POST', `${API_BASE}/api/payroll/pay`, tenantId, { payments: payload, password });
   },
 
-  // Reports API
-  getReport: async (reportType: string, tenantId: string): Promise<any[]> => {
-    const response = await fetch(`${API_BASE}/api/reports/${reportType}`, {
-      headers: getHeaders(tenantId),
-      credentials: 'include',
-    });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Network error' }));
-      throw new Error(errorData.error || `HTTP ${response.status}`);
-    }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'API error');
-    }
-    return result.data;
-  },
-
   // Payslips API
   getPayslip: async (userId: string, date: string, tenantId: string): Promise<any> => {
     const response = await fetch(`${API_BASE}/api/payslips/${userId}/${encodeURIComponent(date)}`, {
@@ -461,5 +444,24 @@ export const api = {
 
   updateTimeAdjustmentRequest: async (tenantId: string, requestId: string, updates: any): Promise<any> => {
     return await sendOrQueue('PUT', `${API_BASE}/api/time-adjustments/${requestId}`, tenantId, updates);
+  },
+
+  // Reports API
+  getReport: async (reportType: string, tenantId: string, userId?: string): Promise<any[]> => {
+    const params = new URLSearchParams({ type: reportType });
+    if (userId) params.append('userId', userId);
+
+    const response = await fetch(`${API_BASE}/api/reports?${params}`, {
+      headers: getHeaders(tenantId),
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ${reportType} report`);
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || `Failed to fetch ${reportType} report`);
+    }
+    return result.data || [];
   },
 };

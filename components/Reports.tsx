@@ -1,6 +1,6 @@
 
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileTextIcon, LogoIcon } from './Icons';
 import { api } from '../services/api';
 import type { User } from '../types';
@@ -22,22 +22,49 @@ interface ReportsProps {
 const Reports = ({ currentUser }: ReportsProps) => {
     const [loadingReport, setLoadingReport] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [employees, setEmployees] = useState<User[]>([]);
+    const [selectedEmployee, setSelectedEmployee] = useState<User | null>(null);
+    const [loadingEmployees, setLoadingEmployees] = useState(true);
+
+    useEffect(() => {
+        const fetchEmployees = async () => {
+            try {
+                setLoadingEmployees(true);
+                const data = await api.getUsers(currentUser.tenantId!);
+                setEmployees(data);
+            } catch (err) {
+                console.error('Failed to fetch employees:', err);
+                setError('Failed to load employees for selection.');
+            } finally {
+                setLoadingEmployees(false);
+            }
+        };
+
+        if (currentUser.tenantId) {
+            fetchEmployees();
+        }
+    }, [currentUser.tenantId]);
 
     const handleDownload = async (reportType: 'ssnit' | 'paye' | 'attendance' | 'leave') => {
         setLoadingReport(reportType);
         setError(null);
         try {
-            const data: any[] = await api.getReport(reportType, currentUser.tenantId);
+            const data: any[] = await api.getReport(reportType, currentUser.tenantId, selectedEmployee?.id);
             
             if (data.length === 0) {
-                setError(`No data available for ${reportType} report.`);
+                const scope = selectedEmployee ? `for ${selectedEmployee.name}` : 'for all employees';
+                setError(`No data available for ${reportType} report ${scope}.`);
                 return;
             }
 
             const headers = Object.keys(data[0]);
             const rows = data.map((row: any) => headers.map(header => row[header]));
             const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
-            downloadCSV(csvContent, `${reportType}_report.csv`);
+            
+            const employeeSuffix = selectedEmployee ? `_${selectedEmployee.name.replace(/\s+/g, '_')}` : '_all';
+            const fileName = `${reportType}_report${employeeSuffix}.csv`;
+            
+            downloadCSV(csvContent, fileName);
 
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
@@ -50,10 +77,10 @@ const Reports = ({ currentUser }: ReportsProps) => {
 
 
     const reportCards = [
-        { key: 'ssnit', title: 'SSNIT Contribution Report', description: 'Monthly report for filing with SSNIT.' },
-        { key: 'paye', title: 'PAYE Tax Report', description: 'Monthly report for filing with the GRA.' },
-        { key: 'attendance', title: 'Attendance Summary', description: 'Overview of employee work hours for the month.' },
-        { key: 'leave', title: 'Leave Balance Report', description: 'Current leave balances for all employees.' },
+        { key: 'ssnit', title: 'SSNIT Contribution Report', description: selectedEmployee ? `Monthly SSNIT report for ${selectedEmployee.name}.` : 'Monthly report for filing with SSNIT for all employees.' },
+        { key: 'paye', title: 'PAYE Tax Report', description: selectedEmployee ? `Monthly PAYE report for ${selectedEmployee.name}.` : 'Monthly report for filing with the GRA for all employees.' },
+        { key: 'attendance', title: 'Attendance Summary', description: selectedEmployee ? `Work hours summary for ${selectedEmployee.name}.` : 'Overview of employee work hours for the month for all employees.' },
+        { key: 'leave', title: 'Leave Balance Report', description: selectedEmployee ? `Leave balances for ${selectedEmployee.name}.` : 'Current leave balances for all employees.' },
     ];
 
     return (
@@ -61,6 +88,42 @@ const Reports = ({ currentUser }: ReportsProps) => {
             <div>
                 <h1 className="text-3xl font-bold text-gray-800">Reports</h1>
                 <p className="text-gray-500 mt-1">Generate and download company reports for compliance and management.</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow-lg">
+                <h2 className="text-xl font-bold text-gray-800 mb-4">Report Scope</h2>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-4 sm:space-y-0">
+                    <label htmlFor="employee-select" className="text-sm font-medium text-gray-700">
+                        Generate reports for:
+                    </label>
+                    <select
+                        id="employee-select"
+                        value={selectedEmployee?.id || ''}
+                        onChange={(e) => {
+                            const employeeId = e.target.value;
+                            const employee = employees.find(emp => emp.id === employeeId) || null;
+                            setSelectedEmployee(employee);
+                        }}
+                        className="w-full sm:flex-1 sm:max-w-md px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                        disabled={loadingEmployees}
+                    >
+                        <option value="">All Employees</option>
+                        {employees.map(employee => (
+                            <option key={employee.id} value={employee.id}>
+                                {employee.name}
+                            </option>
+                        ))}
+                    </select>
+                    {selectedEmployee && (
+                        <button
+                            onClick={() => setSelectedEmployee(null)}
+                            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 underline"
+                        >
+                            Clear Selection
+                        </button>
+                    )}
+                </div>
+                {loadingEmployees && <p className="text-sm text-gray-500 mt-2">Loading employees...</p>}
             </div>
 
             {error && (
