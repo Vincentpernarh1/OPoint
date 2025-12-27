@@ -133,7 +133,7 @@ const MobileMoneyPayroll = ({ currentUser }: MobileMoneyPayrollProps) => {
     const fetchPayableEmployees = async () => {
         setIsLoading(true);
         try {
-            const data = await api.getPayableEmployees(currentUser.tenantId);
+            const data = await api.getPayableEmployees(currentUser.tenantId!);
             if (Array.isArray(data)) {
                 setAllEmployees(data);
             } else {
@@ -280,7 +280,7 @@ const MobileMoneyPayroll = ({ currentUser }: MobileMoneyPayrollProps) => {
                 reason: u.reason
             }));
 
-            const results = await api.processPayroll(payload, password, currentUser.tenantId);
+            const results = await api.processPayroll(payload, password, currentUser.tenantId!);
             setPaymentResults(results as PaymentResult[]);
             setStep(4);
             
@@ -308,8 +308,8 @@ const MobileMoneyPayroll = ({ currentUser }: MobileMoneyPayrollProps) => {
     }
 
     return (
-        <div className="bg-white p-6 rounded-xl shadow-lg">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Mobile Money Payroll</h2>
+        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Mobile Money Payroll</h2>
             
             {step === 1 && (
                 <div>
@@ -344,10 +344,11 @@ const MobileMoneyPayroll = ({ currentUser }: MobileMoneyPayrollProps) => {
                                     </div>
                                 </div>
                             )}
-                            <h3 className="text-lg font-semibold mb-2">Select Employees to Pay</h3>
+                            <h3 className="text-base sm:text-lg font-semibold mb-2">Select Employees to Pay</h3>
                             <div className="overflow-x-auto border rounded-lg">
-                                <table className="w-full text-sm text-left">
-                                <thead className="bg-slate-50 text-gray-700">
+                                <div className="min-w-[800px]">
+                                    <table className="w-full text-sm text-left">
+                                    <thead className="bg-slate-50 text-gray-700">
                                         <tr>
                                             <th className="p-3 w-10"><input  title="Select All" type="checkbox" onChange={handleSelectAll} checked={selectedUserIds.size === pendingEmployees.filter(u => u.mobileMoneyNumber).length && pendingEmployees.filter(u => u.mobileMoneyNumber).length > 0} /></th>
                                             <th className="p-3">Employee</th>
@@ -419,6 +420,7 @@ const MobileMoneyPayroll = ({ currentUser }: MobileMoneyPayrollProps) => {
                                         )}
                                     </tbody>
                                 </table>
+                                </div>
                             </div>
                             <div className="mt-4 flex justify-between items-center">
                                 <p className="text-sm text-gray-600">
@@ -430,10 +432,11 @@ const MobileMoneyPayroll = ({ currentUser }: MobileMoneyPayrollProps) => {
                     ) : (
                         // PAID HISTORY TAB
                         <>
-                            <h3 className="text-lg font-semibold mb-2">Completed Transactions (This Month)</h3>
+                            <h3 className="text-base sm:text-lg font-semibold mb-2">Completed Transactions (This Month)</h3>
                             <div className="overflow-x-auto border rounded-lg">
-                                <table className="w-full text-sm text-left">
-                                    <thead className="bg-green-50 text-green-800">
+                                <div className="min-w-[700px]">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="bg-green-50 text-green-800">
                                         <tr>
                                             <th className="p-3">Employee</th>
                                             <th className="p-3">Date Paid</th>
@@ -463,6 +466,7 @@ const MobileMoneyPayroll = ({ currentUser }: MobileMoneyPayrollProps) => {
                                         )}
                                     </tbody>
                                 </table>
+                                </div>
                             </div>
                         </>
                     )}
@@ -517,8 +521,7 @@ const MobileMoneyPayroll = ({ currentUser }: MobileMoneyPayrollProps) => {
                                 })}
                             </tbody>
                         </table>
-                    </div>
-
+                                </div>
                     <div className="mt-6 flex justify-between">
                         <button onClick={() => setStep(1)} className="bg-gray-200 font-bold py-2 px-6 rounded-lg hover:bg-gray-300">Back</button>
                         <button onClick={() => setStep(3)} className="bg-primary text-white font-bold py-2 px-6 rounded-lg hover:bg-primary-hover">Proceed to Approval</button>

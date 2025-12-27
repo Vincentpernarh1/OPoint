@@ -31,7 +31,8 @@ const CameraModal = ({ onClose, onCapture }: CameraModalProps) => {
             } catch (err) {
                 console.error("Error accessing camera:", err);
                 if (isMounted) {
-                    setError(`Could not access the camera: ${err.message || 'Unknown error'}. Please check permissions and try again.`);
+                    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+                    setError(`Could not access the camera: ${errorMessage}. Please check permissions and try again.`);
                 }
             }
         };

@@ -61,7 +61,7 @@ const Reports = ({ currentUser }: ReportsProps) => {
             // Pass month and year to the API
             const data: any[] = await api.getReport(
                 reportType, 
-                currentUser.tenantId, 
+                currentUser.tenantId!, 
                 selectedEmployee?.id,
                 selectedMonth,
                 selectedYear
@@ -134,7 +134,7 @@ const Reports = ({ currentUser }: ReportsProps) => {
     return (
         <div className="space-y-8">
             <div>
-                <h1 className="text-3xl font-bold text-gray-800">Reports</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Reports</h1>
                 <p className="text-gray-500 mt-1">
                     {hasFullAccess 
                         ? 'Generate and download company reports for compliance and management.'
@@ -143,13 +143,14 @@ const Reports = ({ currentUser }: ReportsProps) => {
             </div>
 
             {/* Month/Year Filter - Available to all users */}
-            <div className="bg-white p-6 rounded-xl shadow-lg">
-                <h2 className="text-xl font-bold text-gray-800 mb-4">Report Period</h2>
+            <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-4">Report Period</h2>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-4 sm:space-y-0">
                     <label className="text-sm font-medium text-gray-700">
                         Select Month & Year:
                     </label>
                     <select
+                        title="Select Month"
                         value={selectedMonth}
                         onChange={(e) => setSelectedMonth(Number(e.target.value))}
                         className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
@@ -168,6 +169,7 @@ const Reports = ({ currentUser }: ReportsProps) => {
                         <option value={12}>December</option>
                     </select>
                     <select
+                        title="Select Year"
                         value={selectedYear}
                         onChange={(e) => setSelectedYear(Number(e.target.value))}
                         className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"

@@ -1121,10 +1121,10 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                     </div>
                 )}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-                    <div className="bg-white p-6 rounded-xl shadow-lg w-full">
+                    <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg w-full">
                         <div className="flex flex-col md:flex-row justify-between items-center mb-6 border-b pb-4">
                             <div className='text-center md:text-left'>
-                                <h2 className="text-2xl font-bold text-gray-800">Time Clock</h2>
+                                <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Time Clock</h2>
                                 <p className="text-gray-500">Log your work hours for today</p>
                             </div>
                            
@@ -1249,10 +1249,10 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                                                         {entry.photoUrl && (
                                                             <button 
                                                                 onClick={() => setPreviewImageUrl(entry.photoUrl!)} 
-                                                                className="flex items-center text-primary text-xs hover:underline"
+                                                                className="flex items-center justify-center text-primary text-xs hover:underline min-h-[44px] min-w-[44px] p-2"
                                                                 title="View photo"
                                                             >
-                                                                <CameraIcon className="h-3 w-3" />
+                                                                <CameraIcon className="h-4 w-4" />
                                                             </button>
                                                         )}
                                                         {entry.location && entry.location !== 'Location not available' && [UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS].includes(currentUser.role) && (

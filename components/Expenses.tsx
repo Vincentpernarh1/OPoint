@@ -74,8 +74,8 @@ const Expenses = ({ currentUser }: ExpensesProps) => {
         <>
             {notification && <Notification message={notification} type="success" onClose={() => setNotification(null)} />}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-4">Submit Expense Claim</h2>
+                <div className="lg:col-span-1 bg-white p-4 sm:p-6 rounded-xl shadow-lg">
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Submit Expense Claim</h2>
                     <form onSubmit={handleSubmit} className="space-y-4">
                          <div>
                             <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
@@ -98,8 +98,8 @@ const Expenses = ({ currentUser }: ExpensesProps) => {
                         <button type="submit" className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg transition-colors">Submit Claim</button>
                     </form>
                 </div>
-                 <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg">
-                    <h3 className="text-xl font-bold text-gray-800 mb-4">My Expense Claims</h3>
+                 <div className="lg:col-span-2 bg-white p-4 sm:p-6 rounded-xl shadow-lg">
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4">My Expense Claims</h3>
                     {loading ? (
                         <div className="text-center py-8">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>

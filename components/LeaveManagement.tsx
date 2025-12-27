@@ -415,8 +415,8 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                     {/* Request Form */}
-                    <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-4">Request Leave</h2>
+                    <div className="lg:col-span-1 bg-white p-4 sm:p-6 rounded-xl shadow-lg">
+                        <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Request Leave</h2>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
                                 <label htmlFor="leaveType" className="block text-sm font-medium text-gray-700">Leave Type</label>
