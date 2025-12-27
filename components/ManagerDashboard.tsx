@@ -80,9 +80,9 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
                 setLoadingPayout(true);
                 const users = await api.getUsers(currentUser.tenantId!);
                 
-                console.log('ManagerDashboard users data:', users);
-                console.log('Total users:', users.length);
-                console.log('Users with salaries:', users.filter(u => u.basicSalary > 0));
+                // console.log('ManagerDashboard users data:', users);
+                // console.log('Total users:', users.length);
+                // console.log('Users with salaries:', users.filter(u => u.basicSalary > 0));
                 
                 // Calculate total monthly payroll (sum of all basic salaries)
                 const totalPayout = users.reduce((sum, user) => {
