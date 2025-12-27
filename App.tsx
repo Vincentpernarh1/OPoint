@@ -490,9 +490,26 @@ const CompanyLayout = ({
     onMarkAnnouncementsAsRead: () => void,
     unreadNotificationCount: number
 }) => {
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+        // On mobile, sidebar should be collapsed by default
+        if (typeof window !== 'undefined') {
+            return window.innerWidth < 768;
+        }
+        return false; // Default for SSR
+    });
     const location = useLocation();
     const navigate = useNavigate();
+
+    // Handle window resize to update sidebar state
+    useEffect(() => {
+        const handleResize = () => {
+            const isMobile = window.innerWidth < 768;
+            setIsSidebarCollapsed(isMobile);
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     // Default modules for tenant-based system
     const defaultModules = {
