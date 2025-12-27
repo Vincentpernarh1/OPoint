@@ -3557,9 +3557,10 @@ async function sendPushNotification(userId, notificationData) {
 app.use(express.static(path.join(process.cwd(), 'dist')));
 
 // Handle client-side routing - serve index.html for all non-API routes
-app.use((req, res, next) => {
+app.get('*', (req, res) => {
+  // Skip API routes
   if (req.path.startsWith('/api')) {
-    return next();
+    return res.status(404).json({ error: 'API endpoint not found' });
   }
   res.sendFile(path.join(process.cwd(), 'dist', 'index.html'));
 });

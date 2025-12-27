@@ -141,7 +141,7 @@ const App = () => {
                         hireDate: userFromCookie?.hire_date ? new Date(userFromCookie?.hire_date) : new Date(),
                         mobileMoneyNumber: userFromCookie?.mobile_money_number || userFromCookie?.mobileMoneyNumber,
                     };
-                    console.log('[useEffect] Mapped appUser:', appUser);
+                    // console.log('[useEffect] Mapped appUser:', appUser);
 
                     if (isSuperAdmin) {
                         setCurrentUser(appUser);
@@ -358,7 +358,7 @@ const App = () => {
             hireDate: user?.hire_date ? new Date(user?.hire_date) : new Date(),
             mobileMoneyNumber: user?.mobile_money_number || user?.mobileMoneyNumber,
         };
-        console.log('[handleLogin] Mapped appUser:', appUser);
+        // console.log('[handleLogin] Mapped appUser:', appUser);
         setCurrentUser(appUser);
         if (!isSuperAdmin) {
             // Set tenant context
