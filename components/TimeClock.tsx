@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { TimeEntry, TimeEntryType, User, UserRole, Announcement, AdjustmentRequest, RequestStatus } from '../types';
 import { ADJUSTMENT_REQUESTS } from '../constants';
 import { MapPinIcon, ArrowUpRightIcon, ArrowDownLeftIcon, MegaphoneIcon, ClockIcon, XIcon, CameraIcon } from './Icons';
+import { Button } from './ui';
 import CameraModal from './CameraModal';
 import ImagePreviewModal from './ImagePreviewModal';
 import ManualAdjustmentModal from './ManualAdjustmentModal';
@@ -1138,20 +1139,27 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                                 {currentStatus.text}
                             </div>
                             <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
-                                <button 
-                                    onClick={() => handleClockAction(TimeEntryType.CLOCK_IN)} 
-                                    disabled={isClockedIn || isProcessing} 
-                                    className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg disabled:bg-gray-300 transition-colors"
+                                <Button
+                                    onClick={() => handleClockAction(TimeEntryType.CLOCK_IN)}
+                                    disabled={isClockedIn || isProcessing}
+                                    variant="primary"
+                                    size="lg"
+                                    fullWidth
+                                    isLoading={isProcessing && !isClockedIn}
+                                    className="!bg-green-500 hover:!bg-green-600 disabled:!bg-gray-300"
                                 >
-                                    {isProcessing && !isClockedIn ? 'Processing...' : 'Clock In'}
-                                </button>
-                                <button 
-                                    onClick={() => handleClockAction(TimeEntryType.CLOCK_OUT)} 
-                                    disabled={!isClockedIn || isProcessing} 
-                                    className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-lg disabled:bg-gray-300 transition-colors"
+                                    Clock In
+                                </Button>
+                                <Button
+                                    onClick={() => handleClockAction(TimeEntryType.CLOCK_OUT)}
+                                    disabled={!isClockedIn || isProcessing}
+                                    variant="destructive"
+                                    size="lg"
+                                    fullWidth
+                                    isLoading={isProcessing && isClockedIn}
                                 >
-                                    {isProcessing && isClockedIn ? 'Processing...' : 'Clock Out'}
-                                </button>
+                                    Clock Out
+                                </Button>
                             </div>
                             {locationError && <p className="text-red-500 text-xs mt-2 text-center">{locationError}</p>}
                         </div>
@@ -1281,19 +1289,21 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                                                 {adjustmentRequest.status === RequestStatus.PENDING && (
                                                     <>
                                                         <div className="h-4 w-px bg-amber-300"></div>
-                                                        <button 
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
                                                             onClick={() => handleCancelAdjustment(adjustmentRequest.id)}
-                                                            className="text-xs font-medium text-red-600 hover:underline flex items-center"
+                                                            leftIcon={<XIcon className="h-3 w-3" />}
+                                                            className="!text-red-600 hover:!text-red-700"
                                                         >
-                                                            <XIcon className="h-3 w-3 mr-1" />
                                                             Cancel Request
-                                                        </button>
+                                                        </Button>
                                                     </>
                                                 )}
                                             </div>
                                         ) : needed && !isLoadingAdjustments ? (
                                             <div className="text-right">
-                                                <button 
+                                                <Button
                                                     onClick={() => {
                                                         const dayEntries = day.entries.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
                                                         const clockIns = dayEntries.filter(e => e.type === TimeEntryType.CLOCK_IN).map(e => new Date(e.timestamp));
@@ -1305,11 +1315,12 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                                                             clockIn,
                                                             clockOut
                                                         });
-                                                    }} 
-                                                    className="text-sm bg-red-100 text-red-800 font-semibold py-2 px-4 rounded-lg hover:bg-red-200 transition-colors flex items-center justify-center ml-auto"
+                                                    }}
+                                                    size="sm"
+                                                    className="!bg-red-100 !text-red-800 hover:!bg-red-200 ml-auto"
                                                 >
-                                                    <span>Request Adjustment</span>
-                                                </button>
+                                                    Request Adjustment
+                                                </Button>
                                                 <p className="text-xs text-red-500 mt-1 font-medium">{reason}</p>
                                             </div>
                                         ) : isLoadingAdjustments ? (

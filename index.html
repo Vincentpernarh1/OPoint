@@ -7,47 +7,9 @@
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Vpena Opoint</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-            },
-            colors: {
-              primary: {
-                DEFAULT: '#4f46e5', // indigo-600
-                hover: '#4338ca',   // indigo-700
-                light: '#e0e7ff'   // indigo-100
-              },
-              secondary: '#10b981',
-              accent: '#f59e0b',
-            },
-            animation: {
-              'fade-in': 'fadeIn 0.3s ease-out forwards',
-              'fade-in-down': 'fadeInDown 0.3s ease-out forwards',
-            },
-            keyframes: {
-              fadeIn: {
-                '0%': { opacity: '0' },
-                '100%': { opacity: '1' },
-              },
-              fadeInDown: {
-                '0%': { opacity: '0', transform: 'translateY(-10px)' },
-                '100%': { opacity: '1', transform: 'translateY(0)' },
-              }
-            },
-            spacing: {
-              'safe-area-pb': 'env(safe-area-inset-bottom)',
-            }
-          }
-        }
-      }
-    </script>
   <script type="importmap">
 {
   "imports": {

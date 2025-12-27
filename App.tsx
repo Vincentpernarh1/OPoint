@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect, lazy, Suspense } from
 import { Routes, Route, Link, Navigate, useLocation, Outlet, useParams, useNavigate } from 'react-router-dom';
 import { User, UserRole, Company, Announcement, View } from './types';
 import {ANNOUNCEMENTS } from './constants';
+import { SkeletonDashboard } from './components/ui';
 
 // Import Components with lazy loading
 const Login = lazy(() => import('./components/Login'));
@@ -72,7 +73,6 @@ const App = () => {
 
     const fetchPendingApprovalsCount = useCallback(async () => {
         if (!currentUser?.tenantId || !PERMISSIONS['/approvals']?.includes(currentUser.role)) return;
-        console.log('[fetchPendingApprovalsCount] Using tenantId:', currentUser.tenantId);
         try {
             const [leaveData, adjustmentData, expenseData] = await Promise.all([
                 api.getLeaveRequests(currentUser.tenantId, { status: 'Pending' }),
@@ -142,7 +142,7 @@ const App = () => {
                         hireDate: userFromCookie?.hire_date ? new Date(userFromCookie?.hire_date) : new Date(),
                         mobileMoneyNumber: userFromCookie?.mobile_money_number || userFromCookie?.mobileMoneyNumber,
                     };
-                    console.log('[useEffect] Mapped appUser tenantId:', appUser.tenantId, 'from cookie:', userFromCookie?.tenantId, userFromCookie?.tenant_id);
+                    // console.log('[useEffect] Mapped appUser:', appUser);
 
                     if (isSuperAdmin) {
                         setCurrentUser(appUser);
@@ -406,7 +406,13 @@ const App = () => {
     }, [announcements, currentUser, pendingApprovalsCount]);
 
     if (isLoading) {
-        return <div className="h-screen w-screen flex items-center justify-center"><LogoIcon className="h-16 w-16 animate-pulse" /></div>;
+        return (
+            <div className="h-screen w-screen flex items-center justify-center bg-slate-100">
+                <div className="w-full max-w-7xl p-8">
+                    <SkeletonDashboard />
+                </div>
+            </div>
+        );
     }
 
     const companyRoles = [UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS, UserRole.EMPLOYEE];
@@ -431,7 +437,13 @@ const App = () => {
     };
 
     return (
-        <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center"><LogoIcon className="h-16 w-16 animate-pulse" /></div>}>
+        <Suspense fallback={
+            <div className="h-screen w-screen flex items-center justify-center bg-slate-100">
+                <div className="w-full max-w-7xl p-8">
+                    <SkeletonDashboard />
+                </div>
+            </div>
+        }>
             <Routes>
                 {/* AUTH ROUTES */}
                 <Route path="/login" element={currentUser ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />} />
@@ -554,7 +566,7 @@ const CompanyLayout = ({
                     ) : (
                         <>
                             <LogoIcon className="h-8 w-8" />
-                            <span className="text-xl font-bold text-gray-800 truncate">{currentUser.companyName || 'OPoint-P360'}</span>
+                            <span className="text-xl font-bold text-gray-800 truncate">{currentUser.companyName || 'OPoint'}</span>
                         </>
                     )}
                 </div>
@@ -602,6 +614,8 @@ const CompanyLayout = ({
 
     return (
         <div className="flex h-screen bg-slate-100 font-sans">
+            {/* return <UIShowcase /> */}
+
             {/* Mobile backdrop */}
             {!isSidebarCollapsed && (
                 <div

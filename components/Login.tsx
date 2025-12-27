@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LogoIcon, MailIcon, LockIcon } from './Icons';
+import { Button, Input } from './ui';
 import './Login.css';
 
 interface LoginProps {
@@ -188,23 +189,19 @@ const Login = ({ onLogin }: LoginProps) => {
                     </div>
                     <form onSubmit={handlePasswordChange} className="space-y-6">
                         <div>
-                            <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">New Password</label>
-                            <div className="mt-1 relative rounded-md shadow-sm">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <LockIcon className="h-5 w-5 text-gray-400" />
-                                </div>
-                                <input
-                                    id="newPassword"
-                                    name="newPassword"
-                                    type="password"
-                                    required
-                                    value={newPassword}
-                                    onChange={(e) => setNewPassword(e.target.value)}
-                                    onFocus={() => setShowPasswordRequirements(true)}
-                                    className="appearance-none block w-full px-3 py-2 pl-10 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-                                    placeholder="At least 8 characters"
-                                />
-                            </div>
+                            <Input
+                                variant="floating"
+                                label="New Password"
+                                id="newPassword"
+                                name="newPassword"
+                                type="password"
+                                required
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                onFocus={() => setShowPasswordRequirements(true)}
+                                leftIcon={<LockIcon className="h-5 w-5" />}
+                                placeholder="At least 8 characters"
+                            />
                             
                             {/* Password Strength Indicator */}
                             {newPassword && passwordStrength && (
@@ -249,27 +246,19 @@ const Login = ({ onLogin }: LoginProps) => {
                             )}
                         </div>
 
-                        <div>
-                            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">Confirm Password</label>
-                            <div className="mt-1 relative rounded-md shadow-sm">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <LockIcon className="h-5 w-5 text-gray-400" />
-                                </div>
-                                <input
-                                    id="confirmPassword"
-                                    name="confirmPassword"
-                                    type="password"
-                                    required
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className="appearance-none block w-full px-3 py-2 pl-10 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-                                    placeholder="Re-enter password"
-                                />
-                            </div>
-                            {confirmPassword && newPassword !== confirmPassword && (
-                                <p className="mt-1 text-xs text-red-600">Passwords do not match</p>
-                            )}
-                        </div>
+                        <Input
+                            variant="floating"
+                            label="Confirm Password"
+                            id="confirmPassword"
+                            name="confirmPassword"
+                            type="password"
+                            required
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            leftIcon={<LockIcon className="h-5 w-5" />}
+                            placeholder="Re-enter password"
+                            error={confirmPassword && newPassword !== confirmPassword ? "Passwords do not match" : undefined}
+                        />
                         
                         {error && (
                             <div className="bg-red-50 p-3 rounded-md animate-fade-in">
@@ -277,19 +266,16 @@ const Login = ({ onLogin }: LoginProps) => {
                             </div>
                         )}
 
-                        <div>
-                            <button
-                                type="submit"
-                                disabled={isLoading}
-                                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors disabled:bg-indigo-300"
-                            >
-                                {isLoading ? (
-                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                                ) : (
-                                    'Set Password & Login'
-                                )}
-                            </button>
-                        </div>
+                        <Button
+                            type="submit"
+                            variant="primary"
+                            size="lg"
+                            fullWidth
+                            isLoading={isLoading}
+                            disabled={isLoading}
+                        >
+                            Set Password & Login
+                        </Button>
                     </form>
                     <div className="mt-4 text-center">
                         <button
@@ -320,45 +306,33 @@ const Login = ({ onLogin }: LoginProps) => {
                     <p className="text-gray-500">Sign in to your workspace</p>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email Address</label>
-                        <div className="mt-1 relative rounded-md shadow-sm">
-                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <MailIcon className="h-5 w-5 text-gray-400" />
-                            </div>
-                            <input
-                                id="email"
-                                name="email"
-                                type="email"
-                                autoComplete="email"
-                                required
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="appearance-none block w-full px-3 py-2 pl-10 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-                                placeholder="you@company.com"
-                            />
-                        </div>
-                    </div>
+                    <Input
+                        variant="floating"
+                        label="Email Address"
+                        id="email"
+                        name="email"
+                        type="email"
+                        autoComplete="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        leftIcon={<MailIcon className="h-5 w-5" />}
+                        placeholder="you@company.com"
+                    />
 
-                    <div>
-                         <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
-                         <div className="mt-1 relative rounded-md shadow-sm">
-                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <LockIcon className="h-5 w-5 text-gray-400" />
-                            </div>
-                            <input
-                                id="password"
-                                name="password"
-                                type="password"
-                                autoComplete="current-password"
-                                required
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="appearance-none block w-full px-3 py-2 pl-10 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-                                placeholder="••••••••"
-                            />
-                        </div>
-                    </div>
+                    <Input
+                        variant="floating"
+                        label="Password"
+                        id="password"
+                        name="password"
+                        type="password"
+                        autoComplete="current-password"
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        leftIcon={<LockIcon className="h-5 w-5" />}
+                        placeholder="••••••••"
+                    />
                     
                     {error && (
                         <div className="bg-red-50 p-3 rounded-md animate-fade-in">
@@ -366,19 +340,16 @@ const Login = ({ onLogin }: LoginProps) => {
                         </div>
                     )}
 
-                    <div>
-                        <button
-                            type="submit"
-                            disabled={isLoading}
-                            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors disabled:bg-indigo-300"
-                        >
-                            {isLoading ? (
-                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                            ) : (
-                                'Sign In'
-                            )}
-                        </button>
-                    </div>
+                    <Button
+                        type="submit"
+                        variant="primary"
+                        size="lg"
+                        fullWidth
+                        isLoading={isLoading}
+                        disabled={isLoading}
+                    >
+                        Sign In
+                    </Button>
                 </form>
             </div>
         </div>

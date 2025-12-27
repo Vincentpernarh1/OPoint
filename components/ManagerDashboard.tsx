@@ -3,6 +3,7 @@ import { User, View, RequestStatus, Announcement } from '../types';
 import { USERS, LEAVE_REQUESTS, ADJUSTMENT_REQUESTS, EXPENSE_REQUESTS, PROFILE_UPDATE_REQUESTS, ANNOUNCEMENTS } from '../constants';
 import { UsersGroupIcon, CheckSquareIcon, MegaphoneIcon, DollarSignIcon } from './Icons';
 import { api } from '../services/api';
+import { Skeleton, Button } from './ui';
 
 interface ManagerDashboardProps {
     currentUser: User;
@@ -115,12 +116,16 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
         return announcements.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
     }, [announcements]);
 
-    const StatCard = ({ title, value, icon: Icon, linkTo }: { title: string, value: string | number, icon: React.FC<{className?: string}>, linkTo: View }) => (
+    const StatCard = ({ title, value, icon: Icon, linkTo, isLoading }: { title: string, value: string | number, icon: React.FC<{className?: string}>, linkTo: View, isLoading?: boolean }) => (
         <button onClick={() => onViewChange(linkTo)} className="bg-white p-6 rounded-xl shadow-lg w-full text-left hover:shadow-xl hover:border-primary border-2 border-transparent transition-all">
             <div className="flex items-center justify-between">
-                <div>
+                <div className="flex-1">
                     <p className="text-sm font-medium text-gray-500">{title}</p>
-                    <p className="text-3xl font-bold text-gray-800">{value}</p>
+                    {isLoading ? (
+                        <Skeleton className="h-9 w-32 mt-2" />
+                    ) : (
+                        <p className="text-3xl font-bold text-gray-800">{value}</p>
+                    )}
                 </div>
                 <div className="bg-primary-light text-primary p-3 rounded-full">
                     <Icon className="h-7 w-7" />
@@ -137,9 +142,9 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <StatCard title="Total Employees" value={loadingEmployees ? '...' : employeeCount} icon={UsersGroupIcon} linkTo="employees" />
-                <StatCard title="Pending Approvals" value={loadingApprovals ? '...' : pendingApprovalsCount} icon={CheckSquareIcon} linkTo="approvals" />
-                <StatCard title="Monthly Payout" value={loadingPayout ? '...' : `GHS ${totalMonthlyPayout.toLocaleString()}`} icon={DollarSignIcon} linkTo="payslips" />
+                <StatCard title="Total Employees" value={employeeCount} icon={UsersGroupIcon} linkTo="employees" isLoading={loadingEmployees} />
+                <StatCard title="Pending Approvals" value={pendingApprovalsCount} icon={CheckSquareIcon} linkTo="approvals" isLoading={loadingApprovals} />
+                <StatCard title="Monthly Payout" value={`GHS ${totalMonthlyPayout.toLocaleString()}`} icon={DollarSignIcon} linkTo="payslips" isLoading={loadingPayout} />
             </div>
             
              {latestAnnouncement && (
@@ -151,7 +156,13 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
                             <div className="ml-4 flex-1">
                                 <div className="flex justify-between items-center">
                                     <p className="font-bold">{latestAnnouncement.title}</p>
-                                    <button onClick={() => onViewChange('announcements')} className="text-sm font-medium text-primary hover:underline">View All</button>
+                                    <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        onClick={() => onViewChange('announcements')}
+                                    >
+                                        View All
+                                    </Button>
                                 </div>
                                 <p className="text-sm mt-1">{latestAnnouncement.content}</p>
                             </div>
