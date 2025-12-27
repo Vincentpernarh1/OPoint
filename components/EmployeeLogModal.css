@@ -1,0 +1,5 @@
+/* EmployeeLogModal.css */
+
+.employee-log-modal-scroll {
+  max-height: calc(90vh - 120px);
+}

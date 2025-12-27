@@ -5,6 +5,7 @@ import { User, TimeEntry, TimeEntryType } from '../types';
 import { XIcon, CameraIcon, MapPinIcon } from './Icons';
 import ImagePreviewModal from './ImagePreviewModal';
 import { api } from '../services/api';
+import './EmployeeLogModal.css';
 
 const formatDuration = (ms: number, withSign = false) => {
     if (isNaN(ms)) return "00:00:00";
@@ -191,7 +192,7 @@ const EmployeeLogModal = ({ user, date, onClose, adjustment }: EmployeeLogModalP
                         <XIcon className="h-6 w-6"/>
                     </button>
                     <h3 className="text-lg sm:text-xl font-bold mb-2 sm:mb-4 text-gray-800">{title}</h3>
-                    <div className="overflow-y-auto" style={{ maxHeight: 'calc(90vh - 120px)' }}>
+                    <div className="overflow-y-auto employee-log-modal-scroll">
                     {adjustment && (
                         <div className="mb-2 sm:mb-4 p-2 sm:p-4 bg-blue-50 rounded-md border">
                             <h4 className="font-semibold text-gray-800 mb-2 text-sm sm:text-base">Time Adjustment Request</h4>
