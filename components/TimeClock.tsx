@@ -561,6 +561,32 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
         return todayHistory ? todayHistory.summary : { worked: 0, balance: -8 * 3600 * 1000 };
     }, [dailyWorkHistory, time]);
 
+    const monthlyWorkHistory = useMemo(() => {
+        const months = dailyWorkHistory.reduce((acc, day) => {
+            const monthKey = `${day.date.getFullYear()}-${(day.date.getMonth() + 1).toString().padStart(2, '0')}`;
+            if (!acc[monthKey]) {
+                acc[monthKey] = { totalWorked: 0, days: [] };
+            }
+            acc[monthKey].totalWorked += day.summary.worked;
+            acc[monthKey].days.push(day);
+            return acc;
+        }, {} as Record<string, { totalWorked: number, days: typeof dailyWorkHistory }>);
+
+        return Object.keys(months)
+            .map(monthKey => ({
+                month: monthKey,
+                totalWorked: months[monthKey].totalWorked,
+                days: months[monthKey].days
+            }))
+            .sort((a, b) => b.month.localeCompare(a.month)); // Sort by month descending
+    }, [dailyWorkHistory]);
+
+    const currentMonthTotal = useMemo(() => {
+        const currentMonth = `${time.getFullYear()}-${(time.getMonth() + 1).toString().padStart(2, '0')}`;
+        const monthData = monthlyWorkHistory.find(m => m.month === currentMonth);
+        return monthData ? monthData.totalWorked : 0;
+    }, [monthlyWorkHistory, time]);
+
     useEffect(() => {
         const loadTimeEntries = async () => {
             try {
@@ -1069,13 +1095,14 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                         </div>
                     </div>
                 )}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                     <div className="bg-white p-6 rounded-xl shadow-lg w-full">
                         <div className="flex flex-col md:flex-row justify-between items-center mb-6 border-b pb-4">
                             <div className='text-center md:text-left'>
                                 <h2 className="text-2xl font-bold text-gray-800">Time Clock</h2>
                                 <p className="text-gray-500">Log your work hours for today</p>
                             </div>
+                           
                             <div className="text-center md:text-right mt-4 md:mt-0">
                                 <div className="text-4xl font-bold text-primary">{time.toLocaleTimeString()}</div>
                                 <div className="text-gray-500">{time.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
@@ -1126,6 +1153,14 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                                     className="progress-bar-fill"
                                 ></div>
                             </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-xl shadow-lg w-full space-y-6">
+                        <h3 className="text-xl font-bold text-gray-800 border-b pb-3">Monthly Summary</h3>
+                        <div className='text-center'>
+                            <p className="text-sm text-gray-500 uppercase tracking-wider">Total Hours This Month</p>
+                            <p className="text-4xl font-bold text-primary">{formatDuration(currentMonthTotal)}</p>
                         </div>
                     </div>
                 </div>
@@ -1265,6 +1300,24 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                             );
                         }) : (
                             <p className="text-gray-500 text-center py-8">No work history found.</p>
+                        )}
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-lg w-full">
+                    <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-3">Monthly Work History</h3>
+                    <div className="space-y-4 max-h-[40rem] overflow-y-auto pr-2">
+                        {monthlyWorkHistory.length > 0 ? monthlyWorkHistory.map(month => (
+                            <div key={month.month} className="border-b pb-4 last:border-b-0">
+                                <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg">
+                                    <h4 className="font-bold text-lg text-gray-700">
+                                        {new Date(month.month + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
+                                    </h4>
+                                    <p className="font-bold text-gray-800">{formatDuration(month.totalWorked)}</p>
+                                </div>
+                            </div>
+                        )) : (
+                            <p className="text-gray-500 text-center py-8">No monthly history found.</p>
                         )}
                     </div>
                 </div>
