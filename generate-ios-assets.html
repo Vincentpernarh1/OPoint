@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate iOS PWA Assets</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #4f46e5;
+            margin-bottom: 20px;
+        }
+        .instructions {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #4338ca;
+        }
+        #progress {
+            margin-top: 20px;
+            padding: 10px;
+            background: #e7f5ff;
+            border-radius: 5px;
+            display: none;
+        }
+        canvas {
+            display: none;
+        }
+        .asset-list {
+            margin-top: 20px;
+        }
+        .asset-item {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍎 Generate iOS PWA Assets</h1>
+        
+        <div class="instructions">
+            <h3>Instructions:</h3>
+            <ol>
+                <li>This tool will generate all required iOS icons and splash screens</li>
+                <li>Click "Generate All Assets" below</li>
+                <li>Each asset will be automatically downloaded to your Downloads folder</li>
+                <li>Move all downloaded files to the <code>/public</code> folder of your project</li>
+            </ol>
+        </div>
+
+        <button onclick="generateAllAssets()">Generate All Assets</button>
+        
+        <div id="progress"></div>
+        
+        <div class="asset-list">
+            <h3>Assets to Generate:</h3>
+            <div id="assetList"></div>
+        </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const icons = [
+            { name: 'apple-touch-icon.png', size: 180 },
+            { name: 'apple-touch-icon-152x152.png', size: 152 },
+            { name: 'apple-touch-icon-180x180.png', size: 180 },
+            { name: 'apple-touch-icon-167x167.png', size: 167 }
+        ];
+
+        const splashScreens = [
+            { name: 'apple-splash-2048-2732.png', width: 2048, height: 2732 },
+            { name: 'apple-splash-1668-2388.png', width: 1668, height: 2388 },
+            { name: 'apple-splash-1536-2048.png', width: 1536, height: 2048 },
+            { name: 'apple-splash-1488-2266.png', width: 1488, height: 2266 },
+            { name: 'apple-splash-1640-2360.png', width: 1640, height: 2360 },
+            { name: 'apple-splash-1284-2778.png', width: 1284, height: 2778 },
+            { name: 'apple-splash-1170-2532.png', width: 1170, height: 2532 },
+            { name: 'apple-splash-1125-2436.png', width: 1125, height: 2436 },
+            { name: 'apple-splash-1242-2688.png', width: 1242, height: 2688 },
+            { name: 'apple-splash-828-1792.png', width: 828, height: 1792 },
+            { name: 'apple-splash-1242-2208.png', width: 1242, height: 2208 },
+            { name: 'apple-splash-750-1334.png', width: 750, height: 1334 },
+            { name: 'apple-splash-640-1136.png', width: 640, height: 1136 }
+        ];
+
+        function displayAssetList() {
+            const list = document.getElementById('assetList');
+            const all = [...icons, ...splashScreens];
+            list.innerHTML = all.map(asset => 
+                `<div class="asset-item">${asset.name} ${asset.size ? `(${asset.size}x${asset.size})` : `(${asset.width}x${asset.height})`}</div>`
+            ).join('');
+        }
+
+        function createIcon(size) {
+            const canvas = document.getElementById('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            // Background
+            ctx.fillStyle = '#4f46e5';
+            ctx.fillRect(0, 0, size, size);
+            
+            // Logo - Simple "V" design
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${size * 0.6}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('V', size / 2, size / 2);
+            
+            return canvas;
+        }
+
+        function createSplash(width, height) {
+            const canvas = document.getElementById('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            
+            // Background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Logo area
+            const logoSize = Math.min(width, height) * 0.3;
+            const x = (width - logoSize) / 2;
+            const y = (height - logoSize) / 2;
+            
+            // Logo background
+            ctx.fillStyle = '#4f46e5';
+            ctx.beginPath();
+            ctx.arc(width / 2, height / 2, logoSize / 2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Logo text
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${logoSize * 0.6}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('V', width / 2, height / 2);
+            
+            // App name
+            ctx.fillStyle = '#4f46e5';
+            ctx.font = `${logoSize * 0.15}px Arial`;
+            ctx.fillText('Vpena OnPoint', width / 2, height / 2 + logoSize);
+            
+            return canvas;
+        }
+
+        function downloadCanvas(canvas, filename) {
+            return new Promise((resolve) => {
+                canvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    setTimeout(resolve, 100);
+                });
+            });
+        }
+
+        async function generateAllAssets() {
+            const progress = document.getElementById('progress');
+            progress.style.display = 'block';
+            progress.innerHTML = 'Generating assets...';
+            
+            // Generate icons
+            for (const icon of icons) {
+                progress.innerHTML = `Generating ${icon.name}...`;
+                const canvas = createIcon(icon.size);
+                await downloadCanvas(canvas, icon.name);
+            }
+            
+            // Generate splash screens
+            for (const splash of splashScreens) {
+                progress.innerHTML = `Generating ${splash.name}...`;
+                const canvas = createSplash(splash.width, splash.height);
+                await downloadCanvas(canvas, splash.name);
+            }
+            
+            progress.innerHTML = `✅ All ${icons.length + splashScreens.length} assets generated! Check your Downloads folder and move them to /public`;
+        }
+
+        displayAssetList();
+    </script>
+</body>
+</html>
