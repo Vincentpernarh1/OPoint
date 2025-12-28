@@ -83,10 +83,13 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     );
     
     if (variant === 'floating') {
+      // Extract placeholder from props to prevent it from showing
+      const { placeholder, ...inputProps } = props;
+      
       return (
         <div className="relative">
           {leftIcon && (
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10">
               {leftIcon}
             </div>
           )}
@@ -96,29 +99,33 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             type={inputType}
             className={`${combinedInputClassName} peer`}
-            placeholder=" "
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            {...props}
+            {...inputProps}
           />
           
           {label && (
             <label
               htmlFor={inputId}
               className={`
-                absolute left-4 transition-all duration-200 pointer-events-none
+                absolute transition-all duration-200 pointer-events-none z-10
                 ${leftIcon ? 'left-12' : 'left-4'}
-                ${isFocused || hasValue || props.placeholder
+                ${isFocused || hasValue
                   ? 'top-2 text-xs text-gray-500'
                   : 'top-1/2 -translate-y-1/2 text-base text-gray-400'
                 }
                 peer-focus:top-2 peer-focus:text-xs peer-focus:text-primary-600
-                peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base
-                peer-[:not(:placeholder-shown)]:top-2 peer-[:not(:placeholder-shown)]:text-xs
               `}
             >
               {label}
             </label>
+          )}
+          
+          {/* Show placeholder only when focused and label is raised */}
+          {placeholder && (isFocused || hasValue) && (
+            <div className={`absolute bottom-2 text-sm text-gray-400 pointer-events-none ${leftIcon ? 'left-12' : 'left-4'}`}>
+              {!hasValue && placeholder}
+            </div>
           )}
           
           {isPasswordField && <PasswordToggle />}
