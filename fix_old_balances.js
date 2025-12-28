@@ -21,7 +21,7 @@ async function migrateAndFixBalances() {
             .select('*');
 
         if (usersError) {
-            console.error('Error fetching users:', usersError);
+            // console.error('Error fetching users:', usersError);
             return;
         }
 
