@@ -443,16 +443,22 @@ function calculateNetPay(basicSalary, userId, payDate, workingHoursPerDay = 8.00
         paye = 1000 * 0.05 + 1000 * 0.10 + 1000 * 0.175 + (taxableIncome - 6828) * 0.25;
     }
 
-    // Calculate deduction for hours not worked
+    // Note: Hours-based pay adjustment is already reflected in grossPay
+    // No need to add as separate deduction (would be double-counting)
     const otherDeductions = [];
+
+    // Calculate hours deduction for DISPLAY ONLY (informational)
+    // This shows how much was deducted from basic salary, but doesn't affect net pay
+    let hoursDeduction = null;
     if (actualHoursWorked !== null && actualHoursWorked >= 0 && expectedHoursThisMonth > 0) {
         const hoursShortfall = expectedHoursThisMonth - actualHoursWorked;
         if (hoursShortfall > 0) {
             const deductionAmount = hourlyRate * hoursShortfall;
-            otherDeductions.push({
-                description: `Hours not worked (${hoursShortfall.toFixed(2)} hours)`,
-                amount: deductionAmount
-            });
+            hoursDeduction = {
+                hours: hoursShortfall,
+                amount: deductionAmount,
+                description: `Hours not worked (${hoursShortfall.toFixed(2)} hours)`
+            };
         }
     }
 
@@ -468,6 +474,7 @@ function calculateNetPay(basicSalary, userId, payDate, workingHoursPerDay = 8.00
         ssnitEmployee,
         paye,
         otherDeductions,
+        hoursDeduction,
         hourlyRate,
         expectedHoursThisMonth,
         actualHoursWorked,
@@ -981,91 +988,6 @@ app.post('/api/auth/validate-password', async (req, res) => {
     }
 });
 
-// Get current user session (reads HttpOnly cookies)
-app.get('/api/auth/me', async (req, res) => {
-    try {
-        // Check if user_session cookie exists
-        const userSessionCookie = req.cookies.user_session;
-        const authTokenCookie = req.cookies.auth_token;
-
-        if (!userSessionCookie || !authTokenCookie) {
-            return res.json({
-                success: false,
-                authenticated: false,
-                user: null
-            });
-        }
-
-        // Parse user session data
-        let userSession;
-        try {
-            userSession = JSON.parse(userSessionCookie);
-        } catch (parseError) {
-            console.error('Failed to parse user session cookie:', parseError);
-            return res.json({
-                success: false,
-                authenticated: false,
-                user: null
-            });
-        }
-
-        // Validate session data
-        if (!userSession || !userSession.id || !userSession.email) {
-            return res.json({
-                success: false,
-                authenticated: false,
-                user: null
-            });
-        }
-
-        // Set tenant context first (required for getUserById)
-        if (userSession.tenant_id) {
-            setTenantContext(userSession.tenant_id, userSession.id);
-        }
-
-        // Verify user still exists in database
-        const { data: dbUser, error } = await db.getUserById(userSession.id);
-
-        if (error || !dbUser) {
-            console.log('User session invalid - user not found in database');
-            // Clear invalid cookies
-            const isProduction = process.env.NODE_ENV === 'production';
-            const cookieOptions = {
-                httpOnly: true,
-                secure: isProduction,
-                sameSite: 'strict',
-                path: '/',
-                maxAge: 0
-            };
-            res.clearCookie('user_session', cookieOptions);
-            res.clearCookie('auth_token', cookieOptions);
-
-            return res.json({
-                success: false,
-                authenticated: false,
-                user: null
-            });
-        }
-
-        // Return user data (without sensitive fields)
-        const { password_hash, temporary_password, ...userWithoutPassword } = dbUser;
-
-        res.json({
-            success: true,
-            authenticated: true,
-            user: userWithoutPassword
-        });
-
-    } catch (error) {
-        console.error('Session check error:', error);
-        res.status(500).json({
-            success: false,
-            authenticated: false,
-            user: null,
-            error: 'Session check failed'
-        });
-    }
-});
 
 // Initialize user password (for admin creating test user)
 app.post('/api/auth/initialize-password', async (req, res) => {
@@ -1200,7 +1122,7 @@ app.get('/api/users', async (req, res) => {
         const users = await getUsers();
         res.json({ success: true, data: users });
     } catch (error) {
-        console.error('Error fetching users:', error);
+        // console.error('Error fetching users:', error);
         res.status(500).json({ 
             success: false, 
             error: 'Failed to fetch users' 
@@ -1221,7 +1143,7 @@ app.get('/api/users/:id', async (req, res) => {
 
         res.json({ success: true, data: user });
     } catch (error) {
-        console.error('Error fetching user:', error);
+        // console.error('Error fetching user:', error);
         res.status(500).json({ 
             success: false, 
             error: 'Failed to fetch user' 
@@ -2127,7 +2049,7 @@ app.get('/api/payslips/:userId/:date', async (req, res) => {
         const { userId, date } = req.params;
         const tenantId = req.headers['x-tenant-id'];
 
-        console.log('Payslip request:', { userId, date, tenantId });
+        // console.log('Payslip request:', { userId, date, tenantId });
 
         if (!tenantId) {
             return res.status(400).json({
@@ -2146,10 +2068,10 @@ app.get('/api/payslips/:userId/:date', async (req, res) => {
         }
 
         // Get employee data from opoint_users table using database service
-        console.log('Fetching user:', userId);
+        // console.log('Fetching user:', userId);
         const { data: employee, error: employeeError } = await db.getUserById(userId);
 
-        console.log('User fetch result:', { employee, error: employeeError });
+        // console.log('User fetch result:', { employee, error: employeeError });
 
         if (employeeError || !employee) {
             return res.status(404).json({
@@ -2160,7 +2082,6 @@ app.get('/api/payslips/:userId/:date', async (req, res) => {
 
         const basicSalary = parseFloat(employee.basicSalary) || 0;
 
-        console.log('Employee salary:', basicSalary);
 
         // Check if employee has salary set
         if (basicSalary === 0) {
@@ -2258,6 +2179,7 @@ app.get('/api/payslips/:userId/:date', async (req, res) => {
             ssnitEmployee: ssnitEmployee,
             paye: paye,
             otherDeductions: otherDeductions,
+            hoursDeduction: payCalculation.hoursDeduction,
             ssnitEmployer: ssnitEmployer,
             ssnitTier1: ssnitTier1,
             ssnitTier2: ssnitTier2

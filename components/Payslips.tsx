@@ -53,7 +53,7 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                 let payslipHistory = history.map(record => ({
                     id: record.id,
                     userId: record.user_id,
-                    payDate: record.created_at,
+                    payDate: new Date(record.created_at),
                     payPeriodStart: new Date(record.created_at), // Approximate
                     payPeriodEnd: new Date(record.created_at),
                     basicSalary: record.amount, // This is net pay, but we'll use it as reference
@@ -65,7 +65,7 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                     const currentMonthEntry = {
                         id: `${employee.id}_${currentDate.toISOString().split('T')[0]}`,
                         userId: employee.id,
-                        payDate: currentDate.toISOString(),
+                        payDate: currentDate,
                         payPeriodStart: new Date(currentDate.getFullYear(), currentDate.getMonth(), 1),
                         payPeriodEnd: currentDate,
                         basicSalary: employee.basicSalary || 0,
@@ -84,7 +84,7 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                 const fallbackEntry = {
                     id: `${employee.id}_${currentDate.toISOString().split('T')[0]}`,
                     userId: employee.id,
-                    payDate: currentDate.toISOString(),
+                    payDate: currentDate,
                     payPeriodStart: new Date(currentDate.getFullYear(), currentDate.getMonth(), 1),
                     payPeriodEnd: currentDate,
                     basicSalary: employee.basicSalary || 0,
@@ -237,6 +237,15 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                             <div>
                                 <h3 className="text-xl font-semibold text-gray-800 mb-3 border-b pb-2">Earnings</h3>
                                 <div className="flex justify-between items-center text-sm p-2"><p className="text-gray-600">Basic Salary</p><p className="font-medium text-gray-800">{formatCurrency(payslipData.basicSalary)}</p></div>
+                                {payslipData.hoursDeduction && (
+                                    <div className="flex justify-between items-center text-sm p-2 bg-orange-50 border border-orange-200 rounded-md mt-2">
+                                        <p className="text-orange-700 text-xs">
+                                            <span className="font-medium">Deduction from Basic Salary:</span><br/>
+                                            {payslipData.hoursDeduction.description}
+                                        </p>
+                                        <p className="font-medium text-orange-700">-{formatCurrency(payslipData.hoursDeduction.amount)}</p>
+                                    </div>
+                                )}
                                 <div className="flex justify-between items-center text-sm p-2 mt-2 border-t-2 font-bold"><p className="text-gray-800">Total Earnings (Gross Pay)</p><p className="text-gray-900">{formatCurrency(payslipData.grossPay)}</p></div>
                             </div>
                             <div>

@@ -128,6 +128,12 @@ export interface Payslip {
     paye: number;
     // Flexible Deductions
     otherDeductions: Deduction[];
+    // Informational (not included in actual deductions)
+    hoursDeduction?: {
+        hours: number;
+        amount: number;
+        description: string;
+    } | null;
     // Employer Contributions (for reporting)
     ssnitEmployer: number; // 13%
     ssnitTier1: number; // 13.5% of applicable salary (goes to SSNIT)
