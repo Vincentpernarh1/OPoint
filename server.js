@@ -443,11 +443,22 @@ function calculateNetPay(basicSalary, userId, payDate, workingHoursPerDay = 8.00
         paye = 1000 * 0.05 + 1000 * 0.10 + 1000 * 0.175 + (taxableIncome - 6828) * 0.25;
     }
 
-    // For now, we'll assume no additional deductions from payroll history
-    const otherDeductions = 0;
+    // Calculate deduction for hours not worked
+    const otherDeductions = [];
+    if (actualHoursWorked !== null && actualHoursWorked >= 0 && expectedHoursThisMonth > 0) {
+        const hoursShortfall = expectedHoursThisMonth - actualHoursWorked;
+        if (hoursShortfall > 0) {
+            const deductionAmount = hourlyRate * hoursShortfall;
+            otherDeductions.push({
+                description: `Hours not worked (${hoursShortfall.toFixed(2)} hours)`,
+                amount: deductionAmount
+            });
+        }
+    }
 
     // Calculate totals
-    const totalDeductions = ssnitEmployee + paye + otherDeductions;
+    const totalOtherDeductions = otherDeductions.reduce((sum, d) => sum + d.amount, 0);
+    const totalDeductions = ssnitEmployee + paye + totalOtherDeductions;
     const netPay = grossPay - totalDeductions;
 
     return {
@@ -470,25 +481,28 @@ async function calculateHoursWorked(userId, tenantId, payDate) {
         const currentMonth = payDate.getMonth();
         const currentYear = payDate.getFullYear();
 
-        // Get time entries for the current month
-        const { data: timeEntries, error } = await db.getTimeEntries({
-            userId,
-            tenantId,
-            month: currentMonth + 1,
-            year: currentYear
-        });
+        // Get clock logs for the user
+        const { data: clockLogs, error } = await db.getClockLogs(userId);
 
-        if (error || !timeEntries) {
-            console.log(`No time entries found for user ${userId}, using default hours`);
+        if (error || !clockLogs || clockLogs.length === 0) {
+            console.log(`No clock logs found for user ${userId}, using default hours`);
             return null; // Return null to use default salary calculation
         }
 
         let totalHoursWorked = 0;
 
-        // Group entries by date
+        // Group entries by date and calculate hours
+        // Note: Approved adjustments already have clock_in/clock_out updated in the database
         const entriesByDate = {};
-        timeEntries.forEach(entry => {
-            const dateKey = new Date(entry.timestamp).toDateString();
+        clockLogs.forEach(entry => {
+            // Skip entries without both clock_in and clock_out
+            if (!entry.clock_in || !entry.clock_out) return;
+            
+            const clockInDate = new Date(entry.clock_in);
+            // Filter for current month
+            if (clockInDate.getMonth() !== currentMonth || clockInDate.getFullYear() !== currentYear) return;
+            
+            const dateKey = clockInDate.toDateString();
             if (!entriesByDate[dateKey]) {
                 entriesByDate[dateKey] = [];
             }
@@ -497,44 +511,16 @@ async function calculateHoursWorked(userId, tenantId, payDate) {
 
         // Calculate hours for each day
         Object.keys(entriesByDate).forEach(dateKey => {
-            const dayEntries = entriesByDate[dateKey].sort((a, b) =>
-                new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-            );
-
-            const clockIns = dayEntries.filter(e => e.type === 'clock_in').map(e => new Date(e.timestamp));
-            const clockOuts = dayEntries.filter(e => e.type === 'clock_out').map(e => new Date(e.timestamp));
-
-            if (clockIns.length > 0 && clockOuts.length > 0) {
-                const earliestIn = new Date(Math.min(...clockIns.map(d => d.getTime())));
-                const latestOut = new Date(Math.max(...clockOuts.map(d => d.getTime())));
-                const hoursWorked = (latestOut.getTime() - earliestIn.getTime()) / (1000 * 60 * 60);
+            const dayEntries = entriesByDate[dateKey];
+            
+            // For each day, sum all the clock in/out pairs
+            dayEntries.forEach(entry => {
+                const clockIn = new Date(entry.clock_in);
+                const clockOut = new Date(entry.clock_out);
+                const hoursWorked = (clockOut.getTime() - clockIn.getTime()) / (1000 * 60 * 60);
                 totalHoursWorked += hoursWorked;
-            }
-        });
-
-        // Check for approved time adjustments
-        const { data: adjustments } = await db.getTimeAdjustmentRequests({
-            userId,
-            status: 'Approved'
-        });
-
-        if (adjustments && adjustments.length > 0) {
-            // Filter adjustments for current month
-            const monthAdjustments = adjustments.filter(adj => {
-                const adjDate = new Date(adj.requested_clock_in);
-                return adjDate.getMonth() === currentMonth && adjDate.getFullYear() === currentYear;
             });
-
-            // Add adjustment hours
-            monthAdjustments.forEach(adj => {
-                if (adj.adjustment_type === 'add') {
-                    const requestedIn = new Date(adj.requested_clock_in);
-                    const requestedOut = new Date(adj.requested_clock_out);
-                    const adjustmentHours = (requestedOut.getTime() - requestedIn.getTime()) / (1000 * 60 * 60);
-                    totalHoursWorked += adjustmentHours;
-                }
-            });
-        }
+        });
 
         return totalHoursWorked;
 
@@ -2190,30 +2176,35 @@ app.get('/api/payslips/:userId/:date', async (req, res) => {
         const payPeriodEnd = new Date(payDate);
         const payPeriodStart = new Date(payPeriodEnd.getFullYear(), payPeriodEnd.getMonth() - 1, payPeriodEnd.getDate() + 1);
 
-        // Calculate SSNIT contributions
-        const ssnitEmployee = basicSalary * 0.055; // 5.5%
-        const ssnitEmployer = basicSalary * 0.13;  // 13%
-
-        // SSNIT tiers (for reporting)
-        const applicableSalary = Math.min(basicSalary, 1500); // SSNIT ceiling
-        const ssnitTier1 = applicableSalary * 0.135; // 13.5% to SSNIT
-        const ssnitTier2 = applicableSalary * 0.05;  // 5% to private fund
-
-        // Calculate PAYE tax (Ghana tax brackets)
-        let paye = 0;
-        const taxableIncome = basicSalary; // Assuming no other deductions for simplicity
-
-        if (taxableIncome <= 3828) {
-            paye = 0;
-        } else if (taxableIncome <= 4828) {
-            paye = (taxableIncome - 3828) * 0.05;
-        } else if (taxableIncome <= 5828) {
-            paye = 1000 * 0.05 + (taxableIncome - 4828) * 0.10;
-        } else if (taxableIncome <= 6828) {
-            paye = 1000 * 0.05 + 1000 * 0.10 + (taxableIncome - 5828) * 0.175;
-        } else {
-            paye = 1000 * 0.05 + 1000 * 0.10 + 1000 * 0.175 + (taxableIncome - 6828) * 0.25;
+        // Get company working hours
+        let workingHoursPerDay = 8.00; // Default
+        try {
+            const adminClient = getSupabaseAdminClient();
+            if (adminClient) {
+                const { data: company } = await adminClient
+                    .from('opoint_companies')
+                    .select('working_hours_per_day')
+                    .eq('id', tenantId)
+                    .single();
+                if (company && company.working_hours_per_day) {
+                    workingHoursPerDay = company.working_hours_per_day;
+                }
+            }
+        } catch (error) {
+            console.log('Could not fetch company working hours, using default:', error.message);
         }
+
+        // Calculate actual hours worked for this user (includes approved adjustments)
+        const actualHoursWorked = await calculateHoursWorked(userId, tenantId, payDate);
+
+        // Use calculateNetPay function which handles hours-based calculation
+        const payCalculation = calculateNetPay(
+            basicSalary,
+            userId,
+            payDate,
+            workingHoursPerDay,
+            actualHoursWorked
+        );
 
         // Get other deductions from payroll history for this pay period
         const { data: payrollHistory, error: historyError } = await db.getPayrollHistory({
@@ -2234,11 +2225,24 @@ app.get('/api/payslips/:userId/:date', async (req, res) => {
                 }
             });
         }
+        
+        // Add hours-based deductions from payCalculation
+        if (payCalculation.otherDeductions && Array.isArray(payCalculation.otherDeductions)) {
+            otherDeductions.push(...payCalculation.otherDeductions);
+        }
 
-        // Calculate totals
-        const totalDeductions = ssnitEmployee + paye + otherDeductions.reduce((sum, d) => sum + d.amount, 0);
-        const grossPay = basicSalary;
-        const netPay = grossPay - totalDeductions;
+        // Use calculated values from calculateNetPay
+        const grossPay = payCalculation.grossPay;
+        const netPay = payCalculation.netPay;
+        const totalDeductions = payCalculation.totalDeductions + otherDeductions.reduce((sum, d) => sum + d.amount, 0);
+        const ssnitEmployee = payCalculation.ssnitEmployee;
+        const paye = payCalculation.paye;
+
+        // Calculate SSNIT employer contribution and tiers for reporting
+        const ssnitEmployer = basicSalary * 0.13;  // 13%
+        const applicableSalary = Math.min(basicSalary, 1500); // SSNIT ceiling
+        const ssnitTier1 = applicableSalary * 0.135; // 13.5% to SSNIT
+        const ssnitTier2 = applicableSalary * 0.05;  // 5% to private fund
 
         // Build payslip object
         const payslip = {

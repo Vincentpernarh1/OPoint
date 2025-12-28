@@ -348,8 +348,10 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                         })(),
                         originalClockIn: item.clock_in ? new Date(item.clock_in) : undefined,
                         originalClockOut: item.clock_out ? new Date(item.clock_out) : undefined,
-                        requestedClockIn: new Date(item.requested_clock_in),
-                        requestedClockOut: new Date(item.requested_clock_out),
+                        // For approved adjustments, use clock_in/clock_out (which are the approved times)
+                        // For pending/rejected, use requested_clock_in/requested_clock_out
+                        requestedClockIn: new Date(item.adjustment_status === 'Approved' && item.clock_in ? item.clock_in : item.requested_clock_in),
+                        requestedClockOut: new Date(item.adjustment_status === 'Approved' && item.clock_out ? item.clock_out : item.requested_clock_out),
                         reason: item.adjustment_reason,
                         status: item.adjustment_status as RequestStatus,
                         reviewedBy: item.adjustment_reviewed_by,
@@ -538,17 +540,31 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
             .map(dateKey => {
                 const dayEntries = entriesByDate[dateKey].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
                 
-                // Find earliest clock-in and latest clock-out
-                const clockIns = dayEntries.filter(e => e.type === TimeEntryType.CLOCK_IN).map(e => new Date(e.timestamp));
-                const clockOuts = dayEntries.filter(e => e.type === TimeEntryType.CLOCK_OUT).map(e => new Date(e.timestamp));
+                // Check for approved adjustment for this date
+                const dateStr = new Date(dateKey).toISOString().split('T')[0];
+                const approvedAdjustment = adjustmentRequests.find(req => {
+                    return req.date === dateStr && req.status === RequestStatus.APPROVED;
+                });
+                
+                // Use adjustment times if approved, otherwise use actual entries
+                let clockIns: Date[];
+                let clockOuts: Date[];
+                
+                if (approvedAdjustment) {
+                    clockIns = [approvedAdjustment.requestedClockIn];
+                    clockOuts = approvedAdjustment.requestedClockOut ? [approvedAdjustment.requestedClockOut] : [];
+                } else {
+                    clockIns = dayEntries.filter(e => e.type === TimeEntryType.CLOCK_IN).map(e => new Date(e.timestamp));
+                    clockOuts = dayEntries.filter(e => e.type === TimeEntryType.CLOCK_OUT).map(e => new Date(e.timestamp));
+                }
                 
                 let totalWorkedMs = 0;
                 if (clockIns.length > 0 && clockOuts.length > 0) {
                     const earliestIn = new Date(Math.min(...clockIns.map(d => d.getTime())));
                     const latestOut = new Date(Math.max(...clockOuts.map(d => d.getTime())));
                     totalWorkedMs = latestOut.getTime() - earliestIn.getTime();
-                } else if (clockIns.length > 0 && dateKey === time.toDateString()) {
-                    // Current day, clocked in but not out yet
+                } else if (clockIns.length > 0 && dateKey === time.toDateString() && !approvedAdjustment) {
+                    // Current day, clocked in but not out yet (only if not an approved adjustment)
                     const earliestIn = new Date(Math.min(...clockIns.map(d => d.getTime())));
                     totalWorkedMs = time.getTime() - earliestIn.getTime();
                 }
@@ -563,7 +579,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 };
             })
             .sort((a, b) => b.date.getTime() - a.date.getTime()); // Sort by date descending
-    }, [timeEntries, time]);
+    }, [timeEntries, time, adjustmentRequests]);
 
     const todaySummary = useMemo(() => {
         const todayHistory = dailyWorkHistory.find(d => d.date.toDateString() === time.toDateString());
