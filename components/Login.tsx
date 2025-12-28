@@ -302,7 +302,7 @@ const Login = ({ onLogin }: LoginProps) => {
             <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-xl animate-fade-in">
                 <div className="text-center mb-8">
                     <LogoIcon className="h-16 w-16 mx-auto mb-2" />
-                    <h1 className="text-3xl font-bold text-gray-800">OPoint-P360</h1>
+                    <h1 className="text-3xl font-bold text-gray-800">Opoint</h1>
                     <p className="text-gray-500">Sign in to your workspace</p>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-6">

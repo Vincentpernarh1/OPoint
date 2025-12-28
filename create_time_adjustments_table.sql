@@ -19,3 +19,6 @@ ADD COLUMN IF NOT EXISTS adjustment_reviewed_at TIMESTAMP WITH TIME ZONE;
 -- Create indexes for time adjustments
 CREATE INDEX IF NOT EXISTS idx_clock_logs_adjustment_status ON opoint_clock_logs(adjustment_status);
 CREATE INDEX IF NOT EXISTS idx_clock_logs_adjustment_requested_at ON opoint_clock_logs(adjustment_requested_at);
+
+
+select * from opoint_companies;

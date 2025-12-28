@@ -46,7 +46,7 @@ const ImagePreviewModal = ({ imageUrl, onClose, isSecureContext = false }: Image
                     </div>
                 )}
 
-                <button onClick={onClose} className="absolute -top-4 -right-4 text-white bg-gray-800 rounded-full p-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-gray-600">
+                <button  title="Close image preview" onClick={onClose} className="absolute -top-4 -right-4 text-white bg-gray-800 rounded-full p-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-gray-600">
                     <XIcon className="h-6 w-6"/>
                 </button>
             </div>
