@@ -2251,8 +2251,9 @@ app.get('/api/payslips/:userId/:date', async (req, res) => {
         const paye = payCalculation.paye;
 
         // Calculate SSNIT employer contribution and tiers for reporting
-        const ssnitEmployer = basicSalary * 0.13;  // 13%
-        const applicableSalary = Math.min(basicSalary, 1500); // SSNIT ceiling
+        // NOTE: Employer contributions are based on GROSS PAY, not basic salary
+        const ssnitEmployer = grossPay * 0.13;  // 13%
+        const applicableSalary = Math.min(grossPay, 1500); // SSNIT ceiling
         const ssnitTier1 = applicableSalary * 0.135; // 13.5% to SSNIT
         const ssnitTier2 = applicableSalary * 0.05;  // 5% to private fund
 
@@ -3588,9 +3589,12 @@ app.get('/api/reports', async (req, res) => {
                 const users = await getUsers();
                 let ssnitData = users.map(user => {
                     const basicSalary = parseFloat(user.basicSalary) || 0;
-                    const ssnitEmployee = basicSalary * 0.055; // 5.5%
-                    const ssnitEmployer = basicSalary * 0.13;  // 13%
-                    const applicableSalary = Math.min(basicSalary, 1500); // SSNIT ceiling
+                    // NOTE: Contributions are based on GROSS PAY, not basic salary
+                    // For report purposes, we use basic salary as gross pay (no hours adjustment in reports)
+                    const grossPay = basicSalary;
+                    const ssnitEmployee = grossPay * 0.055; // 5.5%
+                    const ssnitEmployer = grossPay * 0.13;  // 13%
+                    const applicableSalary = Math.min(grossPay, 1500); // SSNIT ceiling
                     const ssnitTier1 = applicableSalary * 0.135; // 13.5% to SSNIT
                     const ssnitTier2 = applicableSalary * 0.05;  // 5% to private fund
 
