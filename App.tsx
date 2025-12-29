@@ -615,7 +615,7 @@ const CompanyLayout = ({
 
     return (
         <div className="flex h-screen bg-slate-100 font-sans app-container">
-            {/* return <UIShowcase /> */}
+            {/* return <UIShowcase />  this is to test the theme of the app */}
 
             {/* Mobile backdrop */}
             {!isSidebarCollapsed && (
