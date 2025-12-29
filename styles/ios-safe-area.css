@@ -54,10 +54,10 @@ body {
 }
 
 /* Main content area with safe bottom padding for bottom nav on mobile */
-/* Bottom nav is ~60-70px, using 5rem (80px) base + buffer for safety */
+/* Bottom nav is ~60-70px, using 6rem (96px) base + buffer for all mobile browsers */
 @media (max-width: 768px) {
   .app-main-content {
-    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)) !important;
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
   }
 }
 
