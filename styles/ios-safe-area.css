@@ -38,7 +38,7 @@ body {
 
 /* Header with safe area top padding */
 .app-header {
-  padding-top: max(0.25rem, env(safe-area-inset-top));
+  padding-top: calc(0.75rem + env(safe-area-inset-top));
   min-height: calc(4rem + env(safe-area-inset-top));
 }
 
