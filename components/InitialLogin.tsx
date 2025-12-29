@@ -9,7 +9,7 @@ const InitialLogin = () => {
         <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
             <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center animate-fade-in">
                 <LogoIcon className="h-16 w-16 mx-auto mb-2" />
-                <h1 className="text-3xl font-bold text-gray-800">Welcome to Vpena Opoint</h1>
+                <h1 className="text-3xl font-bold text-gray-800">Welcome to Opoint</h1>
                 <p className="text-gray-500 mt-2 mb-8">Please select your login method.</p>
 
                 <div className="space-y-4">

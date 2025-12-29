@@ -124,16 +124,28 @@
             canvas.height = size;
             const ctx = canvas.getContext('2d');
             
-            // Background
-            ctx.fillStyle = '#4f46e5';
+            // Background - Gradient (matching favicon.svg)
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#6366f1');
+            gradient.addColorStop(1, '#4338ca');
+            ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, size, size);
             
-            // Logo - Simple "V" design
+            // Logo - Bookmark/Ribbon icon (exact from favicon.svg)
+            // Original SVG path: M13 29V12L20 17.5L27 12V29L20 23.5L13 29Z
+            // SVG viewBox is 40x40, we need to scale to icon size
+            const scale = size / 40;
+            
             ctx.fillStyle = 'white';
-            ctx.font = `bold ${size * 0.6}px Arial`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('V', size / 2, size / 2);
+            ctx.beginPath();
+            ctx.moveTo(13 * scale, 29 * scale);
+            ctx.lineTo(13 * scale, 12 * scale);
+            ctx.lineTo(20 * scale, 17.5 * scale);
+            ctx.lineTo(27 * scale, 12 * scale);
+            ctx.lineTo(27 * scale, 29 * scale);
+            ctx.lineTo(20 * scale, 23.5 * scale);
+            ctx.closePath();
+            ctx.fill();
             
             return canvas;
         }
@@ -153,23 +165,41 @@
             const x = (width - logoSize) / 2;
             const y = (height - logoSize) / 2;
             
-            // Logo background
-            ctx.fillStyle = '#4f46e5';
+            // Logo background - Gradient circle
+            const gradient = ctx.createLinearGradient(
+                width / 2 - logoSize / 2,
+                height / 2 - logoSize / 2,
+                width / 2 + logoSize / 2,
+                height / 2 + logoSize / 2
+            );
+            gradient.addColorStop(0, '#6366f1');
+            gradient.addColorStop(1, '#4338ca');
+            ctx.fillStyle = gradient;
             ctx.beginPath();
             ctx.arc(width / 2, height / 2, logoSize / 2, 0, Math.PI * 2);
             ctx.fill();
             
-            // Logo text
+            // Logo - Bookmark/Ribbon icon (exact from favicon.svg)
+            // SVG path: M13 29V12L20 17.5L27 12V29L20 23.5L13 29Z
+            const scale = logoSize / 40;
+            const offsetX = width / 2 - (20 * scale);
+            const offsetY = height / 2 - (20 * scale);
+            
             ctx.fillStyle = 'white';
-            ctx.font = `bold ${logoSize * 0.6}px Arial`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('V', width / 2, height / 2);
+            ctx.beginPath();
+            ctx.moveTo(offsetX + 13 * scale, offsetY + 29 * scale);
+            ctx.lineTo(offsetX + 13 * scale, offsetY + 12 * scale);
+            ctx.lineTo(offsetX + 20 * scale, offsetY + 17.5 * scale);
+            ctx.lineTo(offsetX + 27 * scale, offsetY + 12 * scale);
+            ctx.lineTo(offsetX + 27 * scale, offsetY + 29 * scale);
+            ctx.lineTo(offsetX + 20 * scale, offsetY + 23.5 * scale);
+            ctx.closePath();
+            ctx.fill();
             
             // App name
             ctx.fillStyle = '#4f46e5';
-            ctx.font = `${logoSize * 0.15}px Arial`;
-            ctx.fillText('Vpena OnPoint', width / 2, height / 2 + logoSize);
+            ctx.font = `bold ${logoSize * 0.15}px Arial`;
+            ctx.fillText('Opoint', width / 2, height / 2 + logoSize);
             
             return canvas;
         }

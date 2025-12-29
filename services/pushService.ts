@@ -91,7 +91,7 @@ export const pushService = {
       body: JSON.stringify({
         userId,
         title: 'Test Notification',
-        body: 'This is a test push notification from Vpena OnPoint!',
+        body: 'This is a test push notification from Opoint!',
         icon: '/favicon.svg',
         data: { url: '/announcements' }
       }),

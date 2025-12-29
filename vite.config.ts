@@ -25,8 +25,8 @@ export default defineConfig(({ mode }) => {
           },
           includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'masked-icon.svg'],
           manifest: {
-            name: 'Vpena OnPoint',
-            short_name: 'Vpena',
+            name: 'Opoint',
+            short_name: 'Opoint',
             description: 'Payroll and HR Management System',
             theme_color: '#1f2937',
             background_color: '#ffffff',

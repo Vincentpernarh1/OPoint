@@ -217,7 +217,7 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                         <div className="text-left md:text-right w-full md:w-auto">
                              <div className="flex items-center md:justify-end space-x-2">
                                  <LogoIcon className="h-7 w-7" />
-                                 <span className="text-lg font-bold text-gray-700">Vpena Opoint</span>
+                                 <span className="text-lg font-bold text-gray-700">Opoint</span>
                             </div>
                             <p className="text-sm text-gray-500 mt-1">Pay Date: <span className="font-medium text-gray-700">{formatDate(payslipData.payDate)}</span></p>
                             <p className="text-sm text-gray-500">Pay Period: <span className="font-medium text-gray-700">{formatDate(payslipData.payPeriodStart)} - {formatDate(payslipData.payPeriodEnd)}</span></p>
