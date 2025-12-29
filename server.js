@@ -957,6 +957,94 @@ app.post('/api/auth/reset-password', async (req, res) => {
     }
 });
 
+
+// Get current user session (reads HttpOnly cookies)
+app.get('/api/auth/me', async (req, res) => {
+    try {
+        // Check if user_session cookie exists
+        const userSessionCookie = req.cookies.user_session;
+        const authTokenCookie = req.cookies.auth_token;
+
+        if (!userSessionCookie || !authTokenCookie) {
+            return res.json({
+                success: false,
+                authenticated: false,
+                user: null
+            });
+        }
+
+        // Parse user session data
+        let userSession;
+        try {
+            userSession = JSON.parse(userSessionCookie);
+        } catch (parseError) {
+            console.error('Failed to parse user session cookie:', parseError);
+            return res.json({
+                success: false,
+                authenticated: false,
+                user: null
+            });
+        }
+
+        // Validate session data
+        if (!userSession || !userSession.id || !userSession.email) {
+            return res.json({
+                success: false,
+                authenticated: false,
+                user: null
+            });
+        }
+
+        // Set tenant context first (required for getUserById)
+        if (userSession.tenant_id) {
+            setTenantContext(userSession.tenant_id, userSession.id);
+        }
+
+        // Verify user still exists in database
+        const { data: dbUser, error } = await db.getUserById(userSession.id);
+
+        if (error || !dbUser) {
+            console.log('User session invalid - user not found in database');
+            // Clear invalid cookies
+            const isProduction = process.env.NODE_ENV === 'production';
+            const cookieOptions = {
+                httpOnly: true,
+                secure: isProduction,
+                sameSite: 'strict',
+                path: '/',
+                maxAge: 0
+            };
+            res.clearCookie('user_session', cookieOptions);
+            res.clearCookie('auth_token', cookieOptions);
+
+            return res.json({
+                success: false,
+                authenticated: false,
+                user: null
+            });
+        }
+
+        // Return user data (without sensitive fields)
+        const { password_hash, temporary_password, ...userWithoutPassword } = dbUser;
+
+        res.json({
+            success: true,
+            authenticated: true,
+            user: userWithoutPassword
+        });
+
+    } catch (error) {
+        console.error('Session check error:', error);
+        res.status(500).json({
+            success: false,
+            authenticated: false,
+            user: null,
+            error: 'Session check failed'
+        });
+    }
+});
+
+
 // Validate password strength (for real-time feedback in UI)
 app.post('/api/auth/validate-password', async (req, res) => {
     try {
