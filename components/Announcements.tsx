@@ -187,7 +187,7 @@ const AnnouncementList = memo(({ announcements, currentUser, onDelete, onShowCon
         <>
             <div className="bg-white p-6 rounded-xl shadow-lg">
                 <h3 className="text-xl font-bold text-gray-800 mb-4">Company Announcements</h3>
-                <div className="space-y-6 max-h-[75vh] overflow-y-auto pr-2">
+                <div className="space-y-6 max-h-[75vh] overflow-y-auto pr-2 pb-2 hide-scrollbar-mobile">
                     {announcements.map(ann => (
                         <div key={ann.id} className={`p-4 border rounded-lg bg-slate-50 ${isUnread(ann) ? 'border-l-4 border-l-primary bg-blue-50' : ''}`}>
                             <div className="flex flex-col lg:flex-row lg:items-start lg:space-x-4 space-y-4 lg:space-y-0">

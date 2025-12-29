@@ -53,16 +53,10 @@ body {
   height: auto;
 }
 
-/* Main content area with safe bottom padding for bottom nav on mobile */
-/* Ensures all pages have clearance from bottom navigation bar */
+/* Ensure last elements in scrollable content have proper spacing on mobile */
 @media (max-width: 768px) {
-  .app-main-content {
-    padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
-  }
-  
-  /* Additional safety for all scrollable containers on mobile */
-  main, .overflow-y-auto {
-    padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
+  .app-main-content > *:last-child {
+    margin-bottom: 1.5rem;
   }
 }
 

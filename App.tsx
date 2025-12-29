@@ -654,8 +654,10 @@ const CompanyLayout = ({
                         </Link>
                     </div>
                 </header>
-                <main className="app-main-content flex-1 overflow-x-hidden overflow-y-auto p-4 pb-24 md:p-8">
-                    <Outlet />
+                <main className="app-main-content flex-1 overflow-x-hidden overflow-y-auto px-4 pt-4 md:p-8">
+                    <div className="w-[99%] pb-24 md:w-full md:pb-0">
+                        <Outlet />
+                    </div>
                 </main>
             </div>
             <MobileBottomNav

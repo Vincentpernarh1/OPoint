@@ -53,16 +53,6 @@ body {
   height: auto;
 }
 
-/* Main content area with safe bottom padding for bottom nav */
-.app-main-content {
-  padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
-}
-
-/* Main content area with safe bottom padding for bottom nav */
-.app-main-content {
-  padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
-}
-
 /* iOS install prompt with safe area positioning */
 .ios-install-prompt {
   bottom: calc(5rem + env(safe-area-inset-bottom));

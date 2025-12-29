@@ -126,7 +126,7 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                 {/* Request History */}
                 <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
                     <h3 className="text-xl font-bold text-gray-800 mb-4">My Requests</h3>
-                    <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                    <div className="space-y-3 max-h-96 overflow-y-auto pr-2 pb-2">
                         {requests.length > 0 ? requests.map(req => (
                             <div key={req.id} className="p-3 border rounded-lg flex items-start space-x-3 bg-gray-50">
                                 <div className="bg-primary-light p-2.5 rounded-full mt-1">

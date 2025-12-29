@@ -106,7 +106,7 @@ const Expenses = ({ currentUser }: ExpensesProps) => {
                             <p className="text-gray-500 mt-2">Loading expense claims...</p>
                         </div>
                     ) : (
-                        <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                        <div className="space-y-3 max-h-96 overflow-y-auto pr-2 pb-2">
                             {requests.length > 0 ? requests.map(req => {
                                 const StatusIcon = statusInfo[req.status].icon;
                                 return (

@@ -25,6 +25,17 @@
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
   }
+
+  /* Hide scrollbar on mobile */
+  @media (max-width: 768px) {
+    .hide-scrollbar-mobile {
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE and Edge */
+    }
+    .hide-scrollbar-mobile::-webkit-scrollbar {
+      display: none; /* Chrome, Safari, Opera */
+    }
+  }
 }
 
 /* Custom component classes */
