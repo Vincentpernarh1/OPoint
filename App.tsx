@@ -654,7 +654,7 @@ const CompanyLayout = ({
                         </Link>
                     </div>
                 </header>
-                <main className="app-main-content flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8">
+                <main className="app-main-content flex-1 overflow-x-hidden overflow-y-auto p-4 pb-24 md:p-8">
                     <Outlet />
                 </main>
             </div>

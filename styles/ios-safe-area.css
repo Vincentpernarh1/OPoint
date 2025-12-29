@@ -54,9 +54,14 @@ body {
 }
 
 /* Main content area with safe bottom padding for bottom nav on mobile */
-/* Bottom nav is ~60-70px, using 6rem (96px) base + buffer for all mobile browsers */
+/* Ensures all pages have clearance from bottom navigation bar */
 @media (max-width: 768px) {
   .app-main-content {
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
+  }
+  
+  /* Additional safety for all scrollable containers on mobile */
+  main, .overflow-y-auto {
     padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
   }
 }
