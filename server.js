@@ -425,11 +425,13 @@ function calculateNetPay(basicSalary, userId, payDate, workingHoursPerDay = 8.00
     }
 
     // Calculate SSNIT contributions (5.5% of gross pay)
+    // NOTE: SSNIT is calculated on gross pay, not basic salary
     const ssnitEmployee = grossPay * 0.055;
 
-    // Calculate PAYE tax (Ghana tax brackets) based on gross pay
+    // Calculate PAYE tax (Ghana tax brackets)
+    // PAYE is calculated on taxable income (gross pay minus SSNIT employee contribution)
     let paye = 0;
-    const taxableIncome = grossPay;
+    const taxableIncome = grossPay - ssnitEmployee;
 
     if (taxableIncome <= 3828) {
         paye = 0;
