@@ -20,27 +20,52 @@ export default defineConfig(({ mode }) => {
         react(),
         VitePWA({
           registerType: 'autoUpdate',
-          workbox: {
-            globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+          injectRegister: 'auto',
+          devOptions: {
+            enabled: false
           },
-          includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'masked-icon.svg'],
+          workbox: {
+            globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
+            runtimeCaching: [
+              {
+                urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+                handler: 'CacheFirst',
+                options: {
+                  cacheName: 'google-fonts-cache',
+                  expiration: {
+                    maxEntries: 10,
+                    maxAgeSeconds: 60 * 60 * 24 * 365
+                  },
+                  cacheableResponse: {
+                    statuses: [0, 200]
+                  }
+                }
+              }
+            ]
+          },
+          includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'apple-touch-icon-*.png', 'apple-splash-*.png'],
           manifest: {
             name: 'Opoint',
             short_name: 'Opoint',
             description: 'Payroll and HR Management System',
-            theme_color: '#1f2937',
+            theme_color: '#4f46e5',
             background_color: '#ffffff',
             display: 'standalone',
+            scope: '/',
+            start_url: '/',
+            orientation: 'portrait',
             icons: [
               {
-                src: 'pwa-192x192.png',
-                sizes: '192x192',
-                type: 'image/png'
+                src: '/apple-touch-icon-180x180.png',
+                sizes: '180x180',
+                type: 'image/png',
+                purpose: 'any'
               },
               {
-                src: 'pwa-512x512.png',
-                sizes: '512x512',
-                type: 'image/png'
+                src: '/apple-touch-icon-180x180.png',
+                sizes: '180x180',
+                type: 'image/png',
+                purpose: 'maskable'
               }
             ]
           }
