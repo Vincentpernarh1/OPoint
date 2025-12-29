@@ -55,7 +55,7 @@ body {
 
 /* Main content area with safe bottom padding for bottom nav */
 .app-main-content {
-  padding-bottom: calc(4rem + env(safe-area-inset-bottom)) !important;
+  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom)) !important;
 }
 
 
