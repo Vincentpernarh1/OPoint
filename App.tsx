@@ -614,13 +614,13 @@ const CompanyLayout = ({
     );
 
     return (
-        <div className="flex h-screen bg-slate-100 font-sans">
+        <div className="flex h-screen bg-slate-100 font-sans app-container">
             {/* return <UIShowcase /> */}
 
             {/* Mobile backdrop */}
             {!isSidebarCollapsed && (
                 <div
-                    className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+                    className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden mobile-backdrop"
                     onClick={() => setIsSidebarCollapsed(true)}
                 />
             )}
@@ -630,7 +630,7 @@ const CompanyLayout = ({
                 <SidebarContent isCollapsed={isSidebarCollapsed}/>
             </aside>
             <div className="flex-1 flex flex-col overflow-hidden">
-                <header className="h-16 bg-white border-b flex justify-between items-center px-6 shrink-0">
+                <header className="h-16 bg-white border-b flex justify-between items-center px-6 shrink-0 app-header">
                     <div className="flex items-center space-x-4">
                         {/* Mobile menu button */}
                         <button

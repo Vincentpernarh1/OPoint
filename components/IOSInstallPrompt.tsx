@@ -29,7 +29,7 @@ const IOSInstallPrompt: React.FC = () => {
   if (!showPrompt) return null;
 
   return (
-    <div className="fixed bottom-20 left-4 right-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 rounded-xl shadow-2xl z-50 animate-slide-up">
+    <div className="fixed bottom-20 left-4 right-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 rounded-xl shadow-2xl z-50 animate-slide-up ios-install-prompt">
       <button
       title="Dismiss install prompt"
         onClick={handleDismiss}

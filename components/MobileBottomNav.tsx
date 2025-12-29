@@ -24,8 +24,8 @@ const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
-      <div className="flex justify-around items-center py-1.5 px-1 safe-area-pb">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50 mobile-bottom-nav">
+      <div className="flex justify-around items-center py-1.5 px-1">
         {bottomNavItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (

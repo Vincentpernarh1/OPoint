@@ -1,0 +1,62 @@
+/* iOS Safe Area Support for PWA */
+
+/* Define CSS variables for safe area insets */
+:root {
+  --safe-area-inset-top: env(safe-area-inset-top);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom);
+  --safe-area-inset-left: env(safe-area-inset-left);
+  --safe-area-inset-right: env(safe-area-inset-right);
+}
+
+/* Apply safe area padding to root element */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+#root {
+  height: 100%;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* App container with dynamic viewport height */
+.app-container {
+  height: 100dvh; /* Dynamic viewport height for mobile browsers (fallback to 100vh) */
+}
+
+/* Mobile backdrop with safe area */
+.mobile-backdrop {
+  top: env(safe-area-inset-top);
+  bottom: env(safe-area-inset-bottom);
+}
+
+/* Header with safe area top padding */
+.app-header {
+  padding-top: max(1rem, env(safe-area-inset-top));
+  min-height: calc(4rem + env(safe-area-inset-top));
+}
+
+/* Mobile bottom navigation with safe area */
+.mobile-bottom-nav {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* iOS install prompt with safe area positioning */
+.ios-install-prompt {
+  bottom: calc(5rem + env(safe-area-inset-bottom));
+  left: max(1rem, env(safe-area-inset-left));
+  right: max(1rem, env(safe-area-inset-right));
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
