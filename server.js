@@ -541,21 +541,22 @@ async function calculateHoursWorked(userId, tenantId, payDate) {
 
 // --- API ENDPOINTS ---
 
-// Health check
-app.get('/', (req, res) => {
-    res.json({ 
-        status: 'running',
-        message: 'Vpena OnPoint Backend API',
-        version: '1.0.0',
-        timestamp: new Date().toISOString()
-    });
-});
-
+// Health check - MUST be at /api/health, NOT at root
 app.get('/api/health', (req, res) => {
     res.json({ 
         status: 'healthy',
         database: getSupabaseClient() ? 'connected' : 'mock mode',
         momo: CONFIG.MOMO_API_KEY ? 'live' : 'simulation',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// API status check
+app.get('/api/status', (req, res) => {
+    res.json({ 
+        status: 'running',
+        message: 'Opoint Backend API',
+        version: '1.0.0',
         timestamp: new Date().toISOString()
     });
 });
@@ -3974,10 +3975,11 @@ app.use(errorHandler);
 // Start Server
 app.listen(PORT, () => {
     console.log(`\n${'='.repeat(60)}`);
-    console.log(`🚀 Vpena OnPoint - Professional Payroll System`);
+    console.log(`🚀 Opoint - Professional Payroll System`);
     console.log(`${'='.repeat(60)}`);
     console.log(`📍 Server:      http://localhost:${PORT}`);
-    console.log(`📍 API Docs:    http://localhost:${PORT}/api/health`);
+    console.log(`📍 API Health:  http://localhost:${PORT}/api/health`);
+    console.log(`📍 API Status:  http://localhost:${PORT}/api/status`);
     console.log(`${'='.repeat(60)}`);
     
     // Database Status
