@@ -50,7 +50,7 @@ body {
 /* Mobile bottom navigation with safe area */
 .mobile-bottom-nav {
   padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
-  height: calc(4rem + env(safe-area-inset-bottom));
+  height: calc(1rem + env(safe-area-inset-bottom));
 }
 
 /* Main content area with safe bottom padding for bottom nav */
@@ -58,10 +58,6 @@ body {
   padding-bottom: calc(5rem + env(safe-area-inset-bottom)) !important;
 }
 
-/* Main content area with safe bottom padding for bottom nav */
-.app-main-content {
-  padding-bottom: calc(5rem + env(safe-area-inset-bottom)) !important;
-}
 
 /* iOS install prompt with safe area positioning */
 .ios-install-prompt {

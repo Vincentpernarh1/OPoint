@@ -43,7 +43,7 @@ body {
 
 /* Header with safe area top padding */
 .app-header {
-  padding-top: env(safe-area-inset-top);
+  padding-top:0.4rem + env(safe-area-inset-top);
   min-height: 4rem;
 }
 
@@ -60,7 +60,7 @@ body {
 
 /* Main content area with safe bottom padding for bottom nav */
 .app-main-content {
-  padding-bottom: calc(5rem + env(safe-area-inset-bottom)) !important;
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
 }
 
 /* iOS install prompt with safe area positioning */
