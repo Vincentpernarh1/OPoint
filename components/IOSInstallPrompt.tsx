@@ -31,6 +31,7 @@ const IOSInstallPrompt: React.FC = () => {
   return (
     <div className="fixed bottom-20 left-4 right-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 rounded-xl shadow-2xl z-50 animate-slide-up">
       <button
+      title="Dismiss install prompt"
         onClick={handleDismiss}
         className="absolute top-2 right-2 p-1 hover:bg-white/20 rounded-full transition-colors"
       >
