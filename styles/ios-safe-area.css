@@ -53,6 +53,13 @@ body {
   height: auto;
 }
 
+/* Content wrapper bottom padding with safe area on mobile */
+@media (max-width: 768px) {
+  .app-main-content > div {
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
+  }
+}
+
 /* Ensure last elements in scrollable content have proper spacing on mobile */
 @media (max-width: 768px) {
   .app-main-content > *:last-child {
