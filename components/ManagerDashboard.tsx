@@ -2,8 +2,10 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { User, View, RequestStatus, Announcement } from '../types';
 import { USERS, LEAVE_REQUESTS, ADJUSTMENT_REQUESTS, EXPENSE_REQUESTS, PROFILE_UPDATE_REQUESTS, ANNOUNCEMENTS } from '../constants';
 import { UsersGroupIcon, CheckSquareIcon, MegaphoneIcon, DollarSignIcon } from './Icons';
+import PullToRefreshIndicator from './PullToRefreshIndicator';
 import { api } from '../services/api';
 import { Skeleton, Button } from './ui';
+import { useRefreshable } from '../hooks/useRefreshable';
 
 interface ManagerDashboardProps {
     currentUser: User;
@@ -18,6 +20,53 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
     const [loadingApprovals, setLoadingApprovals] = useState(true);
     const [totalMonthlyPayout, setTotalMonthlyPayout] = useState(0);
     const [loadingPayout, setLoadingPayout] = useState(true);
+
+    // Refresh function for pull-to-refresh
+    const handleRefresh = async () => {
+        setLoadingEmployees(true);
+        setLoadingApprovals(true);
+        setLoadingPayout(true);
+        
+        const promises = [];
+        
+        // Fetch employee count
+        promises.push(
+            api.getUsers(currentUser.tenantId!)
+                .then(users => setEmployeeCount(users.length))
+                .catch(() => setEmployeeCount(companyUsers.length))
+                .finally(() => setLoadingEmployees(false))
+        );
+        
+        // Fetch pending approvals
+        promises.push(
+            Promise.all([
+                api.getLeaveRequests(currentUser.tenantId!, { status: 'Pending' }),
+                api.getTimeAdjustmentRequests(currentUser.tenantId!, { status: 'Pending' }),
+                api.getProfileUpdateRequests(currentUser.tenantId!, { status: 'Pending' }),
+                api.getExpenseClaims(currentUser.tenantId!, { status: 'pending' })
+            ])
+                .then(([leave, time, profile, expense]) => {
+                    setPendingApprovalsCount(leave.length + time.length + profile.length + expense.length);
+                })
+                .catch(() => setPendingApprovalsCount(0))
+                .finally(() => setLoadingApprovals(false))
+        );
+        
+        // Fetch payout
+        promises.push(
+            api.getUsers(currentUser.tenantId!)
+                .then(users => {
+                    const total = users.reduce((sum, user) => sum + (user.basicSalary || 0), 0);
+                    setTotalMonthlyPayout(total);
+                })
+                .catch(() => setTotalMonthlyPayout(0))
+                .finally(() => setLoadingPayout(false))
+        );
+        
+        await Promise.all(promises);
+    };
+
+    const { containerRef, isRefreshing, pullDistance, pullProgress } = useRefreshable(handleRefresh);
     
     const companyUsers = useMemo(() => {
         return USERS.filter(u => u.tenantId === currentUser.tenantId);
@@ -135,11 +184,21 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
     );
 
     return (
-        <div className="space-y-8">
-            <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Welcome back, {currentUser.name.split(' ')[0]}!</h1>
-                <p className="text-gray-500 mt-1">Here's a quick overview of your company's activities.</p>
-            </div>
+        <div ref={containerRef} className="h-full overflow-auto">
+            {/* Pull-to-refresh indicator */}
+            {(pullDistance > 0 || isRefreshing) && (
+                <PullToRefreshIndicator 
+                    isRefreshing={isRefreshing}
+                    pullDistance={pullDistance}
+                    pullProgress={pullProgress}
+                />
+            )}
+            
+            <div className="space-y-8">
+                <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Welcome back, {currentUser.name.split(' ')[0]}!</h1>
+                    <p className="text-gray-500 mt-1">Here's a quick overview of your company's activities.</p>
+                </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <StatCard title="Total Employees" value={employeeCount} icon={UsersGroupIcon} linkTo="employees" isLoading={loadingEmployees} />
@@ -170,6 +229,7 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
                     </div>
                 </div>
             )}
+            </div>
         </div>
     );
 };

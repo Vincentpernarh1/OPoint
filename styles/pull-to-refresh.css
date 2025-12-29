@@ -1,0 +1,53 @@
+/* Pull-to-refresh component styles */
+.pull-to-refresh-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    background: linear-gradient(to bottom, var(--color-primary-light), transparent);
+}
+
+.pull-to-refresh-indicator.refreshing {
+    height: 60px;
+    opacity: 1;
+}
+
+.pull-to-refresh-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--color-primary);
+}
+
+.pull-to-refresh-arrow {
+    transition: transform 0.2s ease;
+}
+
+.pull-to-refresh-arrow.ready {
+    transform: rotate(180deg);
+}
+
+.pull-to-refresh-spinner {
+    animation: spin 1s linear infinite;
+    border-radius: 9999px;
+    height: 1.5rem;
+    width: 1.5rem;
+    border-width: 2px;
+    border-color: var(--color-primary);
+    border-bottom-color: transparent;
+}
+
+.pull-to-refresh-text {
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+    font-weight: 500;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}

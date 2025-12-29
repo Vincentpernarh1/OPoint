@@ -5,7 +5,9 @@ import { BriefcaseIcon, PencilIcon, TrashIcon } from './Icons';
 import Notification from './Notification';
 import Calendar from './Calendar';
 import EditLeaveRequestModal from './EditLeaveRequestModal';
+import PullToRefreshIndicator from './PullToRefreshIndicator';
 import { api } from '../services/api';
+import { useRefreshable } from '../hooks/useRefreshable';
 
 interface LeaveManagementProps {
     currentUser: User;
@@ -46,6 +48,62 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
     }, [currentUser.hireDate]);
 
     const isEligibleForAnnualLeave = monthsOfService >= 12;
+
+    // Refresh function for pull-to-refresh
+    const fetchData = async () => {
+        if (!currentUser.tenantId) {
+            console.error('No tenantId available');
+            setLoading(false);
+            return;
+        }
+        
+        const tenantId = currentUser.tenantId;
+        
+        try {
+            setLoading(true);
+            
+            // Fetch leave requests
+            const data = await api.getLeaveRequests(tenantId, { userId: currentUser.id });
+            const transformedData: LeaveRequest[] = data.map((item: any) => {
+                const startDate = new Date(item.start_date);
+                const endDate = new Date(item.end_date);
+                
+                if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                    console.warn('Invalid date in leave request:', item);
+                    return null;
+                }
+                
+                return {
+                    id: item.id,
+                    userId: item.employee_id,
+                    employeeName: item.employee_name,
+                    leaveType: item.leave_type as LeaveType,
+                    startDate: startDate,
+                    endDate: endDate,
+                    reason: item.reason,
+                    status: item.status as RequestStatus
+                };
+            }).filter(Boolean) as LeaveRequest[];
+            setRequests(transformedData);
+
+            // Fetch leave balances
+            const balanceData = await api.getLeaveBalances(tenantId, currentUser.id);
+            if (balanceData && balanceData.length > 0) {
+                const balances = balanceData[0];
+                setUserBalance({
+                    annual: { remaining: balances.annual_remaining, used: balances.annual_used },
+                    maternity: { remaining: balances.maternity_remaining, used: balances.maternity_used },
+                    sick: { remaining: balances.sick_remaining, used: balances.sick_used }
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching leave data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const { containerRef, isRefreshing, pullDistance, pullProgress } = useRefreshable(fetchData);
 
     useEffect(() => {
         if (!isEligibleForAnnualLeave && leaveType === LeaveType.ANNUAL) {
@@ -160,88 +218,8 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
 
     // Fetch leave requests and balances for current user
     useEffect(() => {
-        const fetchData = async () => {
-            if (!currentUser.tenantId) {
-                console.error('No tenantId available');
-                setLoading(false);
-                return;
-            }
-            
-            const tenantId = currentUser.tenantId;
-            
-            try {
-                setLoading(true);
-                
-                // Fetch leave requests
-                const data = await api.getLeaveRequests(tenantId, { userId: currentUser.id });
-                // Transform the data to match the LeaveRequest interface
-                const transformedData: LeaveRequest[] = data.map((item: any) => {
-                    const startDate = new Date(item.start_date);
-                    const endDate = new Date(item.end_date);
-                    
-                    // Validate dates
-                    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-                        console.warn('Invalid date in leave request:', item);
-                        return null; // Skip invalid requests
-                    }
-                    
-                    return {
-                        id: item.id,
-                        userId: item.employee_id, // Database uses employee_id
-                        employeeName: item.employee_name, // Include employee name
-                        leaveType: item.leave_type as LeaveType,
-                        startDate: startDate,
-                        endDate: endDate,
-                        reason: item.reason,
-                        status: item.status as RequestStatus
-                    };
-                }).filter(Boolean) as LeaveRequest[]; // Remove null entries
-                setRequests(transformedData);
-
-                // Fetch leave balances
-                try {
-                    const balances = await api.getLeaveBalances(tenantId, currentUser.id);
-                    const balanceMap = { 
-                        annual: { remaining: 0, used: 0 }, 
-                        maternity: { remaining: 0, used: 0 }, 
-                        sick: { remaining: 0, used: 0 } 
-                    };
-                    balances.forEach((balance: any) => {
-                        if (balance.leave_type === 'annual') {
-                            balanceMap.annual.remaining = balance.remaining_days || 0;
-                            balanceMap.annual.used = balance.used_days || 0;
-                        }
-                        if (balance.leave_type === 'maternity') {
-                            balanceMap.maternity.remaining = balance.remaining_days || 0;
-                            balanceMap.maternity.used = balance.used_days || 0;
-                        }
-                        if (balance.leave_type === 'sick') {
-                            balanceMap.sick.remaining = balance.remaining_days || 0;
-                            balanceMap.sick.used = balance.used_days || 0;
-                        }
-                    });
-                    setUserBalance(balanceMap);
-                } catch (balanceError) {
-                    console.warn('Could not load leave balances, using defaults:', balanceError);
-                    // Use default balances based on eligibility
-                    const defaultBalances = {
-                        annual: { remaining: isEligibleForAnnualLeave ? 30 : 0, used: 0 },
-                        maternity: { remaining: 180, used: 0 }, // 6 months
-                        sick: { remaining: 30, used: 0 }
-                    };
-                    setUserBalance(defaultBalances);
-                }
-
-            } catch (error) {
-                console.error('Failed to fetch data:', error);
-                setNotification('Failed to load leave data');
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchData();
-    }, [currentUser.tenantId, currentUser.id, isEligibleForAnnualLeave]);
+    }, [currentUser.tenantId, currentUser.id]);
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -390,10 +368,20 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                     isEligibleForAnnualLeave={isEligibleForAnnualLeave}
                 />
             )}
-            <div className="space-y-8">
-                {/* Leave Balances */}
-                <div>
-                    <h2 className="text-2xl font-bold text-gray-800 mb-4">My Leave Balances</h2>
+            <div ref={containerRef} className="h-full overflow-auto">
+                {/* Pull-to-refresh indicator */}
+                {(pullDistance > 0 || isRefreshing) && (
+                    <PullToRefreshIndicator 
+                        isRefreshing={isRefreshing}
+                        pullDistance={pullDistance}
+                        pullProgress={pullProgress}
+                    />
+                )}
+                
+                <div className="space-y-8">
+                    {/* Leave Balances */}
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-800 mb-4">My Leave Balances</h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                          <div className="bg-white p-4 rounded-xl shadow-lg text-center">
                             <p className="text-sm font-medium text-gray-500">Annual Leave</p>
@@ -509,8 +497,8 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                             </div>
                         )) : (
                             <p className="text-gray-500 text-center py-8">You have no leave requests.</p>
-                        )}
-                    </div>
+                        )}  </div>
+                </div>
                 </div>
             </div>
         </>

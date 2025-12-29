@@ -9,8 +9,10 @@ import ImagePreviewModal from './ImagePreviewModal';
 import ManualAdjustmentModal from './ManualAdjustmentModal';
 import MessageOverlay from './MessageOverlay';
 import ConfirmationDialog from './ConfirmationDialog';
+import PullToRefreshIndicator from './PullToRefreshIndicator';
 import { offlineStorage } from '../services/offlineStorage';
 import { api } from '../services/api';
+import { useRefreshable } from '../hooks/useRefreshable';
 import './TimeClock.css';
 
 
@@ -122,6 +124,13 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     const [isLoadingAdjustments, setIsLoadingAdjustments] = useState(true);
     
     const progressBarRef = useRef<HTMLDivElement>(null);
+
+    // Pull-to-refresh functionality
+    const handleRefresh = async () => {
+        await refreshTimeEntries();
+    };
+
+    const { containerRef, isRefreshing, pullDistance, pullProgress } = useRefreshable(handleRefresh);
 
     // Helpers for date normalization and localStorage parsing
     // Return YYYY-MM-DD using local timezone (avoid UTC conversion)
@@ -1124,9 +1133,19 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 onCancel={() => setConfirmationDialog({ isVisible: false, message: '', onConfirm: () => {} })}
             />
             
-            <div className="space-y-8">
-                {latestAnnouncement && (
-                    <div className="bg-primary-light border-l-4 border-primary text-primary-dark p-4 rounded-r-lg shadow-md" role="alert">
+            <div ref={containerRef} className="h-full overflow-auto">
+                {/* Pull-to-refresh indicator */}
+                {(pullDistance > 0 || isRefreshing) && (
+                    <PullToRefreshIndicator 
+                        isRefreshing={isRefreshing}
+                        pullDistance={pullDistance}
+                        pullProgress={pullProgress}
+                    />
+                )}
+                
+                <div className="space-y-8">
+                    {latestAnnouncement && (
+                        <div className="bg-primary-light border-l-4 border-primary text-primary-dark p-4 rounded-r-lg shadow-md" role="alert">
                         <div className="flex items-start">
                             <div className="py-1"><MegaphoneIcon className="h-6 w-6 text-primary" /></div>
                             <div className="ml-3">
@@ -1371,6 +1390,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                             <p className="text-gray-500 text-center py-8">No monthly history found.</p>
                         )}
                     </div>
+                </div>
                 </div>
             </div>
         </>
