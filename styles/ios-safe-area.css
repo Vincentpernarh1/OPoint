@@ -43,13 +43,24 @@ body {
 
 /* Header with safe area top padding */
 .app-header {
-  padding-top: calc(0.75rem + env(safe-area-inset-top));
+  padding-top: env(safe-area-inset-top);
   min-height: 4rem;
 }
 
 /* Mobile bottom navigation with safe area */
 .mobile-bottom-nav {
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+  height: calc(4rem + env(safe-area-inset-bottom));
+}
+
+/* Main content area with safe bottom padding for bottom nav */
+.app-main-content {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom)) !important;
+}
+
+/* Main content area with safe bottom padding for bottom nav */
+.app-main-content {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom)) !important;
 }
 
 /* iOS install prompt with safe area positioning */
