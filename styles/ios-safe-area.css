@@ -53,10 +53,12 @@ body {
   height: auto;
 }
 
-/* Content wrapper bottom padding with safe area on mobile */
-@media (max-width: 768px) {
-  .app-main-content > div {
-    padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
+/* Add iOS safe area to content wrapper bottom padding when installed as PWA */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  @media (max-width: 768px) {
+    .app-main-content > div {
+      padding-bottom: calc(7rem + env(safe-area-inset-bottom)) !important;
+    }
   }
 }
 
