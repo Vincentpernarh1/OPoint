@@ -22,6 +22,7 @@ import ManagerDashboard from './components/ManagerDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import NotificationBell from './components/NotificationBell';
 import MobileBottomNav from './components/MobileBottomNav';
+import IOSInstallPrompt from './components/IOSInstallPrompt';
 
 // Import Services
 import { authService } from './services/authService';
@@ -665,6 +666,7 @@ const CompanyLayout = ({
                     }
                 }}
             />
+            <IOSInstallPrompt />
         </div>
     );
 }
