@@ -53,11 +53,13 @@ body {
   height: auto;
 }
 
-/* Main content area with safe bottom padding for bottom nav */
-.app-main-content {
-  padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
+/* Main content area with safe bottom padding for bottom nav on mobile */
+/* Bottom nav is ~60-70px, using 5rem (80px) base + buffer for safety */
+@media (max-width: 768px) {
+  .app-main-content {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)) !important;
+  }
 }
-
 
 /* iOS install prompt with safe area positioning */
 .ios-install-prompt {
