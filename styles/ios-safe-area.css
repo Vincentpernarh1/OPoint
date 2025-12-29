@@ -30,6 +30,11 @@ body {
   height: 100dvh; /* Dynamic viewport height for mobile browsers (fallback to 100vh) */
 }
 
+/* Sidebar with safe area top padding */
+.app-sidebar {
+  padding-top: env(safe-area-inset-top);
+}
+
 /* Mobile backdrop with safe area */
 .mobile-backdrop {
   top: env(safe-area-inset-top);

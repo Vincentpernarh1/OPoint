@@ -624,7 +624,7 @@ const CompanyLayout = ({
                     onClick={() => setIsSidebarCollapsed(true)}
                 />
             )}
-            <aside className={`bg-white border-r flex-col shrink-0 fixed md:relative z-50 md:z-auto transform transition-all duration-300 ease-in-out ${
+            <aside className={`app-sidebar bg-white border-r flex-col shrink-0 fixed md:relative z-50 md:z-auto transform transition-all duration-300 ease-in-out ${
                 isSidebarCollapsed ? 'w-16 md:w-16' : 'w-64'
             } ${isSidebarCollapsed ? '-translate-x-full md:translate-x-0' : 'translate-x-0'} ${isSidebarCollapsed ? 'hidden md:flex' : 'flex'}`}>
                 <SidebarContent isCollapsed={isSidebarCollapsed}/>
