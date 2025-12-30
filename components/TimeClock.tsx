@@ -568,14 +568,20 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 }
                 
                 let totalWorkedMs = 0;
-                if (clockIns.length > 0 && clockOuts.length > 0) {
-                    const earliestIn = new Date(Math.min(...clockIns.map(d => d.getTime())));
-                    const latestOut = new Date(Math.max(...clockOuts.map(d => d.getTime())));
-                    totalWorkedMs = latestOut.getTime() - earliestIn.getTime();
-                } else if (clockIns.length > 0 && dateKey === time.toDateString() && !approvedAdjustment) {
-                    // Current day, clocked in but not out yet (only if not an approved adjustment)
-                    const earliestIn = new Date(Math.min(...clockIns.map(d => d.getTime())));
-                    totalWorkedMs = time.getTime() - earliestIn.getTime();
+                
+                // Calculate total worked time by pairing clock-ins with clock-outs
+                const minPairs = Math.min(clockIns.length, clockOuts.length);
+                for (let i = 0; i < minPairs; i++) {
+                    const sessionDuration = clockOuts[i].getTime() - clockIns[i].getTime();
+                    totalWorkedMs += Math.max(0, sessionDuration); // Ensure non-negative
+                }
+                
+                // If there's an unpaired clock-in (user is currently working), add ongoing time
+                if (clockIns.length > clockOuts.length && dateKey === time.toDateString() && !approvedAdjustment) {
+                    // Current day, clocked in but not out yet - add ongoing session time
+                    const lastClockIn = clockIns[clockIns.length - 1];
+                    const ongoingDuration = time.getTime() - lastClockIn.getTime();
+                    totalWorkedMs += Math.max(0, ongoingDuration);
                 }
                 
                 const requiredMs = 8 * 60 * 60 * 1000;
