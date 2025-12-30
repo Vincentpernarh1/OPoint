@@ -567,6 +567,22 @@ class OfflineStorageService {
         return all.filter(p => p.tenantId === tenantId);
     }
 
+    async getCachedPayslip(userId: string, payDate: string, tenantId: string): Promise<any | null> {
+        const db = await this.init();
+        if (!db.objectStoreNames.contains('payslips')) return null;
+        
+        const id = `${userId}_${payDate}`;
+        const payslip = await db.get('payslips', id);
+        
+        if (!payslip || payslip.tenantId !== tenantId) return null;
+        
+        // Check if cache is stale (24 hours)
+        const cacheAge = Date.now() - new Date(payslip.cachedAt).getTime();
+        if (cacheAge > this.CACHE_MAX_AGE) return null;
+        
+        return payslip;
+    }
+
     // ===== GENERIC CACHE =====
     async cacheData(type: string, data: any, tenantId: string, userId?: string) {
         const db = await this.init();

@@ -78,16 +78,14 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                 if (payslipHistory.length > 0) {
                     setSelectedPayslipId(payslipHistory[0]);
                 }
-                // Cache payslip history for offline use
-                for (const payslip of payslipHistory) {
-                    await offlineStorage.cachePayslip(payslip, employee.id, employee.tenantId || '');
-                }
+                // NOTE: Don't cache incomplete history here - full payslips are cached when details are fetched
             } catch (err) {
                 console.error('Payslip fetch error:', err);
                 // OFFLINE FALLBACK: Try to load cached payslips
                 try {
                     const cachedPayslips = await offlineStorage.getCachedPayslips(employee.id, employee.tenantId || '');
                     if (cachedPayslips.length > 0) {
+                        // Convert cached full payslips to history list format
                         const payslipHistory = cachedPayslips.map(p => ({
                             id: p.id,
                             userId: p.userId,
@@ -96,11 +94,12 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                             payPeriodEnd: new Date(p.payDate),
                             basicSalary: p.basicSalary
                         })).sort((a, b) => b.payDate.getTime() - a.payDate.getTime());
+                        
                         setUserPayslipHistory(payslipHistory);
                         if (payslipHistory.length > 0) {
                             setSelectedPayslipId(payslipHistory[0]);
                         }
-                        setHistoryError('📴 Offline - Showing cached payslip data');
+                        setHistoryError('📴 Offline - Showing cached payslip history');
                     } else {
                         setHistoryError('📴 Offline - No cached payslip data. Please connect to internet and load payslips first.');
                         // Fallback: create a current month entry with employee data
@@ -152,12 +151,45 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                 // CHANGED: Use local API service instead of fetch
                 const data = await api.getPayslip(selectedPayslipId.userId!, dateParam, employee.tenantId || '');
                 setPayslipData(data);
+                
+                // CACHE THE FULL PAYSLIP DATA for offline use
+                try {
+                    await offlineStorage.cachePayslip(data, selectedPayslipId.userId!, employee.tenantId || '');
+                    console.log('Cached payslip details for offline use');
+                } catch (cacheErr) {
+                    console.warn('Failed to cache payslip details:', cacheErr);
+                }
             } catch (err) {
-                // Check if this is a salary setup error
-                if (err instanceof Error && err.message.includes('salary not set')) {
-                    setError('Employee salary not set. Please contact an administrator to set the salary.');
-                } else {
-                    setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+                console.error('Payslip details fetch error:', err);
+                
+                // OFFLINE FALLBACK: Try to load cached payslip details
+                try {
+                    const dateParam = new Date(selectedPayslipId.payDate!).toISOString();
+                    const cachedPayslip = await offlineStorage.getCachedPayslip(
+                        selectedPayslipId.userId!,
+                        dateParam,
+                        employee.tenantId || ''
+                    );
+                    
+                    if (cachedPayslip) {
+                        setPayslipData(cachedPayslip);
+                        setError('📴 Offline - Showing cached payslip data');
+                    } else {
+                        // Check if this is a salary setup error
+                        if (err instanceof Error && err.message.includes('salary not set')) {
+                            setError('Employee salary not set. Please contact an administrator to set the salary.');
+                        } else {
+                            setError('📴 Offline - No cached data for this payslip. Please connect to internet to load payslip details.');
+                        }
+                    }
+                } catch (cacheErr) {
+                    console.error('Failed to load cached payslip:', cacheErr);
+                    // Check if this is a salary setup error
+                    if (err instanceof Error && err.message.includes('salary not set')) {
+                        setError('Employee salary not set. Please contact an administrator to set the salary.');
+                    } else {
+                        setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+                    }
                 }
             } finally {
                 setIsLoading(false);
