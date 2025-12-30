@@ -48,6 +48,13 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
             setLoadingHistory(true);
             setHistoryError(null);
             try {
+                // Clear old cached payslips before fetching fresh data
+                try {
+                    await offlineStorage.clearOldPayslips(employee.id, employee.tenantId || '');
+                } catch (clearErr) {
+                    console.warn('Failed to clear old payslips:', clearErr);
+                }
+                
                 const history = await api.getPayslipHistory(employee.id, employee.tenantId || '');
                 
                 // If no payroll history exists, generate a current month payslip
@@ -86,14 +93,23 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                     const cachedPayslips = await offlineStorage.getCachedPayslips(employee.id, employee.tenantId || '');
                     if (cachedPayslips.length > 0) {
                         // Convert cached full payslips to history list format
-                        const payslipHistory = cachedPayslips.map(p => ({
-                            id: p.id,
-                            userId: p.userId,
-                            payDate: new Date(p.payDate),
-                            payPeriodStart: new Date(p.payDate),
-                            payPeriodEnd: new Date(p.payDate),
-                            basicSalary: p.basicSalary
-                        })).sort((a, b) => b.payDate.getTime() - a.payDate.getTime());
+                        // Deduplicate by ID to avoid showing duplicates
+                        const seenIds = new Set<string>();
+                        const payslipHistory = cachedPayslips
+                            .filter(p => {
+                                if (seenIds.has(p.id)) return false;
+                                seenIds.add(p.id);
+                                return true;
+                            })
+                            .map(p => ({
+                                id: p.id,
+                                userId: p.userId,
+                                payDate: new Date(p.payDate),
+                                payPeriodStart: new Date(p.payDate),
+                                payPeriodEnd: new Date(p.payDate),
+                                basicSalary: p.basicSalary
+                            }))
+                            .sort((a, b) => b.payDate.getTime() - a.payDate.getTime());
                         
                         setUserPayslipHistory(payslipHistory);
                         if (payslipHistory.length > 0) {

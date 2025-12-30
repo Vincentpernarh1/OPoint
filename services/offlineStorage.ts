@@ -540,13 +540,26 @@ class OfflineStorageService {
     async cachePayslip(payslip: any, userId: string, tenantId: string) {
         const db = await this.init();
         const cachedAt = new Date().toISOString();
-        const id = `${userId}_${payslip.payDate || new Date().toISOString()}`;
+        
+        // Normalize the date to ISO string (date only, no time) for consistent ID
+        let dateStr: string;
+        if (payslip.payDate instanceof Date) {
+            dateStr = payslip.payDate.toISOString();
+        } else if (typeof payslip.payDate === 'string') {
+            dateStr = payslip.payDate;
+        } else {
+            dateStr = new Date().toISOString();
+        }
+        
+        // Use date only (not full timestamp) for consistent ID
+        const dateOnly = dateStr.split('T')[0];
+        const id = `${userId}_${dateOnly}`;
         
         await db.put('payslips', {
             id,
             userId,
             tenantId,
-            payDate: payslip.payDate,
+            payDate: dateStr,
             basicSalary: payslip.basicSalary || 0,
             grossPay: payslip.grossPay || 0,
             netPay: payslip.netPay || 0,
@@ -556,7 +569,7 @@ class OfflineStorageService {
             otherDeductions: payslip.otherDeductions || [],
             cachedAt
         });
-        console.log(`💾 Cached payslip for user ${userId}`);
+        console.log(`💾 Cached payslip for user ${userId} on ${dateOnly}`);
     }
 
     async getCachedPayslips(userId: string, tenantId: string): Promise<any[]> {
@@ -571,7 +584,9 @@ class OfflineStorageService {
         const db = await this.init();
         if (!db.objectStoreNames.contains('payslips')) return null;
         
-        const id = `${userId}_${payDate}`;
+        // Normalize date to date-only format for consistent lookup
+        const dateOnly = payDate.split('T')[0];
+        const id = `${userId}_${dateOnly}`;
         const payslip = await db.get('payslips', id);
         
         if (!payslip || payslip.tenantId !== tenantId) return null;
@@ -581,6 +596,20 @@ class OfflineStorageService {
         if (cacheAge > this.CACHE_MAX_AGE) return null;
         
         return payslip;
+    }
+
+    async clearOldPayslips(userId: string, tenantId: string) {
+        const db = await this.init();
+        if (!db.objectStoreNames.contains('payslips')) return;
+        
+        const all = await db.getAllFromIndex('payslips', 'by-user', userId);
+        const userPayslips = all.filter(p => p.tenantId === tenantId);
+        
+        // Delete all old payslips for this user
+        for (const payslip of userPayslips) {
+            await db.delete('payslips', payslip.id);
+        }
+        console.log(`🗑️ Cleared ${userPayslips.length} old payslips for user ${userId}`);
     }
 
     // ===== GENERIC CACHE =====
