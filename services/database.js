@@ -525,12 +525,13 @@ export const db = {
         if (!client) return { data: [], error: 'Database not configured' };
 
         const tenantId = tenantIdOverride || getCurrentTenantId();
+        const currentYear = new Date().getFullYear();
 
         let query = client
             .from('opoint_leave_balances')
             .select('*')
             .eq('employee_id', employeeId)
-            .eq('year', new Date().getFullYear());
+            .eq('year', currentYear);
 
         if (tenantId) {
             query = query.eq('tenant_id', tenantId);
@@ -542,6 +543,36 @@ export const db = {
         if (error && error.code === 'PGRST205') {
             console.warn('Leave balances table does not exist yet. Returning empty balances.');
             return { data: [], error: null };
+        }
+
+        // If no balances found for this year, auto-initialize them
+        if (!error && (!data || data.length === 0)) {
+            console.log(`No leave balances found for employee ${employeeId}. Auto-initializing...`);
+            
+            // Initialize default balances for the current year
+            const defaultBalances = [
+                { leave_type: 'annual', total_days: 30 },
+                { leave_type: 'maternity', total_days: 180 },
+                { leave_type: 'sick', total_days: 30 }
+            ];
+            
+            for (const balance of defaultBalances) {
+                await this.initializeLeaveBalance(employeeId, balance.leave_type, balance.total_days, tenantId);
+            }
+            
+            // Re-fetch the balances after initialization
+            let refetchQuery = client
+                .from('opoint_leave_balances')
+                .select('*')
+                .eq('employee_id', employeeId)
+                .eq('year', currentYear);
+
+            if (tenantId) {
+                refetchQuery = refetchQuery.eq('tenant_id', tenantId);
+            }
+
+            const { data: newData, error: newError } = await refetchQuery;
+            return { data: newData || [], error: newError };
         }
 
         return { data: data || [], error };

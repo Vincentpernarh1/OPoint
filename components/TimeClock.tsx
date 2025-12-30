@@ -618,8 +618,16 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     const currentMonthTotal = useMemo(() => {
         const currentMonth = `${time.getFullYear()}-${(time.getMonth() + 1).toString().padStart(2, '0')}`;
         const monthData = monthlyWorkHistory.find(m => m.month === currentMonth);
-        return monthData ? monthData.totalWorked : 0;
-    }, [monthlyWorkHistory, time]);
+        let total = monthData ? monthData.totalWorked : 0;
+        
+        // If user is currently clocked in, add the ongoing session time to the monthly total
+        if (timeEntries.length > 0 && timeEntries[0].type === TimeEntryType.CLOCK_IN) {
+            const ongoingTime = Math.max(0, time.getTime() - timeEntries[0].timestamp.getTime());
+            total += ongoingTime;
+        }
+        
+        return total;
+    }, [monthlyWorkHistory, time, timeEntries]);
 
     useEffect(() => {
         const loadTimeEntries = async () => {

@@ -211,24 +211,9 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                     status
                 });
 
-                // If approved, update leave balance
-                if (actionType === 'approve') {
-                    // Get the leave request details from local state for balance calculation
-                    const leaveRequest = leaveRequests.find(req => req.id === id);
-                    if (leaveRequest) {
-                        try {
-                            // Calculate number of days
-                            const startDate = new Date(leaveRequest.startDate);
-                            const endDate = new Date(leaveRequest.endDate);
-                            const daysCount = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end dates
-
-                            await api.updateLeaveBalance(currentUser.tenantId!, leaveRequest.userId, leaveRequest.leaveType, daysCount);
-                        } catch (balanceError) {
-                            console.warn('Could not update leave balance (table may not exist yet):', balanceError);
-                            // Don't fail the approval if balance update fails
-                        }
-                    }
-                }
+                // Note: We no longer update leave balance immediately on approval.
+                // Leave balances will be calculated dynamically based on actual passed dates
+                // of approved leave requests. See LeaveManagement component for calculation logic.
 
                 // Update status in local state - if not found, it might have been removed by polling, which is fine
                 setLeaveRequests(prev => {

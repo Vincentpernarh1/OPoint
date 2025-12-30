@@ -33,10 +33,40 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
     const [editingRequest, setEditingRequest] = useState<LeaveRequest | null>(null);
     const [loading, setLoading] = useState(true);
     const [userBalance, setUserBalance] = useState({ 
-        annual: { remaining: 0, used: 0 }, 
-        maternity: { remaining: 0, used: 0 }, 
-        sick: { remaining: 0, used: 0 } 
+        annual: { remaining: 0, used: 0, total: 0 }, 
+        maternity: { remaining: 0, used: 0, total: 0 }, 
+        sick: { remaining: 0, used: 0, total: 0 } 
     });
+
+    // Calculate actual used days from approved leave requests based on passed dates
+    const calculateUsedDays = (requests: LeaveRequest[], leaveType: LeaveType): number => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Reset to start of day for comparison
+        
+        return requests
+            .filter(req => 
+                req.leaveType === leaveType && 
+                req.status === RequestStatus.APPROVED
+            )
+            .reduce((total, req) => {
+                const startDate = new Date(req.startDate);
+                const endDate = new Date(req.endDate);
+                startDate.setHours(0, 0, 0, 0);
+                endDate.setHours(0, 0, 0, 0);
+                
+                // Only count days that have already passed
+                if (startDate > today) {
+                    // Leave hasn't started yet
+                    return total;
+                }
+                
+                // Calculate how many days have actually passed
+                const effectiveEndDate = endDate < today ? endDate : today;
+                const daysPassed = Math.ceil((effectiveEndDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                
+                return total + Math.max(0, daysPassed);
+            }, 0);
+    };
 
     const monthsOfService = useMemo(() => {
         const hireDate = new Date(currentUser.hireDate);
@@ -115,13 +145,54 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
 
             // Fetch leave balances
             const balanceData = await api.getLeaveBalances(tenantId, currentUser.id);
+            console.log('Leave balance data received:', balanceData);
+            
             if (balanceData && balanceData.length > 0) {
-                const balances = balanceData[0];
-                setUserBalance({
-                    annual: { remaining: balances.annual_remaining, used: balances.annual_used },
-                    maternity: { remaining: balances.maternity_remaining, used: balances.maternity_used },
-                    sick: { remaining: balances.sick_remaining, used: balances.sick_used }
+                // Group balances by type for easier access
+                const balanceMap: Record<string, any> = {};
+                balanceData.forEach((b: any) => {
+                    balanceMap[b.leave_type] = b;
                 });
+                
+                // CACHE THE BALANCE DATA for offline use
+                try {
+                    await offlineStorage.cacheData('leaveBalances', balanceData, tenantId, currentUser.id);
+                    console.log('Cached leave balances for offline use');
+                } catch (cacheError) {
+                    console.warn('Failed to cache leave balances:', cacheError);
+                }
+                
+                // Calculate used days based on actual passed dates from approved leave requests
+                const annualUsed = calculateUsedDays(transformedData, LeaveType.ANNUAL);
+                const maternityUsed = calculateUsedDays(transformedData, LeaveType.MATERNITY);
+                const sickUsed = calculateUsedDays(transformedData, LeaveType.SICK);
+                
+                const annualTotal = balanceMap['annual']?.total_days || 0;
+                const maternityTotal = balanceMap['maternity']?.total_days || 0;
+                const sickTotal = balanceMap['sick']?.total_days || 0;
+                
+                console.log('Calculated used days:', { annualUsed, maternityUsed, sickUsed });
+                
+                setUserBalance({
+                    annual: { 
+                        total: annualTotal,
+                        remaining: annualTotal - annualUsed, 
+                        used: annualUsed 
+                    },
+                    maternity: { 
+                        total: maternityTotal,
+                        remaining: maternityTotal - maternityUsed, 
+                        used: maternityUsed 
+                    },
+                    sick: { 
+                        total: sickTotal,
+                        remaining: sickTotal - sickUsed, 
+                        used: sickUsed 
+                    }
+                });
+            } else {
+                console.warn('No leave balance data found. The system should auto-initialize balances on next request.');
+                // Keep balances at 0 - they should be auto-initialized by the backend
             }
         } catch (error) {
             console.error('Error fetching leave data:', error);
@@ -165,6 +236,49 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                 } else {
                     setNotification('📴 Offline - No cached leave data. Connect to internet to load your leave history.');
                 }
+                
+                // Try to load cached balance data and calculate offline
+                try {
+                    const cachedBalanceData = await offlineStorage.getCachedData('leaveBalances', tenantId, currentUser.id);
+                    if (cachedBalanceData && Array.isArray(cachedBalanceData) && cachedBalanceData.length > 0) {
+                        // Group balances by type
+                        const balanceMap: Record<string, any> = {};
+                        cachedBalanceData.forEach((b: any) => {
+                            balanceMap[b.leave_type] = b;
+                        });
+                        
+                        // Calculate used days from cached/offline leave requests
+                        const annualUsed = calculateUsedDays(allLeaves, LeaveType.ANNUAL);
+                        const maternityUsed = calculateUsedDays(allLeaves, LeaveType.MATERNITY);
+                        const sickUsed = calculateUsedDays(allLeaves, LeaveType.SICK);
+                        
+                        const annualTotal = balanceMap['annual']?.total_days || 0;
+                        const maternityTotal = balanceMap['maternity']?.total_days || 0;
+                        const sickTotal = balanceMap['sick']?.total_days || 0;
+                        
+                        console.log('Offline - Calculated used days:', { annualUsed, maternityUsed, sickUsed });
+                        
+                        setUserBalance({
+                            annual: { 
+                                total: annualTotal,
+                                remaining: annualTotal - annualUsed, 
+                                used: annualUsed 
+                            },
+                            maternity: { 
+                                total: maternityTotal,
+                                remaining: maternityTotal - maternityUsed, 
+                                used: maternityUsed 
+                            },
+                            sick: { 
+                                total: sickTotal,
+                                remaining: sickTotal - sickUsed, 
+                                used: sickUsed 
+                            }
+                        });
+                    }
+                } catch (balanceCacheError) {
+                    console.warn('Could not load cached balance data:', balanceCacheError);
+                }
             } catch (offlineError) {
                 console.error('Failed to load from offline storage:', offlineError);
                 setNotification('Failed to load leave data. Please check your connection.');
@@ -175,6 +289,34 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
     };
 
     const { containerRef, isRefreshing, pullDistance, pullProgress } = useRefreshable(fetchData);
+
+    // Recalculate balances when requests change (e.g., after approval/cancellation)
+    useEffect(() => {
+        if (userBalance.annual.total > 0 || userBalance.maternity.total > 0 || userBalance.sick.total > 0) {
+            // Only recalculate if we have total balance data
+            const annualUsed = calculateUsedDays(requests, LeaveType.ANNUAL);
+            const maternityUsed = calculateUsedDays(requests, LeaveType.MATERNITY);
+            const sickUsed = calculateUsedDays(requests, LeaveType.SICK);
+            
+            setUserBalance(prev => ({
+                annual: { 
+                    total: prev.annual.total,
+                    remaining: prev.annual.total - annualUsed, 
+                    used: annualUsed 
+                },
+                maternity: { 
+                    total: prev.maternity.total,
+                    remaining: prev.maternity.total - maternityUsed, 
+                    used: maternityUsed 
+                },
+                sick: { 
+                    total: prev.sick.total,
+                    remaining: prev.sick.total - sickUsed, 
+                    used: sickUsed 
+                }
+            }));
+        }
+    }, [requests]);
 
     useEffect(() => {
         if (!isEligibleForAnnualLeave && leaveType === LeaveType.ANNUAL) {
@@ -494,17 +636,17 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                          <div className="bg-white p-4 rounded-xl shadow-lg text-center">
                             <p className="text-sm font-medium text-gray-500">Annual Leave</p>
                             <p className="text-3xl font-bold text-primary">{userBalance.annual.remaining} days</p>
-                            <p className="text-xs text-gray-500 mt-1">Used: {userBalance.annual.used} days</p>
+                            <p className="text-xs text-gray-500 mt-1">Used: {userBalance.annual.used} / {userBalance.annual.total} days</p>
                         </div>
                         <div className="bg-white p-4 rounded-xl shadow-lg text-center">
                             <p className="text-sm font-medium text-gray-500">Maternity Leave</p>
                             <p className="text-3xl font-bold text-pink-500">{Math.floor(userBalance.maternity.remaining / 30)} months</p>
-                            <p className="text-xs text-gray-500 mt-1">Used: {userBalance.maternity.used} days</p>
+                            <p className="text-xs text-gray-500 mt-1">Used: {userBalance.maternity.used} / {userBalance.maternity.total} days</p>
                         </div>
                         <div className="bg-white p-4 rounded-xl shadow-lg text-center">
                             <p className="text-sm font-medium text-gray-500">Sick Leave</p>
                             <p className="text-3xl font-bold text-amber-500">{userBalance.sick.remaining} days</p>
-                            <p className="text-xs text-gray-500 mt-1">Used: {userBalance.sick.used} days</p>
+                            <p className="text-xs text-gray-500 mt-1">Used: {userBalance.sick.used} / {userBalance.sick.total} days</p>
                         </div>
                     </div>
                 </div>
