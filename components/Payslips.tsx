@@ -189,7 +189,9 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                     
                     if (cachedPayslip) {
                         setPayslipData(cachedPayslip);
-                        setError('📴 Offline - Showing cached payslip data');
+                        // DON'T set error - this prevents the data from showing
+                        // Instead the historyError will show the offline message
+                        console.log('📴 Loaded cached payslip data for offline viewing');
                     } else {
                         // Check if this is a salary setup error
                         if (err instanceof Error && err.message.includes('salary not set')) {
