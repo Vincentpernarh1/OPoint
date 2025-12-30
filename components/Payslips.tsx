@@ -5,6 +5,7 @@ import { PAYSCLIP_HISTORY, USERS } from '../constants';
 import { TrendingUpIcon, TrendingDownIcon, LogoIcon, ChevronDownIcon, ArrowLeftIcon, SmartphoneIcon, SearchIcon } from './Icons';
 import { api } from '../services/api';
 import { offlineStorage } from '../services/offlineStorage';
+import { useRefreshable } from '../hooks/useRefreshable';
 
 interface PayslipsProps {
     currentUser: User;
@@ -43,19 +44,11 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
     const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
 
     // Fetch payslip history on component mount
-    useEffect(() => {
-        const fetchPayslipHistory = async () => {
-            setLoadingHistory(true);
-            setHistoryError(null);
-            try {
-                // Clear old cached payslips before fetching fresh data
-                try {
-                    await offlineStorage.clearOldPayslips(employee.id, employee.tenantId || '');
-                } catch (clearErr) {
-                    console.warn('Failed to clear old payslips:', clearErr);
-                }
-                
-                const history = await api.getPayslipHistory(employee.id, employee.tenantId || '');
+    const fetchPayslipHistory = async () => {
+        setLoadingHistory(true);
+        setHistoryError(null);
+        try {
+            const history = await api.getPayslipHistory(employee.id, employee.tenantId || '');
                 
                 // If no payroll history exists, generate a current month payslip
                 let payslipHistory = history.map(record => ({
@@ -151,7 +144,10 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                 setLoadingHistory(false);
             }
         };
+    
+    const { containerRef, isRefreshing } = useRefreshable(fetchPayslipHistory);
 
+    useEffect(() => {
         fetchPayslipHistory();
     }, [employee.id, employee.tenantId, employee.basicSalary]);
 
@@ -286,7 +282,14 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
     }
 
     return (
-        <div>
+        <div ref={containerRef} className="relative">
+            {isRefreshing && (
+                <div className="absolute top-0 left-0 right-0 flex justify-center pt-4 z-50">
+                    <div className="bg-primary text-white px-4 py-2 rounded-full shadow-lg">
+                        Refreshing...
+                    </div>
+                </div>
+            )}
             {isLoading && (
                  <div className="bg-white p-6 md:p-8 rounded-xl shadow-xl animate-fade-in text-center">
                     <LogoIcon className="h-12 w-12 mx-auto animate-pulse text-primary" />
