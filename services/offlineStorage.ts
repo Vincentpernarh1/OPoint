@@ -1,8 +1,8 @@
 // =====================================================
-// Offline Storage Service using IndexedDB
+// Enhanced Offline Storage Service using IndexedDB
 // =====================================================
 // Handles offline data storage for time punches, 
-// leave requests, and other offline-first features
+// leave requests, expenses, and READ-HEAVY caching
 // =====================================================
 
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
@@ -58,6 +58,7 @@ interface OfflineDB {
             status: string;
             synced: boolean;
             createdAt: string;
+            employeeName?: string;
         };
         indexes: {
             'by-synced': boolean;
@@ -72,12 +73,16 @@ interface OfflineDB {
             userId: string;
             companyId: string;
             amount: number;
-            category: string;
+            category?: string;
             description: string;
             date: string;
             receiptUrl?: string;
             synced: boolean;
             createdAt: string;
+            employee_id?: string;
+            employee_name?: string;
+            expense_date?: string;
+            status?: string;
         };
         indexes: {
             'by-synced': boolean;
@@ -85,13 +90,88 @@ interface OfflineDB {
             'by-company': string;
         };
     };
+    // NEW: Cache stores for read-heavy data
+    announcements: {
+        key: string;
+        value: {
+            id: string;
+            tenant_id: string;
+            title: string;
+            content: string;
+            author_id: string;
+            author_name?: string;
+            image_url?: string;
+            created_at: string;
+            updated_at: string;
+            readBy?: string[];
+            cachedAt: string;
+        };
+        indexes: {
+            'by-tenant': string;
+            'by-cached': string;
+        };
+    };
+    users: {
+        key: string;
+        value: {
+            id: string;
+            tenantId: string;
+            name: string;
+            email: string;
+            role: string;
+            team: string;
+            basicSalary: number;
+            hireDate: string;
+            avatarUrl?: string;
+            mobileMoneyNumber?: string;
+            cachedAt: string;
+        };
+        indexes: {
+            'by-tenant': string;
+        };
+    };
+    payslips: {
+        key: string; // userId_date
+        value: {
+            id: string;
+            userId: string;
+            tenantId: string;
+            payDate: string;
+            basicSalary: number;
+            grossPay: number;
+            netPay: number;
+            ssnitEmployee: number;
+            paye: number;
+            totalDeductions: number;
+            otherDeductions: any[];
+            cachedAt: string;
+        };
+        indexes: {
+            'by-user': string;
+            'by-tenant': string;
+        };
+    };
+    cachedData: {
+        key: string; // Type identifier
+        value: {
+            type: string;
+            tenantId: string;
+            data: any;
+            cachedAt: string;
+        };
+        indexes: {
+            'by-type': string;
+            'by-tenant': string;
+        };
+    };
 }
 
 class OfflineStorageService {
     private db: IDBPDatabase<OfflineDB> | null = null;
     private readonly DB_NAME = 'vpena-onpoint-offline';
-    private readonly DB_VERSION = 2;
+    private readonly DB_VERSION = 3; // Increment version for new stores
     private isOnline: boolean = navigator.onLine;
+    private readonly CACHE_MAX_AGE = 1000 * 60 * 60 * 24; // 24 hours
 
     async init() {
         if (this.db) return this.db;
@@ -114,7 +194,7 @@ class OfflineStorageService {
         });
 
         this.db = await openDB<OfflineDB>(this.DB_NAME, this.DB_VERSION, {
-            upgrade(db) {
+            upgrade(db, oldVersion, newVersion, transaction) {
                 // Time Punches Store
                 if (!db.objectStoreNames.contains('timePunches')) {
                     const timePunchStore = db.createObjectStore('timePunches', { keyPath: 'id' });
@@ -138,11 +218,36 @@ class OfflineStorageService {
                     expenseStore.createIndex('by-user', 'userId');
                     expenseStore.createIndex('by-company', 'companyId');
                 }
-                // Sync Queue Store - stores requests to replay when online
+
+                // Sync Queue Store
                 if (!db.objectStoreNames.contains('syncQueue')) {
                     const queueStore = db.createObjectStore('syncQueue', { keyPath: 'id' });
                     queueStore.createIndex('by-status', 'status');
                     queueStore.createIndex('by-tenant', 'tenantId');
+                }
+
+                // NEW STORES FOR CACHING
+                if (!db.objectStoreNames.contains('announcements')) {
+                    const announcementStore = db.createObjectStore('announcements', { keyPath: 'id' });
+                    announcementStore.createIndex('by-tenant', 'tenant_id');
+                    announcementStore.createIndex('by-cached', 'cachedAt');
+                }
+
+                if (!db.objectStoreNames.contains('users')) {
+                    const usersStore = db.createObjectStore('users', { keyPath: 'id' });
+                    usersStore.createIndex('by-tenant', 'tenantId');
+                }
+
+                if (!db.objectStoreNames.contains('payslips')) {
+                    const payslipsStore = db.createObjectStore('payslips', { keyPath: 'id' });
+                    payslipsStore.createIndex('by-user', 'userId');
+                    payslipsStore.createIndex('by-tenant', 'tenantId');
+                }
+
+                if (!db.objectStoreNames.contains('cachedData')) {
+                    const cachedStore = db.createObjectStore('cachedData', { keyPath: 'type' });
+                    cachedStore.createIndex('by-type', 'type');
+                    cachedStore.createIndex('by-tenant', 'tenantId');
                 }
             },
         });
@@ -315,6 +420,12 @@ class OfflineStorageService {
         return allRequests.filter(r => !r.synced);
     }
 
+    async getLeaveRequestsByUser(companyId: string, userId: string) {
+        const db = await this.init();
+        const allRequests = await db.getAllFromIndex('leaveRequests', 'by-company', companyId);
+        return allRequests.filter(r => r.userId === userId);
+    }
+
     async markLeaveRequestSynced(id: string) {
         const db = await this.init();
         const request = await db.get('leaveRequests', id);
@@ -346,6 +457,12 @@ class OfflineStorageService {
         return allExpenses.filter(e => !e.synced);
     }
 
+    async getExpensesByUser(companyId: string, userId: string) {
+        const db = await this.init();
+        const allExpenses = await db.getAllFromIndex('expenses', 'by-company', companyId);
+        return allExpenses.filter(e => e.userId === userId || e.employee_id === userId);
+    }
+
     async markExpenseSynced(id: string) {
         const db = await this.init();
         const expense = await db.get('expenses', id);
@@ -359,6 +476,123 @@ class OfflineStorageService {
     async deleteExpense(id: string) {
         const db = await this.init();
         await db.delete('expenses', id);
+    }
+
+    // ===== ANNOUNCEMENTS CACHE =====
+    async cacheAnnouncements(announcements: any[], tenantId: string) {
+        const db = await this.init();
+        const cachedAt = new Date().toISOString();
+        
+        for (const announcement of announcements) {
+            await db.put('announcements', {
+                ...announcement,
+                cachedAt
+            });
+        }
+        console.log(`💾 Cached ${announcements.length} announcements for tenant ${tenantId}`);
+    }
+
+    async getCachedAnnouncements(tenantId: string): Promise<any[]> {
+        const db = await this.init();
+        if (!db.objectStoreNames.contains('announcements')) return [];
+        
+        const all = await db.getAllFromIndex('announcements', 'by-tenant', tenantId);
+        // Filter out stale cache (older than CACHE_MAX_AGE)
+        const now = Date.now();
+        return all.filter(ann => {
+            const cacheAge = now - new Date(ann.cachedAt).getTime();
+            return cacheAge < this.CACHE_MAX_AGE;
+        });
+    }
+
+    // ===== USERS CACHE =====
+    async cacheUsers(users: any[], tenantId: string) {
+        const db = await this.init();
+        const cachedAt = new Date().toISOString();
+        
+        for (const user of users) {
+            await db.put('users', {
+                id: user.id,
+                tenantId: user.tenantId || tenantId,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                team: user.team || '',
+                basicSalary: user.basicSalary || user.basic_salary || 0,
+                hireDate: user.hireDate || user.hire_date || new Date().toISOString(),
+                avatarUrl: user.avatarUrl || user.avatar_url,
+                mobileMoneyNumber: user.mobileMoneyNumber || user.mobile_money_number,
+                cachedAt
+            });
+        }
+        console.log(`💾 Cached ${users.length} users for tenant ${tenantId}`);
+    }
+
+    async getCachedUsers(tenantId: string): Promise<any[]> {
+        const db = await this.init();
+        if (!db.objectStoreNames.contains('users')) return [];
+        
+        const all = await db.getAllFromIndex('users', 'by-tenant', tenantId);
+        return all;
+    }
+
+    // ===== PAYSLIPS CACHE =====
+    async cachePayslip(payslip: any, userId: string, tenantId: string) {
+        const db = await this.init();
+        const cachedAt = new Date().toISOString();
+        const id = `${userId}_${payslip.payDate || new Date().toISOString()}`;
+        
+        await db.put('payslips', {
+            id,
+            userId,
+            tenantId,
+            payDate: payslip.payDate,
+            basicSalary: payslip.basicSalary || 0,
+            grossPay: payslip.grossPay || 0,
+            netPay: payslip.netPay || 0,
+            ssnitEmployee: payslip.ssnitEmployee || 0,
+            paye: payslip.paye || 0,
+            totalDeductions: payslip.totalDeductions || 0,
+            otherDeductions: payslip.otherDeductions || [],
+            cachedAt
+        });
+        console.log(`💾 Cached payslip for user ${userId}`);
+    }
+
+    async getCachedPayslips(userId: string, tenantId: string): Promise<any[]> {
+        const db = await this.init();
+        if (!db.objectStoreNames.contains('payslips')) return [];
+        
+        const all = await db.getAllFromIndex('payslips', 'by-user', userId);
+        return all.filter(p => p.tenantId === tenantId);
+    }
+
+    // ===== GENERIC CACHE =====
+    async cacheData(type: string, tenantId: string, data: any) {
+        const db = await this.init();
+        const cachedAt = new Date().toISOString();
+        
+        await db.put('cachedData', {
+            type,
+            tenantId,
+            data,
+            cachedAt
+        });
+        console.log(`💾 Cached data for type: ${type}`);
+    }
+
+    async getCachedData(type: string, tenantId: string): Promise<any | null> {
+        const db = await this.init();
+        if (!db.objectStoreNames.contains('cachedData')) return null;
+        
+        const cached = await db.get('cachedData', type);
+        if (!cached || cached.tenantId !== tenantId) return null;
+        
+        // Check if cache is stale
+        const cacheAge = Date.now() - new Date(cached.cachedAt).getTime();
+        if (cacheAge > this.CACHE_MAX_AGE) return null;
+        
+        return cached.data;
     }
 
     // ===== SYNC STATUS =====
@@ -457,6 +691,40 @@ class OfflineStorageService {
         }
 
         console.log('🗑️ Cleared offline data for company:', companyId);
+    }
+
+    async clearAllCache() {
+        const db = await this.init();
+        
+        if (db.objectStoreNames.contains('announcements')) {
+            const announcements = await db.getAll('announcements');
+            for (const ann of announcements) {
+                await db.delete('announcements', ann.id);
+            }
+        }
+
+        if (db.objectStoreNames.contains('users')) {
+            const users = await db.getAll('users');
+            for (const user of users) {
+                await db.delete('users', user.id);
+            }
+        }
+
+        if (db.objectStoreNames.contains('payslips')) {
+            const payslips = await db.getAll('payslips');
+            for (const payslip of payslips) {
+                await db.delete('payslips', payslip.id);
+            }
+        }
+
+        if (db.objectStoreNames.contains('cachedData')) {
+            const cached = await db.getAll('cachedData');
+            for (const item of cached) {
+                await db.delete('cachedData', item.type);
+            }
+        }
+
+        console.log('🗑️ Cleared all cached data');
     }
 }
 

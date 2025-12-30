@@ -4,6 +4,7 @@ import { User, Payslip, UserRole, View } from '../types';
 import { PAYSCLIP_HISTORY, USERS } from '../constants';
 import { TrendingUpIcon, TrendingDownIcon, LogoIcon, ChevronDownIcon, ArrowLeftIcon, SmartphoneIcon, SearchIcon } from './Icons';
 import { api } from '../services/api';
+import { offlineStorage } from '../services/offlineStorage';
 
 interface PayslipsProps {
     currentUser: User;
@@ -77,20 +78,58 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                 if (payslipHistory.length > 0) {
                     setSelectedPayslipId(payslipHistory[0]);
                 }
+                // Cache payslip history for offline use
+                for (const payslip of payslipHistory) {
+                    await offlineStorage.cachePayslip(payslip, employee.id, employee.tenantId || '');
+                }
             } catch (err) {
                 setHistoryError(err instanceof Error ? err.message : 'Failed to load payslip history');
-                // Fallback: create a current month entry with employee data
-                const currentDate = new Date();
-                const fallbackEntry = {
-                    id: `${employee.id}_${currentDate.toISOString().split('T')[0]}`,
-                    userId: employee.id,
-                    payDate: currentDate,
-                    payPeriodStart: new Date(currentDate.getFullYear(), currentDate.getMonth(), 1),
-                    payPeriodEnd: currentDate,
-                    basicSalary: employee.basicSalary || 0,
-                };
-                setUserPayslipHistory([fallbackEntry]);
-                setSelectedPayslipId(fallbackEntry);
+                // OFFLINE FALLBACK: Try to load cached payslips
+                try {
+                    const cachedPayslips = await offlineStorage.getCachedPayslips(employee.id, employee.tenantId || '');
+                    if (cachedPayslips.length > 0) {
+                        const payslipHistory = cachedPayslips.map(p => ({
+                            id: p.id,
+                            userId: p.userId,
+                            payDate: new Date(p.payDate),
+                            payPeriodStart: new Date(p.payDate),
+                            payPeriodEnd: new Date(p.payDate),
+                            basicSalary: p.basicSalary
+                        })).sort((a, b) => b.payDate.getTime() - a.payDate.getTime());
+                        setUserPayslipHistory(payslipHistory);
+                        if (payslipHistory.length > 0) {
+                            setSelectedPayslipId(payslipHistory[0]);
+                        }
+                        setHistoryError('📴 Offline - Showing cached payslip data');
+                    } else {
+                        // Fallback: create a current month entry with employee data
+                        const currentDate = new Date();
+                        const fallbackEntry = {
+                            id: `${employee.id}_${currentDate.toISOString().split('T')[0]}`,
+                            userId: employee.id,
+                            payDate: currentDate,
+                            payPeriodStart: new Date(currentDate.getFullYear(), currentDate.getMonth(), 1),
+                            payPeriodEnd: currentDate,
+                            basicSalary: employee.basicSalary || 0,
+                        };
+                        setUserPayslipHistory([fallbackEntry]);
+                        setSelectedPayslipId(fallbackEntry);
+                    }
+                } catch (cacheErr) {
+                    console.error('Failed to load cached payslips:', cacheErr);
+                    // Fallback: create a current month entry with employee data
+                    const currentDate = new Date();
+                    const fallbackEntry = {
+                        id: `${employee.id}_${currentDate.toISOString().split('T')[0]}`,
+                        userId: employee.id,
+                        payDate: currentDate,
+                        payPeriodStart: new Date(currentDate.getFullYear(), currentDate.getMonth(), 1),
+                        payPeriodEnd: currentDate,
+                        basicSalary: employee.basicSalary || 0,
+                    };
+                    setUserPayslipHistory([fallbackEntry]);
+                    setSelectedPayslipId(fallbackEntry);
+                }
             } finally {
                 setLoadingHistory(false);
             }

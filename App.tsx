@@ -29,6 +29,7 @@ import { authService } from './services/authService';
 import { getCurrentTenantId, setTenantContext } from './services/database';
 import db from './services/database';
 import { api } from './services/api';
+import { offlineStorage } from './services/offlineStorage';
 
 import { LogoIcon, LogOutIcon, LayoutDashboardIcon, BriefcaseIcon, CheckSquareIcon, UsersIcon, DollarSignIcon, MenuIcon, XIcon, FileTextIcon, MegaphoneIcon, ReceiptIcon, UserCircleIcon, SmartphoneIcon, CogIcon, ChevronLeftIcon, ChevronRightIcon, BellIcon } from './components/Icons';
 
@@ -59,6 +60,8 @@ const App = () => {
             const data = await api.getAnnouncements(currentUser.tenantId, currentUser.id);
             if (data && data.length > 0) {
                 setAnnouncements(data);
+                // Cache the announcements for offline use
+                await offlineStorage.cacheAnnouncements(data, currentUser.tenantId);
             } else {
                 // Fall back to constants for development
                 const mockData = ANNOUNCEMENTS.filter(ann => ann.tenant_id === currentUser.tenantId);
@@ -66,9 +69,23 @@ const App = () => {
             }
         } catch (error) {
             console.error('Error fetching announcements:', error);
-            // Fall back to constants on error
-            const mockData = ANNOUNCEMENTS.filter(ann => ann.tenant_id === currentUser.tenantId);
-            setAnnouncements(mockData);
+            // OFFLINE FALLBACK: Try to load from cache
+            try {
+                const cachedAnnouncements = await offlineStorage.getCachedAnnouncements(currentUser.tenantId);
+                if (cachedAnnouncements.length > 0) {
+                    setAnnouncements(cachedAnnouncements);
+                    console.log('📴 Loaded cached announcements');
+                } else {
+                    // Fall back to constants on error if no cache
+                    const mockData = ANNOUNCEMENTS.filter(ann => ann.tenant_id === currentUser.tenantId);
+                    setAnnouncements(mockData);
+                }
+            } catch (cacheError) {
+                console.error('Failed to load cached announcements:', cacheError);
+                // Fall back to constants on error
+                const mockData = ANNOUNCEMENTS.filter(ann => ann.tenant_id === currentUser.tenantId);
+                setAnnouncements(mockData);
+            }
         }
     }, [currentUser?.tenantId, currentUser?.id]);
 

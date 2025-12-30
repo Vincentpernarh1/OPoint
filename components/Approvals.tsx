@@ -5,6 +5,7 @@ import { LeaveRequest, AdjustmentRequest, RequestStatus, User, ExpenseRequest, P
 import { CheckIcon, XIcon } from './Icons';
 import EmployeeLogModal from './EmployeeLogModal';
 import { api } from '../services/api';
+import { offlineStorage } from '../services/offlineStorage';
 
 interface ViewingLogState {
     user: User;
@@ -143,19 +144,42 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 
                 const expenseData = await api.getExpenseClaims(currentUser.tenantId!, expenseFilters);
                 
-                // Use only API data - no mock data fallback
+                // Use only API data - cache for offline use
+                await offlineStorage.cacheData(`approval_leaves_${leaveStatusFilter}`, currentUser.tenantId!, transformedLeaveData);
+                await offlineStorage.cacheData(`approval_adjustments_${adjustmentStatusFilter}`, currentUser.tenantId!, transformedAdjustmentData);
+                await offlineStorage.cacheData(`approval_profiles_${profileStatusFilter}`, currentUser.tenantId!, profileData);
+                await offlineStorage.cacheData(`approval_expenses`, currentUser.tenantId!, expenseData);
+                
                 setLeaveRequests(transformedLeaveData);
                 setAdjustmentRequests(transformedAdjustmentData);
                 setProfileRequests(profileData);
                 setExpenseRequests(expenseData);
             } catch (err) {
                 console.error('Failed to fetch requests:', err);
-                setError('Failed to load requests');
-                // No mock data fallback - show empty arrays on error
-                setLeaveRequests([]);
-                setAdjustmentRequests([]);
-                setProfileRequests([]);
-                setExpenseRequests([]);
+                setError('Failed to load requests - showing cached data');
+                // OFFLINE FALLBACK: Try to load cached data
+                try {
+                    const cachedLeaves = await offlineStorage.getCachedData(`approval_leaves_${leaveStatusFilter}`, currentUser.tenantId!) || [];
+                    const cachedAdjustments = await offlineStorage.getCachedData(`approval_adjustments_${adjustmentStatusFilter}`, currentUser.tenantId!) || [];
+                    const cachedProfiles = await offlineStorage.getCachedData(`approval_profiles_${profileStatusFilter}`, currentUser.tenantId!) || [];
+                    const cachedExpenses = await offlineStorage.getCachedData(`approval_expenses`, currentUser.tenantId!) || [];
+                    
+                    setLeaveRequests(cachedLeaves);
+                    setAdjustmentRequests(cachedAdjustments);
+                    setProfileRequests(cachedProfiles);
+                    setExpenseRequests(cachedExpenses);
+                    
+                    if (cachedLeaves.length || cachedAdjustments.length || cachedProfiles.length || cachedExpenses.length) {
+                        setError('📴 Offline - Showing cached approval data');
+                    }
+                } catch (cacheErr) {
+                    console.error('Failed to load cached data:', cacheErr);
+                    // Show empty arrays on error
+                    setLeaveRequests([]);
+                    setAdjustmentRequests([]);
+                    setProfileRequests([]);
+                    setExpenseRequests([]);
+                }
             } finally {
                 setLoading(false);
             }

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileTextIcon, LogoIcon } from './Icons';
 import { api } from '../services/api';
+import { offlineStorage } from '../services/offlineStorage';
 import type { User } from '../types';
 import { UserRole } from '../types';
 
@@ -41,9 +42,23 @@ const Reports = ({ currentUser }: ReportsProps) => {
                 setLoadingEmployees(true);
                 const data = await api.getUsers(currentUser.tenantId!);
                 setEmployees(data);
+                // Cache employees for offline use
+                await offlineStorage.cacheUsers(data, currentUser.tenantId!);
             } catch (err) {
                 console.error('Failed to fetch employees:', err);
-                setError('Failed to load employees for selection.');
+                // OFFLINE FALLBACK: Try to load cached users
+                try {
+                    const cachedUsers = await offlineStorage.getCachedUsers(currentUser.tenantId!);
+                    if (cachedUsers.length > 0) {
+                        setEmployees(cachedUsers);
+                        setError('📴 Offline - Showing cached employee list');
+                    } else {
+                        setError('Failed to load employees for selection.');
+                    }
+                } catch (cacheErr) {
+                    console.error('Failed to load cached users:', cacheErr);
+                    setError('Failed to load employees for selection.');
+                }
             } finally {
                 setLoadingEmployees(false);
             }

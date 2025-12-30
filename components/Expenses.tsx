@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, ExpenseRequest, RequestStatus } from '../types';
 import { api } from '../services/api';
+import { offlineStorage } from '../services/offlineStorage';
 import { ReceiptIcon, CheckCircleIcon, ClockIcon, XIcon } from './Icons';
 import Notification from './Notification';
 
@@ -34,7 +35,28 @@ const Expenses = ({ currentUser }: ExpensesProps) => {
                 setRequests(claims);
             } catch (error) {
                 console.error('Failed to fetch expense claims:', error);
-                setNotification('Failed to load expense claims');
+                // OFFLINE FALLBACK: Try to load from local IndexedDB
+                try {
+                    const localExpenses = await offlineStorage.getExpensesByUser(currentUser.tenantId!, currentUser.id);
+                    if (localExpenses.length > 0) {
+                        setRequests(localExpenses.map(exp => ({
+                            id: exp.id,
+                            employee_id: exp.employee_id || exp.userId,
+                            employee_name: exp.employee_name || currentUser.name,
+                            description: exp.description,
+                            amount: exp.amount,
+                            expense_date: exp.expense_date || exp.date,
+                            status: exp.synced ? exp.status : 'Pending Sync',
+                            receipt_url: exp.receiptUrl
+                        })));
+                        setNotification('📴 Offline - Showing local expense data');
+                    } else {
+                        setNotification('Failed to load expense claims');
+                    }
+                } catch (offlineError) {
+                    console.error('Failed to load from offline storage:', offlineError);
+                    setNotification('Failed to load expense claims');
+                }
             } finally {
                 setLoading(false);
             }
