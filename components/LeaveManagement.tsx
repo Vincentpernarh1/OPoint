@@ -308,28 +308,65 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
 
                 console.log('Sending leave data:', JSON.stringify(leaveData, null, 2));
 
-                await api.createLeaveRequest(tenantId, leaveData);
+                try {
+                    await api.createLeaveRequest(tenantId, leaveData);
+                    
+                    // Refresh the leave requests
+                    const data = await api.getLeaveRequests(tenantId, { userId: currentUser.id });
+                    const transformedData: LeaveRequest[] = data.map((item: any) => ({
+                        id: item.id,
+                        userId: item.employee_id,
+                        employeeName: item.employee_name,
+                        leaveType: item.leave_type as LeaveType,
+                        startDate: new Date(item.start_date),
+                        endDate: new Date(item.end_date),
+                        reason: item.reason,
+                        status: item.status as RequestStatus
+                    }));
+                    setRequests(transformedData);
 
-                // Refresh the leave requests
-                const data = await api.getLeaveRequests(tenantId, { userId: currentUser.id });
-                const transformedData: LeaveRequest[] = data.map((item: any) => ({
-                    id: item.id,
-                    userId: item.employee_id,
-                    leaveType: item.leave_type as LeaveType,
-                    startDate: new Date(item.start_date),
-                    endDate: new Date(item.end_date),
-                    reason: item.reason,
-                    status: item.status as RequestStatus
-                }));
-                setRequests(transformedData);
+                    setNotification('✅ Leave request submitted successfully!');
+                } catch (apiError) {
+                    console.warn('API submission failed, saving offline:', apiError);
+                    
+                    // OFFLINE FALLBACK: Save to IndexedDB
+                    const offlineLeaveRequest = {
+                        id: `offline-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                        userId: currentUser.id,
+                        companyId: tenantId,
+                        leaveType: leaveData.leave_type,
+                        startDate: leaveData.start_date,
+                        endDate: leaveData.end_date,
+                        reason: leaveData.reason,
+                        status: 'Pending',
+                        synced: false,
+                        createdAt: new Date().toISOString(),
+                        employeeName: currentUser.name
+                    };
+                    
+                    await offlineStorage.saveLeaveRequest(offlineLeaveRequest);
+                    
+                    // Add to local state for immediate display
+                    const newRequest: LeaveRequest = {
+                        id: offlineLeaveRequest.id,
+                        userId: offlineLeaveRequest.userId,
+                        employeeName: offlineLeaveRequest.employeeName,
+                        leaveType: offlineLeaveRequest.leaveType as LeaveType,
+                        startDate: new Date(offlineLeaveRequest.startDate),
+                        endDate: new Date(offlineLeaveRequest.endDate),
+                        reason: offlineLeaveRequest.reason,
+                        status: '⏳ Pending Sync' as RequestStatus
+                    };
+                    setRequests(prev => [newRequest, ...prev]);
+                    
+                    setNotification('📴 Offline - Leave request saved locally. Will sync when online.');
+                }
 
                 // Reset form
                 setStartDate(null);
                 setEndDate(null);
                 setReason('');
                 setNumDays('');
-
-                setNotification('Leave request submitted successfully!');
             } catch (error: any) {
                 console.error('Failed to submit leave request:', error);
                 console.error('Error details:', error.message);

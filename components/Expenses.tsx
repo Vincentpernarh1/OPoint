@@ -77,15 +77,53 @@ const Expenses = ({ currentUser }: ExpensesProps) => {
                 receipt_url: receipt ? URL.createObjectURL(receipt) : undefined,
             };
 
-            const newClaim = await api.createExpenseClaim(currentUser.tenantId!, expenseData);
-            setRequests(prev => [newClaim, ...prev]);
+            try {
+                const newClaim = await api.createExpenseClaim(currentUser.tenantId!, expenseData);
+                setRequests(prev => [newClaim, ...prev]);
+                setNotification('✅ Expense claim submitted successfully!');
+            } catch (apiError) {
+                console.warn('API submission failed, saving offline:', apiError);
+                
+                // OFFLINE FALLBACK: Save to IndexedDB
+                const offlineExpense = {
+                    id: `offline-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    userId: currentUser.id,
+                    companyId: currentUser.tenantId!,
+                    amount: parseFloat(amount),
+                    category: 'General',
+                    description: description,
+                    date: date,
+                    receiptUrl: receipt ? URL.createObjectURL(receipt) : undefined,
+                    synced: false,
+                    createdAt: new Date().toISOString(),
+                    employee_id: currentUser.id,
+                    employee_name: currentUser.name,
+                    expense_date: date,
+                    status: 'Pending Sync'
+                };
+                
+                await offlineStorage.saveExpense(offlineExpense);
+                
+                // Add to local state for immediate display
+                setRequests(prev => [{
+                    id: offlineExpense.id,
+                    employee_id: offlineExpense.employee_id,
+                    employee_name: offlineExpense.employee_name,
+                    description: offlineExpense.description,
+                    amount: offlineExpense.amount,
+                    expense_date: offlineExpense.expense_date,
+                    status: 'Pending Sync',
+                    receipt_url: offlineExpense.receiptUrl
+                }, ...prev]);
+                
+                setNotification('📴 Offline - Expense saved locally. Will sync when online.');
+            }
 
             // Reset form
             setDescription('');
             setAmount('');
             setDate(new Date().toISOString().split('T')[0]);
             setReceipt(null);
-            setNotification('Expense claim submitted successfully!');
         } catch (error) {
             console.error('Failed to submit expense claim:', error);
             setNotification('Failed to submit expense claim');
