@@ -167,7 +167,6 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                 // CACHE THE FULL PAYSLIP DATA for offline use
                 try {
                     await offlineStorage.cachePayslip(data, selectedPayslipId.userId!, employee.tenantId || '');
-                    console.log('Cached payslip details for offline use');
                 } catch (cacheErr) {
                     console.warn('Failed to cache payslip details:', cacheErr);
                 }

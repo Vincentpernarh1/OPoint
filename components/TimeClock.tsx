@@ -103,6 +103,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     const [time, setTime] = useState(new Date());
     const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
     const [adjustmentRequests, setAdjustmentRequests] = useState<AdjustmentRequest[]>([]);
+    const [breakDurationMinutes, setBreakDurationMinutes] = useState<number>(60); // Default 1 hour
     const [locationError, setLocationError] = useState<string | null>(null);
     const [isCameraOpen, setIsCameraOpen] = useState(false);
     const [currentActionType, setCurrentActionType] = useState<TimeEntryType | null>(null);
@@ -162,6 +163,22 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     };
     
     const latestAnnouncement = useMemo(() => announcements.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0], [announcements]);
+
+    // Fetch company settings to get break duration
+    useEffect(() => {
+        const fetchCompanySettings = async () => {
+            if (!currentUser.tenantId) return;
+            try {
+                const settings = await api.getCompanySettings(currentUser.tenantId);
+                if (settings && settings.break_duration_minutes !== undefined) {
+                    setBreakDurationMinutes(settings.break_duration_minutes);
+                }
+            } catch (error) {
+                console.warn('Could not fetch company settings, using default break duration:', error);
+            }
+        };
+        fetchCompanySettings();
+    }, [currentUser.tenantId]);
 
     // Ref to prevent overlapping refreshes
     const isRefreshingRef = useRef(false);
@@ -556,32 +573,58 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 });
                 
                 // Use adjustment times if approved, otherwise use actual entries
-                let clockIns: Date[];
-                let clockOuts: Date[];
+                let totalWorkedMs = 0;
+                let isSingleSession = false;
                 
                 if (approvedAdjustment) {
-                    clockIns = [approvedAdjustment.requestedClockIn];
-                    clockOuts = approvedAdjustment.requestedClockOut ? [approvedAdjustment.requestedClockOut] : [];
+                    // Adjustment: use requested times (can have 2 sessions for break tracking)
+                    const session1In = approvedAdjustment.requestedClockIn;
+                    const session1Out = approvedAdjustment.requestedClockOut;
+                    const session2In = approvedAdjustment.requestedClockIn2;
+                    const session2Out = approvedAdjustment.requestedClockOut2;
+                    
+                    // Calculate first session
+                    if (session1In && session1Out) {
+                        totalWorkedMs += Math.max(0, session1Out.getTime() - session1In.getTime());
+                    }
+                    
+                    // Calculate second session if exists (break tracking)
+                    if (session2In && session2Out) {
+                        totalWorkedMs += Math.max(0, session2Out.getTime() - session2In.getTime());
+                    }
+                    
+                    isSingleSession = !session2In && !session2Out;
                 } else {
-                    clockIns = dayEntries.filter(e => e.type === TimeEntryType.CLOCK_IN).map(e => new Date(e.timestamp));
-                    clockOuts = dayEntries.filter(e => e.type === TimeEntryType.CLOCK_OUT).map(e => new Date(e.timestamp));
+                    // Calculate worked time by pairing entries chronologically
+                    let lastClockIn: Date | null = null;
+                    let sessionCount = 0;
+                    
+                    for (const entry of dayEntries) {
+                        if (entry.type === TimeEntryType.CLOCK_IN) {
+                            lastClockIn = new Date(entry.timestamp);
+                        } else if (entry.type === TimeEntryType.CLOCK_OUT && lastClockIn) {
+                            const clockOut = new Date(entry.timestamp);
+                            const sessionDuration = clockOut.getTime() - lastClockIn.getTime();
+                            totalWorkedMs += Math.max(0, sessionDuration);
+                            lastClockIn = null; // Reset for next session
+                            sessionCount++;
+                        }
+                    }
+                    
+                    // If there's an unpaired clock-in (user is currently working), add ongoing time
+                    if (lastClockIn && dateKey === time.toDateString()) {
+                        const ongoingDuration = time.getTime() - lastClockIn.getTime();
+                        totalWorkedMs += Math.max(0, ongoingDuration);
+                        sessionCount++; // Count ongoing session
+                    }
+                    
+                    isSingleSession = sessionCount === 1;
                 }
                 
-                let totalWorkedMs = 0;
-                
-                // Calculate total worked time by pairing clock-ins with clock-outs
-                const minPairs = Math.min(clockIns.length, clockOuts.length);
-                for (let i = 0; i < minPairs; i++) {
-                    const sessionDuration = clockOuts[i].getTime() - clockIns[i].getTime();
-                    totalWorkedMs += Math.max(0, sessionDuration); // Ensure non-negative
-                }
-                
-                // If there's an unpaired clock-in (user is currently working), add ongoing time
-                if (clockIns.length > clockOuts.length && dateKey === time.toDateString() && !approvedAdjustment) {
-                    // Current day, clocked in but not out yet - add ongoing session time
-                    const lastClockIn = clockIns[clockIns.length - 1];
-                    const ongoingDuration = time.getTime() - lastClockIn.getTime();
-                    totalWorkedMs += Math.max(0, ongoingDuration);
+                // Apply automatic break deduction for single-session days (no adjustment, single clock-in/out)
+                if (isSingleSession && breakDurationMinutes > 0 && !approvedAdjustment) {
+                    const breakMs = breakDurationMinutes * 60 * 1000;
+                    totalWorkedMs = Math.max(0, totalWorkedMs - breakMs);
                 }
                 
                 const requiredMs = 8 * 60 * 60 * 1000;
@@ -594,7 +637,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 };
             })
             .sort((a, b) => b.date.getTime() - a.date.getTime()); // Sort by date descending
-    }, [timeEntries, time, adjustmentRequests]);
+    }, [timeEntries, time, adjustmentRequests, breakDurationMinutes]);
 
     const todaySummary = useMemo(() => {
         const todayHistory = dailyWorkHistory.find(d => d.date.toDateString() === time.toDateString());
@@ -624,16 +667,10 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     const currentMonthTotal = useMemo(() => {
         const currentMonth = `${time.getFullYear()}-${(time.getMonth() + 1).toString().padStart(2, '0')}`;
         const monthData = monthlyWorkHistory.find(m => m.month === currentMonth);
-        let total = monthData ? monthData.totalWorked : 0;
-        
-        // If user is currently clocked in, add the ongoing session time to the monthly total
-        if (timeEntries.length > 0 && timeEntries[0].type === TimeEntryType.CLOCK_IN) {
-            const ongoingTime = Math.max(0, time.getTime() - timeEntries[0].timestamp.getTime());
-            total += ongoingTime;
-        }
-        
-        return total;
-    }, [monthlyWorkHistory, time, timeEntries]);
+        // The monthlyWorkHistory already includes ongoing time from dailyWorkHistory
+        // so we don't need to add it again here
+        return monthData ? monthData.totalWorked : 0;
+    }, [monthlyWorkHistory, time]);
 
     useEffect(() => {
         const loadTimeEntries = async () => {
@@ -895,6 +932,8 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
             const payloadOriginalClockOut = combineLocalDateWithTime(adjustment.date, adjustment.originalClockOut)?.toISOString();
             const payloadRequestedClockIn = combineLocalDateWithTime(adjustment.date, adjustment.requestedClockIn)!.toISOString();
             const payloadRequestedClockOut = combineLocalDateWithTime(adjustment.date, adjustment.requestedClockOut)!.toISOString();
+            const payloadRequestedClockIn2 = adjustment.requestedClockIn2 ? combineLocalDateWithTime(adjustment.date, adjustment.requestedClockIn2)!.toISOString() : undefined;
+            const payloadRequestedClockOut2 = adjustment.requestedClockOut2 ? combineLocalDateWithTime(adjustment.date, adjustment.requestedClockOut2)!.toISOString() : undefined;
 
             const response = await api.createTimeAdjustmentRequest(currentUser.tenantId!, {
                 userId: currentUser.id,
@@ -906,6 +945,8 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 originalClockOut: payloadOriginalClockOut,
                 requestedClockIn: payloadRequestedClockIn,
                 requestedClockOut: payloadRequestedClockOut,
+                requestedClockIn2: payloadRequestedClockIn2,
+                requestedClockOut2: payloadRequestedClockOut2,
                 reason: adjustment.reason
             });
 
@@ -919,6 +960,8 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 originalClockOut: combineLocalDateWithTime(adjustment.date, adjustment.originalClockOut),
                 requestedClockIn: combineLocalDateWithTime(adjustment.date, adjustment.requestedClockIn)!,
                 requestedClockOut: combineLocalDateWithTime(adjustment.date, adjustment.requestedClockOut)!,
+                requestedClockIn2: adjustment.requestedClockIn2 ? combineLocalDateWithTime(adjustment.date, adjustment.requestedClockIn2) : undefined,
+                requestedClockOut2: adjustment.requestedClockOut2 ? combineLocalDateWithTime(adjustment.date, adjustment.requestedClockOut2) : undefined,
                 reason: adjustment.reason,
                 status: RequestStatus.PENDING
             };
@@ -1218,7 +1261,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                         <h3 className="text-xl font-bold text-gray-800 border-b pb-3">Today's Summary</h3>
                         <div className='text-center'>
                             <p className="text-sm text-gray-500 uppercase tracking-wider">Worked Today</p>
-                            <p className={`text-4xl font-bold ${currentStatus.textColor}`}>{formatDuration(todaySummary.worked + (timeEntries.length > 0 && timeEntries[0].type === TimeEntryType.CLOCK_IN ? Math.max(0, time.getTime() - timeEntries[0].timestamp.getTime()) : 0))}</p>
+                            <p className={`text-4xl font-bold ${currentStatus.textColor}`}>{formatDuration(todaySummary.worked)}</p>
                         </div>
                         <div className='text-center'>
                             <p className="text-sm text-gray-500 uppercase tracking-wider">Hour Bank</p>

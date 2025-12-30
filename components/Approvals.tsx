@@ -117,6 +117,8 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                         originalClockOut: item.clock_out ? new Date(item.clock_out) : undefined,
                         requestedClockIn: item.requested_clock_in ? new Date(item.requested_clock_in) : undefined,
                         requestedClockOut: item.requested_clock_out ? new Date(item.requested_clock_out) : undefined,
+                        requestedClockIn2: item.requested_clock_in_2 ? new Date(item.requested_clock_in_2) : undefined,
+                        requestedClockOut2: item.requested_clock_out_2 ? new Date(item.requested_clock_out_2) : undefined,
                         reason: item.adjustment_reason,
                         status: item.adjustment_status as RequestStatus,
                         reviewedBy: item.adjustment_reviewed_by,
@@ -524,11 +526,23 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                                 {(() => {
                                                     const requestedIn = req.requestedClockIn ? new Date(req.requestedClockIn) : (req.originalClockIn ? new Date(req.originalClockIn) : undefined);
                                                     const requestedOut = req.requestedClockOut ? new Date(req.requestedClockOut) : (req.originalClockOut ? new Date(req.originalClockOut) : undefined);
-                                                    const usedFallback = !req.requestedClockIn && (req.originalClockIn || req.originalClockOut);
+                                                    const requestedIn2 = req.requestedClockIn2 ? new Date(req.requestedClockIn2) : undefined;
+                                                    const requestedOut2 = req.requestedClockOut2 ? new Date(req.requestedClockOut2) : undefined;
+                                                    
+                                                    // Check if this is a multi-session (break-tracked) adjustment
+                                                    const hasBreakSession = requestedIn2 || requestedOut2;
+                                                    
                                                     return (
-                                                        <p className="text-sm text-gray-600">
-                                                            Requested: {requestedIn ? requestedIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'} - {requestedOut ? requestedOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
-                                                        </p>
+                                                        <div className="text-sm text-gray-600">
+                                                            {hasBreakSession ? (
+                                                                <>
+                                                                    <p>Session 1: {requestedIn ? requestedIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'} - {requestedOut ? requestedOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</p>
+                                                                    <p>Session 2: {requestedIn2 ? requestedIn2.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'} - {requestedOut2 ? requestedOut2.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</p>
+                                                                </>
+                                                            ) : (
+                                                                <p>Requested: {requestedIn ? requestedIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'} - {requestedOut ? requestedOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</p>
+                                                            )}
+                                                        </div>
                                                     );
                                                 })()}
                                                 

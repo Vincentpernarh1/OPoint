@@ -14,6 +14,9 @@ interface ManualAdjustmentModalProps {
 const ManualAdjustmentModal = ({ onClose, onSubmit, date, existingClockIn, existingClockOut }: ManualAdjustmentModalProps) => {
     const [requestedClockIn, setRequestedClockIn] = useState(existingClockIn ? existingClockIn.toTimeString().slice(0, 5) : '');
     const [requestedClockOut, setRequestedClockOut] = useState(existingClockOut ? existingClockOut.toTimeString().slice(0, 5) : '');
+    const [requestedClockIn2, setRequestedClockIn2] = useState('');
+    const [requestedClockOut2, setRequestedClockOut2] = useState('');
+    const [hasBreak, setHasBreak] = useState(false);
     const [reason, setReason] = useState('');
     const [error, setError] = useState('');
 
@@ -21,7 +24,12 @@ const ManualAdjustmentModal = ({ onClose, onSubmit, date, existingClockIn, exist
         e.preventDefault();
 
         if (!requestedClockIn || !requestedClockOut || !reason.trim()) {
-            setError('Please fill in all fields.');
+            setError('Please fill in all required fields.');
+            return;
+        }
+
+        if (hasBreak && (!requestedClockIn2 || !requestedClockOut2)) {
+            setError('Please fill in all break session times or uncheck "Track Break Period".');
             return;
         }
 
@@ -39,14 +47,37 @@ const ManualAdjustmentModal = ({ onClose, onSubmit, date, existingClockIn, exist
             return;
         }
 
+        let reqIn2, reqOut2;
+        if (hasBreak) {
+            reqIn2 = new Date(dateObj);
+            const [in2H, in2M] = requestedClockIn2.split(':').map(Number);
+            reqIn2.setHours(in2H, in2M, 0, 0);
+
+            reqOut2 = new Date(dateObj);
+            const [out2H, out2M] = requestedClockOut2.split(':').map(Number);
+            reqOut2.setHours(out2H, out2M, 0, 0);
+
+            if (reqIn2 <= reqOut) {
+                setError('Second clock-in must be after first clock-out (break start).');
+                return;
+            }
+
+            if (reqOut2 <= reqIn2) {
+                setError('Second clock-out must be after second clock-in.');
+                return;
+            }
+        }
+
         setError('');
 
         onSubmit({
-            date: date, // Use the date prop directly, it's already in YYYY-MM-DD format
+            date: date,
             originalClockIn: existingClockIn,
             originalClockOut: existingClockOut,
             requestedClockIn: reqIn,
             requestedClockOut: reqOut,
+            requestedClockIn2: reqIn2,
+            requestedClockOut2: reqOut2,
             reason: reason.trim()
         });
     };
@@ -66,29 +97,80 @@ const ManualAdjustmentModal = ({ onClose, onSubmit, date, existingClockIn, exist
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label htmlFor="requested-clock-in" className="block text-sm font-bold text-gray-700 mb-1">Requested Clock In</label>
+                    <div className="flex items-center space-x-2 mb-4 p-3 bg-blue-50 rounded-lg">
                         <input
-                            id="requested-clock-in"
-                            type="time"
-                            value={requestedClockIn}
-                            onChange={e => setRequestedClockIn(e.target.value)}
-                            className="block w-full px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-lg font-mono text-center"
-                            required
+                            id="has-break"
+                            type="checkbox"
+                            checked={hasBreak}
+                            onChange={e => setHasBreak(e.target.checked)}
+                            className="h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary"
                         />
+                        <label htmlFor="has-break" className="text-sm font-medium text-gray-700">
+                            Track Break Period (2 sessions)
+                        </label>
                     </div>
 
-                    <div>
-                        <label htmlFor="requested-clock-out" className="block text-sm font-bold text-gray-700 mb-1">Requested Clock Out</label>
-                        <input
-                            id="requested-clock-out"
-                            type="time"
-                            value={requestedClockOut}
-                            onChange={e => setRequestedClockOut(e.target.value)}
-                            className="block w-full px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-lg font-mono text-center"
-                            required
-                        />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label htmlFor="requested-clock-in" className="block text-sm font-bold text-gray-700 mb-1">
+                                {hasBreak ? 'Clock In (Morning)' : 'Clock In'}
+                            </label>
+                            <input
+                                id="requested-clock-in"
+                                type="time"
+                                value={requestedClockIn}
+                                onChange={e => setRequestedClockIn(e.target.value)}
+                                className="block w-full px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-lg font-mono text-center"
+                                required
+                            />
+                        </div>
+
+                        <div>
+                            <label htmlFor="requested-clock-out" className="block text-sm font-bold text-gray-700 mb-1">
+                                {hasBreak ? 'Clock Out (Break Start)' : 'Clock Out'}
+                            </label>
+                            <input
+                                id="requested-clock-out"
+                                type="time"
+                                value={requestedClockOut}
+                                onChange={e => setRequestedClockOut(e.target.value)}
+                                className="block w-full px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-lg font-mono text-center"
+                                required
+                            />
+                        </div>
                     </div>
+
+                    {hasBreak && (
+                        <div className="grid grid-cols-2 gap-4 p-3 bg-amber-50 rounded-lg">
+                            <div>
+                                <label htmlFor="requested-clock-in-2" className="block text-sm font-bold text-gray-700 mb-1">
+                                    Clock In (After Break)
+                                </label>
+                                <input
+                                    id="requested-clock-in-2"
+                                    type="time"
+                                    value={requestedClockIn2}
+                                    onChange={e => setRequestedClockIn2(e.target.value)}
+                                    className="block w-full px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-lg font-mono text-center"
+                                    required={hasBreak}
+                                />
+                            </div>
+
+                            <div>
+                                <label htmlFor="requested-clock-out-2" className="block text-sm font-bold text-gray-700 mb-1">
+                                    Clock Out (End of Day)
+                                </label>
+                                <input
+                                    id="requested-clock-out-2"
+                                    type="time"
+                                    value={requestedClockOut2}
+                                    onChange={e => setRequestedClockOut2(e.target.value)}
+                                    className="block w-full px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-lg font-mono text-center"
+                                    required={hasBreak}
+                                />
+                            </div>
+                        </div>
+                    )}
 
                     <div>
                         <label htmlFor="adjustment-reason" className="block text-sm font-bold text-gray-700 mb-1">Reason</label>

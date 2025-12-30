@@ -1569,7 +1569,7 @@ app.get('/api/company/settings', async (req, res) => {
 
         const { data: company, error } = await adminClient
             .from('opoint_companies')
-            .select('id, name, working_hours_per_day, license_count, used_licenses, created_at, updated_at')
+            .select('id, name, working_hours_per_day, break_duration_minutes, license_count, used_licenses, created_at, updated_at')
             .eq('id', tenantId)
             .single();
 
@@ -1594,6 +1594,7 @@ app.get('/api/company/settings', async (req, res) => {
                 id: company.id,
                 name: company.name,
                 workingHoursPerDay: company.working_hours_per_day || 8.00,
+                break_duration_minutes: company.break_duration_minutes || 60,
                 licenseCount: company.license_count || 0,
                 usedLicenses: company.used_licenses || 0
             }
@@ -1610,7 +1611,7 @@ app.get('/api/company/settings', async (req, res) => {
 
 app.put('/api/company/settings', async (req, res) => {
     try {
-        const { workingHoursPerDay } = req.body;
+        const { workingHoursPerDay, break_duration_minutes } = req.body;
         const tenantId = req.headers['x-tenant-id'];
 
         if (!tenantId) {
@@ -1637,20 +1638,33 @@ app.put('/api/company/settings', async (req, res) => {
             });
         }
 
-        // Validate working hours
-        if (workingHoursPerDay === undefined || workingHoursPerDay === null) {
-            return res.status(400).json({
-                success: false,
-                error: 'Working hours per day is required'
-            });
+        // Build update object dynamically
+        const updateData = {
+            updated_at: new Date().toISOString()
+        };
+
+        // Validate and add working hours if provided
+        if (workingHoursPerDay !== undefined && workingHoursPerDay !== null) {
+            const hours = parseFloat(workingHoursPerDay);
+            if (isNaN(hours) || hours < 1 || hours > 24) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Working hours must be between 1 and 24'
+                });
+            }
+            updateData.working_hours_per_day = hours;
         }
 
-        const hours = parseFloat(workingHoursPerDay);
-        if (isNaN(hours) || hours < 1 || hours > 24) {
-            return res.status(400).json({
-                success: false,
-                error: 'Working hours must be between 1 and 24'
-            });
+        // Validate and add break duration if provided
+        if (break_duration_minutes !== undefined && break_duration_minutes !== null) {
+            const breakMins = parseInt(break_duration_minutes);
+            if (isNaN(breakMins) || breakMins < 0 || breakMins > 480) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Break duration must be between 0 and 480 minutes'
+                });
+            }
+            updateData.break_duration_minutes = breakMins;
         }
 
         // Set tenant context
@@ -1667,12 +1681,9 @@ app.put('/api/company/settings', async (req, res) => {
 
         const { data: company, error } = await adminClient
             .from('opoint_companies')
-            .update({
-                working_hours_per_day: hours,
-                updated_at: new Date().toISOString()
-            })
+            .update(updateData)
             .eq('id', tenantId)
-            .select('id, name, working_hours_per_day, updated_at')
+            .select('id, name, working_hours_per_day, break_duration_minutes, updated_at')
             .single();
 
         if (error) {
@@ -1688,7 +1699,8 @@ app.put('/api/company/settings', async (req, res) => {
             data: {
                 id: company.id,
                 name: company.name,
-                workingHoursPerDay: company.working_hours_per_day
+                workingHoursPerDay: company.working_hours_per_day,
+                break_duration_minutes: company.break_duration_minutes
             },
             message: 'Company settings updated successfully'
         });

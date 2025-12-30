@@ -505,7 +505,7 @@ export const api = {
     return result.data;
   },
 
-  updateCompanySettings: async (tenantId: string, settings: { workingHoursPerDay: number }): Promise<any> => {
+  updateCompanySettings: async (tenantId: string, settings: { workingHoursPerDay?: number; break_duration_minutes?: number }): Promise<any> => {
     const response = await fetch(`${API_BASE}/api/company/settings`, {
       method: 'PUT',
       headers: getHeaders(tenantId),

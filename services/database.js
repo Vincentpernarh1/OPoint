@@ -789,15 +789,25 @@ export const db = {
 
         if (existingLog) {
             // Update existing log with adjustment request
+            const updateData = {
+                requested_clock_in: adjustmentData.requestedClockIn,
+                requested_clock_out: adjustmentData.requestedClockOut,
+                adjustment_reason: adjustmentData.reason,
+                adjustment_status: 'Pending',
+                adjustment_requested_at: new Date().toISOString()
+            };
+            
+            // Add break-tracking fields if provided
+            if (adjustmentData.requestedClockIn2) {
+                updateData.requested_clock_in_2 = adjustmentData.requestedClockIn2;
+            }
+            if (adjustmentData.requestedClockOut2) {
+                updateData.requested_clock_out_2 = adjustmentData.requestedClockOut2;
+            }
+            
             const { data, error } = await client
                 .from('opoint_clock_logs')
-                .update({
-                    requested_clock_in: adjustmentData.requestedClockIn,
-                    requested_clock_out: adjustmentData.requestedClockOut,
-                    adjustment_reason: adjustmentData.reason,
-                    adjustment_status: 'Pending',
-                    adjustment_requested_at: new Date().toISOString()
-                })
+                .update(updateData)
                 .eq('id', existingLog.id)
                 .select()
                 .single();
@@ -805,18 +815,28 @@ export const db = {
             return { data, error };
         } else {
             // Create new log entry with adjustment request
+            const insertData = {
+                tenant_id: tenantId,
+                employee_id: adjustmentData.userId,
+                employee_name: adjustmentData.employeeName,
+                requested_clock_in: adjustmentData.requestedClockIn,
+                requested_clock_out: adjustmentData.requestedClockOut,
+                adjustment_reason: adjustmentData.reason,
+                adjustment_status: 'Pending',
+                adjustment_requested_at: new Date().toISOString()
+            };
+            
+            // Add break-tracking fields if provided
+            if (adjustmentData.requestedClockIn2) {
+                insertData.requested_clock_in_2 = adjustmentData.requestedClockIn2;
+            }
+            if (adjustmentData.requestedClockOut2) {
+                insertData.requested_clock_out_2 = adjustmentData.requestedClockOut2;
+            }
+            
             const { data, error } = await client
                 .from('opoint_clock_logs')
-                .insert({
-                    tenant_id: tenantId,
-                    employee_id: adjustmentData.userId,
-                    employee_name: adjustmentData.employeeName,
-                    requested_clock_in: adjustmentData.requestedClockIn,
-                    requested_clock_out: adjustmentData.requestedClockOut,
-                    adjustment_reason: adjustmentData.reason,
-                    adjustment_status: 'Pending',
-                    adjustment_requested_at: new Date().toISOString()
-                })
+                .insert(insertData)
                 .select()
                 .single();
 

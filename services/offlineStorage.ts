@@ -489,7 +489,7 @@ class OfflineStorageService {
                 cachedAt
             });
         }
-        console.log(`💾 Cached ${announcements.length} announcements for tenant ${tenantId}`);
+        // console.log(`💾 Cached ${announcements.length} announcements for tenant ${tenantId}`);
     }
 
     async getCachedAnnouncements(tenantId: string): Promise<any[]> {

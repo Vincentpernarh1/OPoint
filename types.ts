@@ -13,6 +13,7 @@ export interface Company {
   encryptedId: string;
   licenseCount: number;
   workingHoursPerDay: number;
+  breakDurationMinutes?: number; // Auto-deducted break time for single-session days
   modules: {
     payroll: boolean;
     leave: boolean;
@@ -96,6 +97,8 @@ export interface AdjustmentRequest {
   originalClockOut?: Date;
   requestedClockIn: Date;
   requestedClockOut: Date;
+  requestedClockIn2?: Date; // Second clock-in (return from break)
+  requestedClockOut2?: Date; // Second clock-out (end of day)
   reason: string;
   status: RequestStatus;
   reviewedBy?: string;
