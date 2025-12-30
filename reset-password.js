@@ -36,7 +36,7 @@ async function resetPassword() {
         process.exit(1);
     }
 
-    console.log('✅ User found:', user.name);
+    // console.log('✅ User found:', user.name);
 
     let updateData = {};
 

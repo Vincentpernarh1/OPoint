@@ -640,13 +640,13 @@ app.post('/api/auth/login', async (req, res) => {
             });
         }
 
-        console.log('User found:', {
-            email: user.email,
-            hasTemporaryPassword: !!user.temporary_password,
-            hasPasswordHash: !!user.password_hash,
-            requiresPasswordChange: user.requires_password_change,
-            status: user.status
-        });
+        // console.log('User found:', {
+        //     email: user.email,
+        //     hasTemporaryPassword: !!user.temporary_password,
+        //     hasPasswordHash: !!user.password_hash,
+        //     requiresPasswordChange: user.requires_password_change,
+        //     status: user.status
+        // });
 
         let passwordMatch = false;
 
