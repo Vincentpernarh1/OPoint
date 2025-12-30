@@ -5,6 +5,7 @@ import { getInitials, getAvatarColor } from '../utils/avatar';
 import { api } from '../services/api';
 import { offlineStorage } from '../services/offlineStorage';
 import { pushService } from '../services/pushService';
+import { sanitizePhone, isValidGhanaPhone } from '../utils/validators';
 import Notification from './Notification';
 import './Avatar.css';
 
@@ -45,6 +46,7 @@ const EditProfileModal = ({ user, onClose, onSubmit, onSuccess, onRefresh }: Edi
     console.log('EditProfileModal rendered with user:', user);
     const [mobileMoney, setMobileMoney] = useState(user?.mobileMoneyNumber || '');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [phoneError, setPhoneError] = useState<string | null>(null);
 
     // Safety check - if no user, close modal
     if (!user) {
@@ -53,8 +55,31 @@ const EditProfileModal = ({ user, onClose, onSubmit, onSuccess, onRefresh }: Edi
         return null;
     }
 
+    // Validate phone number in real-time
+    const handlePhoneChange = (value: string) => {
+        setMobileMoney(value);
+        
+        if (!value.trim()) {
+            setPhoneError(null);
+            return;
+        }
+        
+        const sanitized = sanitizePhone(value);
+        if (!isValidGhanaPhone(sanitized)) {
+            setPhoneError('Invalid Ghana phone number. Must be 10 digits (e.g., 0241234567)');
+        } else {
+            setPhoneError(null);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // Check for validation errors before submitting
+        if (phoneError) {
+            return;
+        }
+        
         setIsSubmitting(true);
 
         try {
@@ -65,11 +90,18 @@ const EditProfileModal = ({ user, onClose, onSubmit, onSuccess, onRefresh }: Edi
 
             const updatedFields: Partial<User> = {};
             if (mobileMoney !== (user.mobileMoneyNumber || '')) {
+                // Sanitize and validate the phone number before sending
+                const sanitizedPhone = sanitizePhone(mobileMoney);
+                
+                if (!isValidGhanaPhone(sanitizedPhone)) {
+                    throw new Error('Please enter a valid Ghana phone number (e.g., 0241234567)');
+                }
+                
                 // Instead of direct update, create a profile update request
                 await api.createProfileUpdateRequest(user.tenantId, {
                     user_id: user.id,
                     field_name: 'mobile_money_number',
-                    requested_value: mobileMoney,
+                    requested_value: sanitizedPhone,
                     current_value: user.mobileMoneyNumber || ''
                 });
                 
@@ -121,14 +153,26 @@ const EditProfileModal = ({ user, onClose, onSubmit, onSuccess, onRefresh }: Edi
                             type="text"
                             id="momo"
                             value={mobileMoney}
-                            onChange={e => setMobileMoney(e.target.value)}
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                            placeholder="Enter mobile money number"
+                            onChange={e => handlePhoneChange(e.target.value)}
+                            className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                                phoneError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary'
+                            }`}
+                            placeholder="e.g., 0241234567 or +233241234567"
                         />
+                        {phoneError && (
+                            <p className="mt-1 text-sm text-red-600">{phoneError}</p>
+                        )}
+                        {!phoneError && mobileMoney && mobileMoney !== user.mobileMoneyNumber && (
+                            <p className="mt-1 text-sm text-green-600">✓ Valid phone number format</p>
+                        )}
                     </div>
                     <div className="flex justify-end space-x-3 pt-2">
                         <button type="button" onClick={onClose} className="py-2 px-4 bg-gray-200 rounded-lg" disabled={isSubmitting}>Cancel</button>
-                        <button type="submit" className="py-2 px-4 bg-primary text-white rounded-lg" disabled={isSubmitting}>
+                        <button 
+                            type="submit" 
+                            className="py-2 px-4 bg-primary text-white rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed" 
+                            disabled={isSubmitting || !!phoneError || !mobileMoney.trim()}
+                        >
                             {isSubmitting ? 'Submitting Request...' : 'Request Update'}
                         </button>
                     </div>

@@ -119,7 +119,6 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
             // CACHE THE LEAVE REQUESTS for offline use
             try {
                 await offlineStorage.cacheData('leaveRequests', transformedData, tenantId, currentUser.id);
-                console.log('Cached leave requests for offline use');
             } catch (cacheError) {
                 console.warn('Failed to cache leave requests:', cacheError);
             }
@@ -171,7 +170,6 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                 const maternityTotal = balanceMap['maternity']?.total_days || 0;
                 const sickTotal = balanceMap['sick']?.total_days || 0;
                 
-                console.log('Calculated used days:', { annualUsed, maternityUsed, sickUsed });
                 
                 setUserBalance({
                     annual: { 
@@ -256,7 +254,6 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                         const maternityTotal = balanceMap['maternity']?.total_days || 0;
                         const sickTotal = balanceMap['sick']?.total_days || 0;
                         
-                        console.log('Offline - Calculated used days:', { annualUsed, maternityUsed, sickUsed });
                         
                         setUserBalance({
                             annual: { 

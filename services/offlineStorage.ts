@@ -329,8 +329,19 @@ class OfflineStorageService {
                 if (processFn) {
                     resp = await processFn(entry);
                 } else {
-                    const fetchOpts: RequestInit = { method: entry.method, headers: entry.headers || { 'Content-Type': 'application/json' } };
+                    const fetchOpts: RequestInit = { 
+                        method: entry.method, 
+                        headers: entry.headers || { 'Content-Type': 'application/json' },
+                        credentials: 'include' // Include cookies for authentication
+                    };
                     if (entry.body) fetchOpts.body = JSON.stringify(entry.body);
+                    
+                    console.log('🔄 Processing queue entry:', entry.id);
+                    console.log('   URL:', entry.url);
+                    console.log('   Method:', entry.method);
+                    console.log('   Headers:', entry.headers);
+                    console.log('   Body:', entry.body);
+                    
                     resp = await fetch(entry.url, fetchOpts);
                 }
 
@@ -354,8 +365,47 @@ class OfflineStorageService {
                         console.warn('Error while handling queued request post-success dispatch:', dispatchErr);
                     }
                 } else {
-                    await this.incrementQueuedRequestRetries(entry.id);
-                    console.warn('Queue entry failed, will retry later:', entry.id, resp && resp.status);
+                    // Log the error response
+                    let shouldDiscard = false;
+                    try {
+                        const errorData = await resp.clone().json();
+                        console.error('❌ Queue entry failed:', entry.id, resp.status);
+                        console.error('   Server error:', errorData);
+                        
+                        // Check if this is a validation error that won't be fixed by retrying
+                        if (resp.status === 400 && errorData.error) {
+                            const validationErrors = [
+                                'Invalid Ghana phone number format',
+                                'Tenant ID and User ID required',
+                                'User not found',
+                                'Invalid',
+                                'required'
+                            ];
+                            if (validationErrors.some(msg => errorData.error.includes(msg))) {
+                                shouldDiscard = true;
+                                console.warn('🗑️ Discarding queue entry with validation error:', entry.id);
+                            }
+                        }
+                        
+                        // Also discard if too many retries
+                        if ((entry.retries || 0) >= 5) {
+                            shouldDiscard = true;
+                            console.warn('🗑️ Discarding queue entry after max retries:', entry.id);
+                        }
+                    } catch (e) {
+                        console.error('❌ Queue entry failed:', entry.id, resp.status, '(could not parse error)');
+                        // Discard after max retries even if we can't parse the error
+                        if ((entry.retries || 0) >= 5) {
+                            shouldDiscard = true;
+                        }
+                    }
+                    
+                    if (shouldDiscard) {
+                        await this.markQueuedRequestDone(entry.id);
+                    } else {
+                        await this.incrementQueuedRequestRetries(entry.id);
+                        console.warn('Queue entry failed, will retry later:', entry.id, resp && resp.status);
+                    }
                 }
             } catch (error) {
                 await this.incrementQueuedRequestRetries(entry.id);
@@ -525,7 +575,6 @@ class OfflineStorageService {
                 cachedAt
             });
         }
-        console.log(`💾 Cached ${users.length} users for tenant ${tenantId}`);
     }
 
     async getCachedUsers(tenantId: string): Promise<any[]> {
@@ -569,7 +618,6 @@ class OfflineStorageService {
             otherDeductions: payslip.otherDeductions || [],
             cachedAt
         });
-        console.log(`💾 Cached payslip for user ${userId} on ${dateOnly}`);
     }
 
     async getCachedPayslips(userId: string, tenantId: string): Promise<any[]> {
@@ -624,7 +672,6 @@ class OfflineStorageService {
             data,
             cachedAt
         });
-        console.log(`💾 Cached data for type: ${key}`);
     }
 
     async getCachedData(type: string, tenantId: string, userId?: string): Promise<any | null> {

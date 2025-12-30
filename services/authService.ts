@@ -31,7 +31,7 @@ export const authService = {
   setCurrentUser: (user: User): void => {
     // User session is now managed server-side with HttpOnly cookies
     // No client-side storage needed for security
-    console.log('User session managed server-side via HttpOnly cookies');
+  
   },
 
   getCurrentUser: async (): Promise<User | null> => {
