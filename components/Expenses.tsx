@@ -55,7 +55,7 @@ const Expenses = ({ currentUser }: ExpensesProps) => {
                     }
                 } catch (offlineError) {
                     console.error('Failed to load from offline storage:', offlineError);
-                    setNotification('Failed to load expense claims');
+                    setNotification('Failed to load expense claims. Please check your connection.');
                 }
             } finally {
                 setLoading(false);

@@ -83,7 +83,7 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                     await offlineStorage.cachePayslip(payslip, employee.id, employee.tenantId || '');
                 }
             } catch (err) {
-                setHistoryError(err instanceof Error ? err.message : 'Failed to load payslip history');
+                console.error('Payslip fetch error:', err);
                 // OFFLINE FALLBACK: Try to load cached payslips
                 try {
                     const cachedPayslips = await offlineStorage.getCachedPayslips(employee.id, employee.tenantId || '');
@@ -102,6 +102,7 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                         }
                         setHistoryError('📴 Offline - Showing cached payslip data');
                     } else {
+                        setHistoryError('📴 Offline - No cached payslip data. Please connect to internet and load payslips first.');
                         // Fallback: create a current month entry with employee data
                         const currentDate = new Date();
                         const fallbackEntry = {
@@ -117,6 +118,7 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                     }
                 } catch (cacheErr) {
                     console.error('Failed to load cached payslips:', cacheErr);
+                    setHistoryError('Failed to load payslip data. Please check your connection.');
                     // Fallback: create a current month entry with employee data
                     const currentDate = new Date();
                     const fallbackEntry = {

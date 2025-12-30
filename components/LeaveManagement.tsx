@@ -132,10 +132,12 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                         status: (l.synced ? l.status : '⏳ Pending Sync') as RequestStatus
                     })));
                     setNotification('📴 Offline - Showing local leave data');
+                } else {
+                    setNotification('📴 Offline - No cached leave data. Connect to internet to load your leave history.');
                 }
             } catch (offlineError) {
                 console.error('Failed to load from offline storage:', offlineError);
-                setNotification('Failed to load leave data');
+                setNotification('Failed to load leave data. Please check your connection.');
             }
         } finally {
             setLoading(false);

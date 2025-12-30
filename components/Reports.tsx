@@ -53,11 +53,11 @@ const Reports = ({ currentUser }: ReportsProps) => {
                         setEmployees(cachedUsers);
                         setError('📴 Offline - Showing cached employee list');
                     } else {
-                        setError('Failed to load employees for selection.');
+                        setError('📴 Offline - No cached employee data. Please connect to internet and load employees first.');
                     }
                 } catch (cacheErr) {
                     console.error('Failed to load cached users:', cacheErr);
-                    setError('Failed to load employees for selection.');
+                    setError('Failed to load employees. Please check your connection.');
                 }
             } finally {
                 setLoadingEmployees(false);

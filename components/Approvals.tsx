@@ -156,7 +156,6 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 setExpenseRequests(expenseData);
             } catch (err) {
                 console.error('Failed to fetch requests:', err);
-                setError('Failed to load requests - showing cached data');
                 // OFFLINE FALLBACK: Try to load cached data
                 try {
                     const cachedLeaves = await offlineStorage.getCachedData(`approval_leaves_${leaveStatusFilter}`, currentUser.tenantId!) || [];
@@ -169,11 +168,15 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                     setProfileRequests(cachedProfiles);
                     setExpenseRequests(cachedExpenses);
                     
-                    if (cachedLeaves.length || cachedAdjustments.length || cachedProfiles.length || cachedExpenses.length) {
+                    const hasCache = cachedLeaves.length || cachedAdjustments.length || cachedProfiles.length || cachedExpenses.length;
+                    if (hasCache) {
                         setError('📴 Offline - Showing cached approval data');
+                    } else {
+                        setError('📴 Offline - No cached data available. Please connect to internet and load data first.');
                     }
                 } catch (cacheErr) {
                     console.error('Failed to load cached data:', cacheErr);
+                    setError('Failed to load requests. Please check your connection.');
                     // Show empty arrays on error
                     setLeaveRequests([]);
                     setAdjustmentRequests([]);
