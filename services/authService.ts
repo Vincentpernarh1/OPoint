@@ -74,7 +74,7 @@ export const authService = {
   },
 
   // Reset password for a user (admin action)
-  resetPassword: async (userId: string): Promise<{ success: boolean; message: string }> => {
+  resetPassword: async (userId: string): Promise<{ success: boolean; message: string; tempPassword?: string }> => {
     try {
       const response = await fetch('/api/auth/reset-password', {
         method: 'POST',
@@ -86,7 +86,11 @@ export const authService = {
       const data = await response.json();
 
       if (data.success) {
-        return { success: true, message: 'Password reset email sent successfully.' };
+        return { 
+          success: true, 
+          message: data.message,
+          tempPassword: data.tempPassword // Will be present if email failed
+        };
       } else {
         return { success: false, message: data.error || 'Failed to reset password.' };
       }

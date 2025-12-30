@@ -199,6 +199,42 @@ export const db = {
         return { data: transformedData, error };
     },
 
+    async getUserByIdAdmin(userId) {
+        // Admin version that bypasses RLS - for admin operations like password reset
+        const client = getSupabaseAdminClient();
+        if (!client) return { data: null, error: 'Database not configured' };
+
+        const { data, error } = await client
+            .from('opoint_users')
+            .select('*')
+            .eq('id', userId)
+            .single();
+
+        // Transform snake_case to camelCase
+        const transformedData = data ? {
+            ...data,
+            tenantId: data.tenant_id,
+            basicSalary: data.basic_salary,
+            hireDate: data.hire_date,
+            avatarUrl: data.avatar_url,
+            mobileMoneyNumber: data.mobile_money_number,
+            isActive: data.is_active,
+            temporaryPassword: data.temporary_password,
+            requiresPasswordChange: data.requires_password_change,
+            // Remove snake_case versions
+            tenant_id: undefined,
+            basic_salary: undefined,
+            hire_date: undefined,
+            avatar_url: undefined,
+            mobile_money_number: undefined,
+            is_active: undefined,
+            temporary_password: undefined,
+            requires_password_change: undefined
+        } : data;
+
+        return { data: transformedData, error };
+    },
+
     async updateUser(userId, updates) {
         const client = getSupabaseClient();
         if (!client) return { data: null, error: 'Database not configured' };

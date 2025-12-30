@@ -24,14 +24,43 @@ const EditEmployeeModal = ({ user, currentUser, onClose, onSubmit }: EditEmploye
     const canChangeRole = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.HR;
 
     const handleResetPassword = async () => {
-        if (!window.confirm(`Are you sure you want to reset the password for ${user.name}? This will send a reset email to ${user.email}.`)) {
+        if (!window.confirm(`Are you sure you want to reset the password for ${user.name}? A secure random password will be generated and sent to ${user.email}.`)) {
             return;
         }
 
         try {
             const result = await authService.resetPassword(user.id);
             if (result.success) {
-                setMessage({ type: 'success', text: result.message });
+                // Check if email failed and password needs to be shown
+                if (result.tempPassword) {
+                    // Email failed - show password to admin
+                    const copyToClipboard = () => {
+                        navigator.clipboard.writeText(result.tempPassword);
+                    };
+                    
+                    const showPassword = window.confirm(
+                        `⚠️ Email delivery failed!\n\n` +
+                        `Temporary password: ${result.tempPassword}\n\n` +
+                        `Please provide this password to ${user.name} manually.\n\n` +
+                        `Click OK to copy password to clipboard, Cancel to close.`
+                    );
+                    
+                    if (showPassword) {
+                        copyToClipboard();
+                        setMessage({ 
+                            type: 'warning', 
+                            text: `Password reset successfully. Temporary password copied to clipboard. Please provide it to ${user.name}.` 
+                        });
+                    } else {
+                        setMessage({ 
+                            type: 'warning', 
+                            text: result.message 
+                        });
+                    }
+                } else {
+                    // Email sent successfully
+                    setMessage({ type: 'success', text: result.message });
+                }
             } else {
                 setMessage({ type: 'error', text: `Failed to reset password: ${result.message}` });
             }

@@ -18,6 +18,7 @@ import cors from 'cors';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import cookieParser from 'cookie-parser';
+import { sendPasswordResetEmail } from './services/emailService.js';
 import path from 'path';
 import webPush from 'web-push';
 import db, { getSupabaseClient, getSupabaseAdminClient, setTenantContext, getCurrentTenantId } from './services/database.js';
@@ -914,10 +915,11 @@ app.post('/api/auth/reset-password', async (req, res) => {
             });
         }
 
-        // Get target user
-        const { data: targetUser, error } = await db.getUserById(userId);
+        // Get target user using admin client (bypasses RLS for password reset operation)
+        const { data: targetUser, error } = await db.getUserByIdAdmin(userId);
 
         if (error || !targetUser) {
+            console.error('❌ Failed to get target user:', error);
             return res.status(404).json({ 
                 success: false, 
                 error: 'User not found' 
@@ -929,10 +931,34 @@ app.post('/api/auth/reset-password', async (req, res) => {
             setTenantContext(targetUser.tenant_id, currentUser.id);
         }
 
-        // Generate temporary password
-        const tempPassword = 'TempPass' + Math.random().toString(36).substr(2, 8) + '!';
+        // Generate a secure random temporary password
+        // Format: 2 uppercase + 6 alphanumeric + 2 special chars (e.g., "AB7k9m2x!@")
+        const generateSecurePassword = () => {
+            const uppercase = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+            const lowercase = 'abcdefghijkmnpqrstuvwxyz';
+            const numbers = '23456789';
+            const special = '!@#$%&*';
+            
+            let password = '';
+            // 2 uppercase letters
+            password += uppercase[Math.floor(Math.random() * uppercase.length)];
+            password += uppercase[Math.floor(Math.random() * uppercase.length)];
+            // 3 lowercase letters
+            password += lowercase[Math.floor(Math.random() * lowercase.length)];
+            password += lowercase[Math.floor(Math.random() * lowercase.length)];
+            password += lowercase[Math.floor(Math.random() * lowercase.length)];
+            // 2 numbers
+            password += numbers[Math.floor(Math.random() * numbers.length)];
+            password += numbers[Math.floor(Math.random() * numbers.length)];
+            // 1 special character
+            password += special[Math.floor(Math.random() * special.length)];
+            
+            return password;
+        };
 
-        // Update user with temporary password
+        const tempPassword = generateSecurePassword();
+
+        // Update user with temporary password (password_hash will be NULL, requires_password_change will be TRUE)
         const { data: updatedUser, error: updateError } = await db.updateUserPassword(targetUser.id, null, tempPassword, true);
 
         if (updateError) {
@@ -942,14 +968,32 @@ app.post('/api/auth/reset-password', async (req, res) => {
             });
         }
 
-        // TODO: Send email to user with reset instructions
-        // For now, just log it
-        console.log(`Password reset for ${targetUser.email}: Temporary password set to ${tempPassword}`);
-
-        res.json({ 
-            success: true, 
-            message: 'Password reset successfully. User will receive an email with reset instructions.' 
+        // Send email notification to the employee
+        const emailResult = await sendPasswordResetEmail({
+            to: targetUser.email,
+            employeeName: targetUser.name || targetUser.email,
+            tempPassword: tempPassword,
+            resetBy: currentUser.name || currentUser.email
         });
+
+        console.log(`✅ Password reset for ${targetUser.email}: Temporary password generated`);
+        
+        if (emailResult.success) {
+            console.log(`📧 Email sent successfully to ${targetUser.email}`);
+            res.json({ 
+                success: true, 
+                message: 'Password reset successfully. Employee will receive an email with a temporary password.' 
+            });
+        } else {
+            // If email fails, we need to show the password to the admin so they can communicate it
+            console.error(`⚠️ Email failed for ${targetUser.email}. Temporary password: ${tempPassword}`);
+            res.json({ 
+                success: true, 
+                tempPassword: tempPassword, // Include password in response only if email failed
+                message: `Password reset successfully. ⚠️ Email could not be sent. Please provide this temporary password to the employee: ${tempPassword}`,
+                emailError: emailResult.message
+            });
+        }
 
     } catch (error) {
         console.error('Reset password error:', error);
