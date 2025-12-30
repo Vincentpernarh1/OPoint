@@ -568,24 +568,26 @@ class OfflineStorageService {
     }
 
     // ===== GENERIC CACHE =====
-    async cacheData(type: string, tenantId: string, data: any) {
+    async cacheData(type: string, data: any, tenantId: string, userId?: string) {
         const db = await this.init();
         const cachedAt = new Date().toISOString();
+        const key = userId ? `${type}_${userId}` : type;
         
         await db.put('cachedData', {
-            type,
+            type: key,
             tenantId,
             data,
             cachedAt
         });
-        console.log(`💾 Cached data for type: ${type}`);
+        console.log(`💾 Cached data for type: ${key}`);
     }
 
-    async getCachedData(type: string, tenantId: string): Promise<any | null> {
+    async getCachedData(type: string, tenantId: string, userId?: string): Promise<any | null> {
         const db = await this.init();
         if (!db.objectStoreNames.contains('cachedData')) return null;
         
-        const cached = await db.get('cachedData', type);
+        const key = userId ? `${type}_${userId}` : type;
+        const cached = await db.get('cachedData', key);
         if (!cached || cached.tenantId !== tenantId) return null;
         
         // Check if cache is stale

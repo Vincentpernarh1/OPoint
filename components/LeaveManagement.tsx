@@ -86,6 +86,14 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                 };
             }).filter(Boolean) as LeaveRequest[];
             
+            // CACHE THE LEAVE REQUESTS for offline use
+            try {
+                await offlineStorage.cacheData('leaveRequests', transformedData, tenantId, currentUser.id);
+                console.log('Cached leave requests for offline use');
+            } catch (cacheError) {
+                console.warn('Failed to cache leave requests:', cacheError);
+            }
+            
             // OFFLINE ENHANCEMENT: Merge with unsynced local leaves
             try {
                 const localLeaves = await offlineStorage.getLeaveRequestsByUser(tenantId, currentUser.id);
@@ -117,21 +125,43 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
             }
         } catch (error) {
             console.error('Error fetching leave data:', error);
-            // OFFLINE FALLBACK: Try to show at least local leaves
+            // OFFLINE FALLBACK: Try to show cached leave requests first, then local unsynced leaves
             try {
+                // Try to get cached API data
+                const cachedData = await offlineStorage.getCachedData('leaveRequests', tenantId, currentUser.id);
+                let cachedLeaves: LeaveRequest[] = [];
+                
+                if (cachedData && Array.isArray(cachedData)) {
+                    cachedLeaves = cachedData.map((item: any) => ({
+                        id: item.id,
+                        userId: item.userId,
+                        employeeName: item.employeeName,
+                        leaveType: item.leaveType as LeaveType,
+                        startDate: new Date(item.startDate),
+                        endDate: new Date(item.endDate),
+                        reason: item.reason,
+                        status: item.status as RequestStatus
+                    }));
+                }
+                
+                // Merge with unsynced local leaves
                 const localLeaves = await offlineStorage.getLeaveRequestsByUser(tenantId, currentUser.id);
-                if (localLeaves.length > 0) {
-                    setRequests(localLeaves.map(l => ({
-                        id: l.id,
-                        userId: l.userId,
-                        employeeName: l.employeeName || currentUser.name,
-                        leaveType: l.leaveType as LeaveType,
-                        startDate: new Date(l.startDate),
-                        endDate: new Date(l.endDate),
-                        reason: l.reason,
-                        status: (l.synced ? l.status : '⏳ Pending Sync') as RequestStatus
-                    })));
-                    setNotification('📴 Offline - Showing local leave data');
+                const unsyncedLeaves = localLeaves.filter(l => !l.synced).map(l => ({
+                    id: l.id,
+                    userId: l.userId,
+                    employeeName: l.employeeName || currentUser.name,
+                    leaveType: l.leaveType as LeaveType,
+                    startDate: new Date(l.startDate),
+                    endDate: new Date(l.endDate),
+                    reason: l.reason,
+                    status: '⏳ Pending Sync' as RequestStatus
+                }));
+                
+                const allLeaves = [...unsyncedLeaves, ...cachedLeaves];
+                
+                if (allLeaves.length > 0) {
+                    setRequests(allLeaves);
+                    setNotification('📴 Offline - Showing cached leave data');
                 } else {
                     setNotification('📴 Offline - No cached leave data. Connect to internet to load your leave history.');
                 }

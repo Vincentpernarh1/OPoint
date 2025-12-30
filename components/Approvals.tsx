@@ -145,10 +145,10 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 const expenseData = await api.getExpenseClaims(currentUser.tenantId!, expenseFilters);
                 
                 // Use only API data - cache for offline use
-                await offlineStorage.cacheData(`approval_leaves_${leaveStatusFilter}`, currentUser.tenantId!, transformedLeaveData);
-                await offlineStorage.cacheData(`approval_adjustments_${adjustmentStatusFilter}`, currentUser.tenantId!, transformedAdjustmentData);
-                await offlineStorage.cacheData(`approval_profiles_${profileStatusFilter}`, currentUser.tenantId!, profileData);
-                await offlineStorage.cacheData(`approval_expenses`, currentUser.tenantId!, expenseData);
+                await offlineStorage.cacheData(`approval_leaves_${leaveStatusFilter}`, transformedLeaveData, currentUser.tenantId!);
+                await offlineStorage.cacheData(`approval_adjustments_${adjustmentStatusFilter}`, transformedAdjustmentData, currentUser.tenantId!);
+                await offlineStorage.cacheData(`approval_profiles_${profileStatusFilter}`, profileData, currentUser.tenantId!);
+                await offlineStorage.cacheData(`approval_expenses`, expenseData, currentUser.tenantId!);
                 
                 setLeaveRequests(transformedLeaveData);
                 setAdjustmentRequests(transformedAdjustmentData);
@@ -231,9 +231,17 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 }
 
                 // Update status in local state - if not found, it might have been removed by polling, which is fine
-                setLeaveRequests(prev => prev.map(req =>
-                    req.id === id ? { ...req, status: status as RequestStatus } : req
-                ));
+                setLeaveRequests(prev => {
+                    const updated = prev.map(req =>
+                        req.id === id ? { ...req, status: status as RequestStatus } : req
+                    );
+                    
+                    // Also update cache so changes persist across navigation
+                    offlineStorage.cacheData('leaveRequests', updated, currentUser.tenantId!, currentUser.id)
+                        .catch(e => console.warn('Failed to update cache after action:', e));
+                    
+                    return updated;
+                });
             } catch (err) {
                 console.error(`Failed to ${actionType} leave request:`, err);
                 setError(`Failed to ${actionType} leave request`);
