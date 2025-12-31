@@ -46,11 +46,16 @@ export async function sendPasswordResetEmail({ to, employeeName, tempPassword, r
         // Validate required environment variables
         if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
             console.warn('⚠️ Email configuration missing. Email will not be sent.');
-            console.log(`📧 Password reset notification for ${to}: Temporary password is ${tempPassword}`);
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('📧 PASSWORD RESET FOR:', to);
+            console.log('👤 EMPLOYEE:', employeeName);
+            console.log('🔑 TEMPORARY PASSWORD:', tempPassword);
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
             return { 
                 success: false, 
                 error: 'Email not configured',
-                message: 'Password reset successful, but email notification was not sent due to missing email configuration.' 
+                message: 'Password reset successful, but email notification was not sent due to missing email configuration.',
+                tempPassword: tempPassword // Return password so it can be displayed to admin
             };
         }
 
@@ -164,10 +169,31 @@ This is an automated message. Please do not reply to this email.
 
     } catch (error) {
         console.error('❌ Error sending password reset email:', error);
+        
+        // PRODUCTION FIX: If SMTP fails (common in production), log password prominently
+        if (error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED') {
+            console.log('');
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('⚠️  SMTP CONNECTION FAILED (Production server blocking SMTP)');
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('📧 EMAIL:', to);
+            console.log('👤 EMPLOYEE:', employeeName);
+            console.log('🔑 TEMPORARY PASSWORD:', tempPassword);
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('👉 ADMIN: Please manually send this password to the employee');
+            console.log('📱 Send via WhatsApp, SMS, or in-person');
+            console.log('');
+            console.log('🔧 PERMANENT FIX: Switch to SendGrid (see EMAIL_TROUBLESHOOTING.md)');
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('');
+        }
+        
         return { 
             success: false, 
             error: error.message,
-            message: 'Password reset successful, but failed to send email notification' 
+            errorCode: error.code,
+            message: 'Password reset successful, but failed to send email notification',
+            tempPassword: tempPassword // Return password so it can be displayed to admin
         };
     }
 }
