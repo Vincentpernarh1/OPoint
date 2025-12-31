@@ -27,11 +27,11 @@ if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
 async function testEmail() {
     try {
         console.log('📤 Sending test email...');
-        console.log(`   To: ${process.env.EMAIL_USER}`);
+        console.log(`   To: ${process.env.EMAIL_FROM}`);
         console.log('');
 
         const result = await sendPasswordResetEmail({
-            to: process.env.EMAIL_USER, // Send to yourself
+            to: process.env.EMAIL_FROM, // Send to the FROM address (vpenatechwizard@gmail.com)
             employeeName: 'Test User',
             tempPassword: 'TestPassword123!',
             resetBy: 'System Test'
