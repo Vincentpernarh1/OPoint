@@ -646,7 +646,9 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 }
                 
                 // Apply automatic break deduction for single-session days (no adjustment, single clock-in/out)
-                if (isSingleSession && breakDurationMinutes > 0 && !approvedAdjustment) {
+                // Only deduct break if worked time is >= 4 hours (prevents negative time for short sessions)
+                const minimumHoursForBreak = 4 * 60 * 60 * 1000; // 4 hours in ms
+                if (isSingleSession && breakDurationMinutes > 0 && !approvedAdjustment && totalWorkedMs >= minimumHoursForBreak) {
                     const breakMs = breakDurationMinutes * 60 * 1000;
                     totalWorkedMs = Math.max(0, totalWorkedMs - breakMs);
                 }
@@ -830,13 +832,15 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
             return updatedEntries;
         });
         
-        // Refresh time entries from server to ensure cache is updated and summaries recalculate
-        // This prevents the issue where summaries disappear after navigation
-        try {
-            await refreshTimeEntries();
-        } catch (error) {
-            console.warn('Failed to refresh time entries after save:', error);
-        }
+        // Delayed refresh to allow server to process the new entry
+        // This ensures summaries stay updated while giving server time to sync
+        setTimeout(async () => {
+            try {
+                await refreshTimeEntries();
+            } catch (error) {
+                console.warn('Failed to refresh time entries after save:', error);
+            }
+        }, 2000); // 2 second delay
     };
 
     const createTimeEntry = async (type: TimeEntryType, photoUrl?: string) => {
