@@ -13,6 +13,22 @@ const createTransporter = () => {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASSWORD,
         },
+        // Add connection timeout and retry settings
+        connectionTimeout: 10000, // 10 seconds
+        greetingTimeout: 5000, // 5 seconds
+        socketTimeout: 10000, // 10 seconds
+        // Connection pooling for better performance
+        pool: true,
+        maxConnections: 5,
+        maxMessages: 100,
+        // TLS settings for Gmail
+        tls: {
+            rejectUnauthorized: false,
+            minVersion: 'TLSv1.2'
+        },
+        // Debug logging (set to true for troubleshooting)
+        debug: process.env.NODE_ENV === 'development',
+        logger: process.env.NODE_ENV === 'development'
     });
 };
 
@@ -42,9 +58,9 @@ export async function sendPasswordResetEmail({ to, employeeName, tempPassword, r
         const fromAddress = process.env.EMAIL_FROM || process.env.EMAIL_USER;
 
         const mailOptions = {
-            from: `"VPENA OnPoint" <${fromAddress}>`,
+            from: `"OPoint" <${fromAddress}>`,
             to: to,
-            subject: 'Password Reset - VPENA OnPoint',
+            subject: 'Password Reset - OPoint',
             html: `
                 <!DOCTYPE html>
                 <html>
@@ -72,7 +88,7 @@ export async function sendPasswordResetEmail({ to, employeeName, tempPassword, r
                         <div class="content">
                             <p>Hello <strong>${employeeName}</strong>,</p>
                             
-                            <p>Your password for VPENA OnPoint has been reset by <strong>${resetBy}</strong>.</p>
+                            <p>Your password for OPoint has been reset by <strong>${resetBy}</strong>.</p>
                             
                             <div class="password-box">
                                 <p style="margin: 0; font-size: 14px; color: #6b7280;">Your secure temporary password is:</p>
@@ -90,7 +106,7 @@ export async function sendPasswordResetEmail({ to, employeeName, tempPassword, r
                             
                             <h3>Next Steps:</h3>
                             <ul>
-                                <li>Log in to VPENA OnPoint using your email and the temporary password above</li>
+                                <li>Log in to OPoint using your email and the temporary password above</li>
                                 <li>You will be prompted to create a new password</li>
                                 <li>Choose a strong password with at least 8 characters</li>
                                 <li>Do not share your password with anyone</li>
@@ -99,11 +115,11 @@ export async function sendPasswordResetEmail({ to, employeeName, tempPassword, r
                             <p style="margin-top: 30px;">If you did not request this password reset or have any concerns, please contact your HR department immediately.</p>
                             
                             <p>Best regards,<br>
-                            <strong>VPENA OnPoint Team</strong></p>
+                            <strong>OPoint Team</strong></p>
                         </div>
                         <div class="footer">
                             <p>This is an automated message. Please do not reply to this email.</p>
-                            <p>&copy; ${new Date().getFullYear()} VPENA OnPoint. All rights reserved.</p>
+                            <p>&copy; ${new Date().getFullYear()} OPoint. All rights reserved.</p>
                         </div>
                     </div>
                 </body>
@@ -112,14 +128,14 @@ export async function sendPasswordResetEmail({ to, employeeName, tempPassword, r
             text: `
 Hello ${employeeName},
 
-Your password for VPENA OnPoint has been reset by ${resetBy}.
+Your password for OPoint has been reset by ${resetBy}.
 
 Your temporary password is: ${tempPassword}
 
 IMPORTANT: This is a temporary password. You will be required to change it immediately upon your first login.
 
 Next Steps:
-1. Log in to VPENA OnPoint using your email and the temporary password above
+1. Log in to OPoint using your email and the temporary password above
 2. You will be prompted to create a new password
 3. Choose a strong password with at least 8 characters
 4. Do not share your password with anyone
@@ -127,11 +143,11 @@ Next Steps:
 If you did not request this password reset or have any concerns, please contact your HR department immediately.
 
 Best regards,
-VPENA OnPoint Team
+OPoint Team
 
 ---
 This is an automated message. Please do not reply to this email.
-© ${new Date().getFullYear()} VPENA OnPoint. All rights reserved.
+© ${new Date().getFullYear()} OPoint. All rights reserved.
             `.trim()
         };
 
