@@ -829,6 +829,14 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
             updatedEntries.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
             return updatedEntries;
         });
+        
+        // Refresh time entries from server to ensure cache is updated and summaries recalculate
+        // This prevents the issue where summaries disappear after navigation
+        try {
+            await refreshTimeEntries();
+        } catch (error) {
+            console.warn('Failed to refresh time entries after save:', error);
+        }
     };
 
     const createTimeEntry = async (type: TimeEntryType, photoUrl?: string) => {
