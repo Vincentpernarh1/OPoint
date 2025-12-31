@@ -966,8 +966,20 @@ export const db = {
         if (updates.status === 'Approved') {
             updateData.clock_in = updates.requested_clock_in;
             updateData.clock_out = updates.requested_clock_out;
+            
+            // Support multi-session adjustments (break tracking with 2 sessions)
+            if (updates.requested_clock_in_2) {
+                updateData.clock_in_2 = updates.requested_clock_in_2;
+            }
+            if (updates.requested_clock_out_2) {
+                updateData.clock_out_2 = updates.requested_clock_out_2;
+            }
+            
+            // Clear requested fields after applying
             updateData.requested_clock_in = null;
             updateData.requested_clock_out = null;
+            updateData.requested_clock_in_2 = null;
+            updateData.requested_clock_out_2 = null;
             updateData.adjustment_applied = true; // Mark that adjustment has been applied
         }
 

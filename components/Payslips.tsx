@@ -220,8 +220,21 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
         
         const headers = ['Description', 'Amount (GHS)'];
         const rows = [
+            ['EMPLOYEE DETAILS', ''],
+            ['Name', employee.name],
+            ['Pay Period', `${formatDate(payslipData.payPeriodStart)} - ${formatDate(payslipData.payPeriodEnd)}`],
+            ['Pay Date', formatDate(payslipData.payDate)],
+            ['', ''],
+            ['HOURS WORKED', ''],
+            ['Working Hours/Day', payslipData.workingHoursPerDay ? payslipData.workingHoursPerDay.toFixed(2) : '8.00'],
+            ['Expected Hours (Month)', payslipData.expectedHoursThisMonth ? payslipData.expectedHoursThisMonth.toFixed(2) : ''],
+            ['Actual Hours Worked', payslipData.actualHoursWorked !== null && payslipData.actualHoursWorked !== undefined ? payslipData.actualHoursWorked.toFixed(2) : 'N/A'],
+            ['Hourly Rate (GHS)', payslipData.hourlyRate ? payslipData.hourlyRate.toFixed(2) : ''],
+            ...(payslipData.hoursDeduction ? [['Hours Not Worked', `${payslipData.hoursDeduction.hours.toFixed(2)} hrs (-${payslipData.hoursDeduction.amount.toFixed(2)} GHS)`]] : []),
+            ['', ''],
             ['EARNINGS', ''],
             ['Basic Salary', payslipData.basicSalary.toFixed(2)],
+            ['Gross Pay (Based on Hours)', payslipData.grossPay.toFixed(2)],
             ['', ''],
             ['DEDUCTIONS', ''],
             ['SSNIT Employee (5.5%)', payslipData.ssnitEmployee.toFixed(2)],

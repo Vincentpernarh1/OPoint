@@ -503,6 +503,24 @@ async function calculateHoursWorked(userId, tenantId, payDate) {
         const currentMonth = payDate.getMonth();
         const currentYear = payDate.getFullYear();
 
+        // Get company break duration setting
+        let breakDurationMinutes = 60; // Default 60 minutes
+        try {
+            const adminClient = getSupabaseAdminClient();
+            if (adminClient) {
+                const { data: company } = await adminClient
+                    .from('opoint_companies')
+                    .select('break_duration_minutes')
+                    .eq('id', tenantId)
+                    .single();
+                if (company && company.break_duration_minutes !== undefined && company.break_duration_minutes !== null) {
+                    breakDurationMinutes = company.break_duration_minutes;
+                }
+            }
+        } catch (error) {
+            console.log('Could not fetch company break duration, using default:', error.message);
+        }
+
         // Get clock logs for the user
         const { data: clockLogs, error } = await db.getClockLogs(userId);
 
@@ -534,14 +552,54 @@ async function calculateHoursWorked(userId, tenantId, payDate) {
         // Calculate hours for each day
         Object.keys(entriesByDate).forEach(dateKey => {
             const dayEntries = entriesByDate[dateKey];
+            let dayTotalMs = 0;
             
-            // For each day, sum all the clock in/out pairs
-            dayEntries.forEach(entry => {
-                const clockIn = new Date(entry.clock_in);
-                const clockOut = new Date(entry.clock_out);
-                const hoursWorked = (clockOut.getTime() - clockIn.getTime()) / (1000 * 60 * 60);
-                totalHoursWorked += hoursWorked;
-            });
+            // Check if any entry has multi-session fields (clock_in_2, clock_out_2)
+            const hasMultiSession = dayEntries.some(entry => entry.clock_in_2 || entry.clock_out_2);
+            
+            if (hasMultiSession) {
+                // Handle multi-session day (break tracking with 2 separate sessions)
+                dayEntries.forEach(entry => {
+                    // Session 1
+                    if (entry.clock_in && entry.clock_out) {
+                        const clockIn = new Date(entry.clock_in);
+                        const clockOut = new Date(entry.clock_out);
+                        const sessionMs = clockOut.getTime() - clockIn.getTime();
+                        dayTotalMs += sessionMs;
+                    }
+                    
+                    // Session 2 (if exists)
+                    if (entry.clock_in_2 && entry.clock_out_2) {
+                        const clockIn2 = new Date(entry.clock_in_2);
+                        const clockOut2 = new Date(entry.clock_out_2);
+                        const session2Ms = clockOut2.getTime() - clockIn2.getTime();
+                        dayTotalMs += session2Ms;
+                    }
+                });
+                // Multi-session days don't get automatic break deduction (break already tracked)
+            } else {
+                // Single or multiple entries without multi-session fields
+                dayEntries.forEach(entry => {
+                    const clockIn = new Date(entry.clock_in);
+                    const clockOut = new Date(entry.clock_out);
+                    const sessionMs = clockOut.getTime() - clockIn.getTime();
+                    dayTotalMs += sessionMs;
+                });
+
+                // Apply automatic break deduction for single-session days (consistent with frontend)
+                // Only deduct break if worked time >= 4 hours AND it's a single session day
+                const isSingleSession = dayEntries.length === 1;
+                const minimumHoursForBreak = 4 * 60 * 60 * 1000; // 4 hours in milliseconds
+                
+                if (isSingleSession && breakDurationMinutes > 0 && dayTotalMs >= minimumHoursForBreak) {
+                    const breakMs = breakDurationMinutes * 60 * 1000;
+                    dayTotalMs = Math.max(0, dayTotalMs - breakMs);
+                }
+            }
+
+            // Convert to hours and add to total
+            const dayHours = dayTotalMs / (1000 * 60 * 60);
+            totalHoursWorked += dayHours;
         });
 
         return totalHoursWorked;
@@ -3681,6 +3739,24 @@ app.get('/api/reports', async (req, res) => {
                 const currentMonth = month ? parseInt(month) : new Date().getMonth() + 1;
                 const currentYear = year ? parseInt(year) : new Date().getFullYear();
 
+                // Get company break duration setting
+                let breakDurationMinutes = 60; // Default
+                try {
+                    const adminClient = getSupabaseAdminClient();
+                    if (adminClient) {
+                        const { data: company } = await adminClient
+                            .from('opoint_companies')
+                            .select('break_duration_minutes')
+                            .eq('id', tenantId)
+                            .single();
+                        if (company && company.break_duration_minutes !== undefined && company.break_duration_minutes !== null) {
+                            breakDurationMinutes = company.break_duration_minutes;
+                        }
+                    }
+                } catch (error) {
+                    console.log('Could not fetch company break duration for report, using default');
+                }
+
                 // Get all clock logs for the month
                 const { data: clockLogs, error: logsError } = await db.getClockLogsForReport(tenantId, currentMonth, currentYear);
 
@@ -3688,45 +3764,100 @@ app.get('/api/reports', async (req, res) => {
                     console.error('Error fetching clock logs:', logsError);
                     reportData = []; // Return empty array instead of failing
                 } else {
-                    // Group by employee and calculate totals
-                    const attendanceMap = new Map();
+                    // Group by employee and date, then calculate totals with break deduction
+                    const employeeDataMap = new Map();
 
+                    // First, organize logs by employee and date
+                    const employeeDateLogs = {};
                     clockLogs.forEach(log => {
                         const employeeId = log.employee_id;
-                        if (!attendanceMap.has(employeeId)) {
-                            attendanceMap.set(employeeId, {
-                                employee_id: employeeId,
+                        if (!employeeDateLogs[employeeId]) {
+                            employeeDateLogs[employeeId] = {
                                 employee_name: log.employee_name,
-                                total_days: 0,
-                                total_hours: 0,
-                                present_days: 0,
-                                absent_days: 0
-                            });
+                                dateEntries: {}
+                            };
                         }
-
-                        const employee = attendanceMap.get(employeeId);
 
                         if (log.clock_in && log.clock_out) {
-                            // Calculate hours worked
-                            const clockIn = new Date(log.clock_in);
-                            const clockOut = new Date(log.clock_out);
-                            const hoursWorked = (clockOut - clockIn) / (1000 * 60 * 60); // Convert to hours
-
-                            employee.total_hours += hoursWorked;
-                            employee.present_days += 1;
+                            const clockInDate = new Date(log.clock_in);
+                            const dateKey = clockInDate.toDateString();
+                            
+                            if (!employeeDateLogs[employeeId].dateEntries[dateKey]) {
+                                employeeDateLogs[employeeId].dateEntries[dateKey] = [];
+                            }
+                            employeeDateLogs[employeeId].dateEntries[dateKey].push(log);
                         }
                     });
 
-                    // Calculate working days in month
-                    const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
-                    const workingDays = Math.floor(daysInMonth * 5 / 7); // Approximate working days
+                    // Calculate hours for each employee with break deduction logic
+                    Object.keys(employeeDateLogs).forEach(employeeId => {
+                        const employeeData = employeeDateLogs[employeeId];
+                        let totalHours = 0;
+                        let presentDays = 0;
 
-                    attendanceMap.forEach(employee => {
-                        employee.total_days = workingDays;
-                        employee.absent_days = Math.max(0, workingDays - employee.present_days);
+                        Object.keys(employeeData.dateEntries).forEach(dateKey => {
+                            const dayEntries = employeeData.dateEntries[dateKey];
+                            let dayTotalMs = 0;
+
+                            // Check if any entry has multi-session fields
+                            const hasMultiSession = dayEntries.some(log => log.clock_in_2 || log.clock_out_2);
+
+                            if (hasMultiSession) {
+                                // Multi-session day (break tracking)
+                                dayEntries.forEach(log => {
+                                    // Session 1
+                                    if (log.clock_in && log.clock_out) {
+                                        const clockIn = new Date(log.clock_in);
+                                        const clockOut = new Date(log.clock_out);
+                                        dayTotalMs += clockOut.getTime() - clockIn.getTime();
+                                    }
+                                    // Session 2
+                                    if (log.clock_in_2 && log.clock_out_2) {
+                                        const clockIn2 = new Date(log.clock_in_2);
+                                        const clockOut2 = new Date(log.clock_out_2);
+                                        dayTotalMs += clockOut2.getTime() - clockIn2.getTime();
+                                    }
+                                });
+                                // No automatic break for multi-session days
+                            } else {
+                                // Sum all sessions for the day
+                                dayEntries.forEach(log => {
+                                    const clockIn = new Date(log.clock_in);
+                                    const clockOut = new Date(log.clock_out);
+                                    const sessionMs = clockOut.getTime() - clockIn.getTime();
+                                    dayTotalMs += sessionMs;
+                                });
+
+                                // Apply break deduction (consistent with frontend and backend calculations)
+                                const isSingleSession = dayEntries.length === 1;
+                                const minimumHoursForBreak = 4 * 60 * 60 * 1000; // 4 hours
+                                
+                                if (isSingleSession && breakDurationMinutes > 0 && dayTotalMs >= minimumHoursForBreak) {
+                                    const breakMs = breakDurationMinutes * 60 * 1000;
+                                    dayTotalMs = Math.max(0, dayTotalMs - breakMs);
+                                }
+                            }
+
+                            const dayHours = dayTotalMs / (1000 * 60 * 60);
+                            totalHours += dayHours;
+                            if (dayHours > 0) presentDays++;
+                        });
+
+                        // Calculate working days in month
+                        const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+                        const workingDays = Math.floor(daysInMonth * 5 / 7); // Approximate working days
+
+                        employeeDataMap.set(employeeId, {
+                            employee_id: employeeId,
+                            employee_name: employeeData.employee_name,
+                            total_days: workingDays,
+                            total_hours: parseFloat(totalHours.toFixed(2)),
+                            present_days: presentDays,
+                            absent_days: Math.max(0, workingDays - presentDays)
+                        });
                     });
 
-                    let attendanceData = Array.from(attendanceMap.values());
+                    let attendanceData = Array.from(employeeDataMap.values());
 
                     // Filter data based on user role and userId parameter
                     if (userId) {

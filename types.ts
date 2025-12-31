@@ -137,6 +137,11 @@ export interface Payslip {
         amount: number;
         description: string;
     } | null;
+    // Hours breakdown (for transparency)
+    hourlyRate?: number;
+    expectedHoursThisMonth?: number;
+    actualHoursWorked?: number | null;
+    workingHoursPerDay?: number;
     // Employer Contributions (for reporting)
     ssnitEmployer: number; // 13%
     ssnitTier1: number; // 13.5% of applicable salary (goes to SSNIT)
