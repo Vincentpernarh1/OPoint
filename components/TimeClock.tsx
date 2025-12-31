@@ -125,6 +125,8 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     const [isLoadingAdjustments, setIsLoadingAdjustments] = useState(true);
     
     const progressBarRef = useRef<HTMLDivElement>(null);
+    const lastActionTimeRef = useRef<number>(0);
+    const DEBOUNCE_MS = 2000; // Prevent rapid clicks within 2 seconds
 
     // Pull-to-refresh functionality
     const handleRefresh = async () => {
@@ -264,11 +266,13 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
             const byTimestampType = new Map<string, TimeEntry>();
 
             // Helper function to create a timestamp+type key for deduplication
+            // Use date + rounded time to deduplicate entries from cache vs DB
             const getTimestampTypeKey = (entry: TimeEntry) => {
-                // Use exact timestamp with 30-second tolerance for deduplication
+                const date = canonicalDate(entry.timestamp);
                 const time = entry.timestamp.getTime();
-                const roundedTime = Math.floor(time / 30000) * 30000; // Round to nearest 30 seconds
-                return `${roundedTime}-${entry.type}`;
+                // Round to nearest 5 seconds for more aggressive deduplication
+                const roundedTime = Math.floor(time / 5000) * 5000;
+                return `${date}-${roundedTime}-${entry.type}-${entry.userId}`;
             };
 
             // Add server entries first
@@ -726,6 +730,14 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     }, []);
 
     const handleClockAction = (type: TimeEntryType) => {
+        // Debounce: Prevent rapid successive clicks
+        const now = Date.now();
+        if (now - lastActionTimeRef.current < DEBOUNCE_MS) {
+            console.log('Action debounced - too soon after last click');
+            return;
+        }
+        lastActionTimeRef.current = now;
+        
         setCurrentActionType(type);
         setIsCameraOpen(true);
     };

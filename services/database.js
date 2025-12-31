@@ -1466,7 +1466,7 @@ export const db = {
         // Check if a log entry exists for this date
         const { data: existing, error: findError } = await client
             .from('opoint_clock_logs')
-            .select('*')
+            .select('id, punches, clock_in, clock_out, location, photo_url')
             .eq('tenant_id', tenant_id)
             .eq('employee_id', employee_id)
             .eq('date', dateStr)
@@ -1587,7 +1587,7 @@ export const db = {
             
             const { data, error } = await client
                 .from('opoint_clock_logs')
-                .select('*')
+                .select('id, punches, date')
                 .eq('tenant_id', tenantId)
                 .eq('employee_id', employeeId)
                 .eq('date', today)
@@ -1609,7 +1609,7 @@ export const db = {
             // Old behavior: Look for entries without clock_out
             const { data, error } = await client
                 .from('opoint_clock_logs')
-                .select('*')
+                .select('id, employee_id, clock_in, clock_out, location, photo_url, created_at')
                 .eq('tenant_id', tenantId)
                 .eq('employee_id', employeeId)
                 .is('clock_out', null)
