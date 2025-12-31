@@ -96,3 +96,12 @@ SELECT
 FROM pg_indexes
 WHERE tablename = 'opoint_time_adjustments'
 ORDER BY indexname;
+
+
+
+
+
+
+ALTER TABLE opoint_clock_logs 
+ADD COLUMN IF NOT EXISTS requested_clock_in_2 TIMESTAMP WITH TIME ZONE,
+ADD COLUMN IF NOT EXISTS requested_clock_out_2 TIMESTAMP WITH TIME ZONE;

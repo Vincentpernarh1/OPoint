@@ -67,15 +67,27 @@ const CONFIG = {
 
 // --- PUSH NOTIFICATION SETUP ---
 const vapidKeys = {
-    publicKey: process.env.VAPID_PUBLIC_KEY || 'BDefaultPublicKeyForTestingOnly',
-    privateKey: process.env.VAPID_PRIVATE_KEY || 'DefaultPrivateKeyForTestingOnly'
+    publicKey: process.env.VAPID_PUBLIC_KEY,
+    privateKey: process.env.VAPID_PRIVATE_KEY
 };
 
-webPush.setVapidDetails(
-    'mailto:test@example.com',
-    vapidKeys.publicKey,
-    vapidKeys.privateKey
-);
+// Only set VAPID details if keys are properly configured
+if (vapidKeys.publicKey && vapidKeys.privateKey && 
+    vapidKeys.publicKey !== 'BDefaultPublicKeyForTestingOnly' && 
+    vapidKeys.privateKey !== 'DefaultPrivateKeyForTestingOnly') {
+    try {
+        webPush.setVapidDetails(
+            'mailto:vpenatechwizard@gmail.com',
+            vapidKeys.publicKey,
+            vapidKeys.privateKey
+        );
+        console.log('✅ Push notifications enabled');
+    } catch (error) {
+        console.warn('⚠️ Push notifications disabled - Invalid VAPID keys:', error.message);
+    }
+} else {
+    console.warn('⚠️ Push notifications disabled - VAPID keys not configured');
+}
 
 // --- FALLBACK MOCK DATA (Used when database is not configured) ---
 const MOCK_USERS = [
@@ -603,7 +615,7 @@ app.get('/api/test/check-user/:email', async (req, res) => {
 // --- AUTHENTICATION ENDPOINTS ---
 app.post('/api/auth/login', async (req, res) => {
     try {
-        const { email, password } = req.body;
+        let { email, password } = req.body;
 
         if (!email || !password) {
             return res.status(400).json({
@@ -611,6 +623,9 @@ app.post('/api/auth/login', async (req, res) => {
                 error: 'Email and password are required'
             });
         }
+
+        // Normalize email to lowercase
+        email = email.trim().toLowerCase();
 
         if (!validators.isValidEmail(email)) {
             return res.status(400).json({
@@ -1298,6 +1313,9 @@ app.post('/api/users', async (req, res) => {
             });
         }
 
+        // Normalize email to lowercase
+        userData.email = userData.email.trim().toLowerCase();
+
         if (!validators.isValidEmail(userData.email)) {
             return res.status(400).json({ 
                 success: false, 
@@ -1443,6 +1461,11 @@ app.put('/api/users/:id', async (req, res) => {
         const userId = req.params.id;
 
         console.log('User update request:', { userId, updates });
+
+        // Normalize email to lowercase if being updated
+        if (updates.email) {
+            updates.email = updates.email.trim().toLowerCase();
+        }
 
         // Validation
         if (updates.email && !validators.isValidEmail(updates.email)) {
@@ -2790,6 +2813,8 @@ app.post('/api/time-adjustments', async (req, res) => {
         const adjustmentData = req.body;
         const tenantId = req.headers['x-tenant-id'];
 
+        console.log('📥 Time adjustment request received:', JSON.stringify(adjustmentData, null, 2));
+
         // Set tenant context
         if (tenantId) {
             setTenantContext(tenantId);
@@ -2797,21 +2822,31 @@ app.post('/api/time-adjustments', async (req, res) => {
 
         // Validation
         if (!adjustmentData.userId || !adjustmentData.requestedClockIn || !adjustmentData.requestedClockOut || !adjustmentData.reason) {
+            console.log('❌ Validation failed - missing required fields');
             return res.status(400).json({ 
                 success: false, 
                 error: 'Missing required fields' 
             });
         }
 
+        console.log('✅ Validation passed, calling db.createTimeAdjustmentRequest');
         const { data, error } = await db.createTimeAdjustmentRequest(adjustmentData);
 
+        console.log('Database response:', { 
+            success: !!data, 
+            hasError: !!error,
+            errorMessage: error?.message || error
+        });
+
         if (error) {
+            console.error('❌ Failed to create time adjustment:', error);
             return res.status(400).json({ 
                 success: false, 
-                error: error.message 
+                error: error.message || error
             });
         }
 
+        console.log('✅ Time adjustment created successfully');
         res.status(201).json({ 
             success: true, 
             data 
@@ -3359,78 +3394,6 @@ app.get('/api/time-adjustments', async (req, res) => {
             success: false, 
             error: 'Failed to fetch time adjustment requests',
             details: error.message
-        });
-    }
-});
-
-app.post('/api/time-adjustments', async (req, res) => {
-    try {
-        const { userId, date, originalClockIn, originalClockOut, requestedClockIn, requestedClockOut, reason } = req.body;
-        const tenantId = req.headers['x-tenant-id'];
-
-        if (!userId || !date || !requestedClockIn || !requestedClockOut || !reason) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Missing required fields' 
-            });
-        }
-
-        // Check if user already has a pending or approved time adjustment request for this date
-        const existingRequests = await db.getTimeAdjustmentRequests({ 
-            userId: userId
-        }, tenantId);
-
-        // Check if any existing request is for the same date (both pending and approved)
-        const requestDate = new Date(date).toDateString();
-
-
-        console.log("Date received here :",date)
-        console.log("Formatted request date :",requestDate  )
-
-
-        const hasRequestForDate = existingRequests.some(req => {
-            const reqDate = new Date(req.requested_clock_in).toDateString();
-            return reqDate === requestDate;
-        });
-
-        if (hasRequestForDate) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'You already have a time adjustment request for this date. Please contact your administrator if you need to make changes.' 
-            });
-        }
-
-        const adjustmentData = {
-            tenant_id: tenantId,
-            user_id: userId,
-            date: date,
-            original_clock_in: originalClockIn || null,
-            original_clock_out: originalClockOut || null,
-            requested_clock_in: requestedClockIn,
-            requested_clock_out: requestedClockOut,
-            reason: reason,
-            status: 'Pending'
-        };
-
-        const { data, error } = await db.createTimeAdjustmentRequest(adjustmentData);
-
-        if (error) {
-            return res.status(500).json({ 
-                success: false, 
-                error: 'Failed to create time adjustment request' 
-            });
-        }
-
-        res.json({ 
-            success: true, 
-            data 
-        });
-
-    } catch (error) {
-        console.error('Error creating time adjustment request:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Failed to create time adjustment request' 
         });
     }
 });

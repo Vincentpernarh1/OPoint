@@ -321,6 +321,11 @@ export const db = {
         // Remove tenant_id from userData if it exists to avoid duplication
         const { tenant_id, ...dataToInsert } = userData;
 
+        // Normalize email to lowercase
+        if (dataToInsert.email) {
+            dataToInsert.email = dataToInsert.email.trim().toLowerCase();
+        }
+
         console.log('Creating user with data:', { ...dataToInsert, tenant_id: tenantId });
 
         const { data, error } = await client
@@ -344,6 +349,11 @@ export const db = {
 
         const tenantId = getCurrentTenantId();
         if (!tenantId) return { data: null, error: 'No tenant context set' };
+
+        // Normalize email to lowercase if being updated
+        if (updates.email) {
+            updates.email = updates.email.trim().toLowerCase();
+        }
 
         const { data, error } = await client
             .from('opoint_users')
@@ -755,7 +765,13 @@ export const db = {
         console.log('Creating adjustment request:', {
             userId: adjustmentData.userId,
             date: adjustmentData.date,
-            tenantId
+            tenantId,
+            hasClockIn: !!adjustmentData.requestedClockIn,
+            hasClockOut: !!adjustmentData.requestedClockOut,
+            hasClockIn2: !!adjustmentData.requestedClockIn2,
+            hasClockOut2: !!adjustmentData.requestedClockOut2,
+            hasReason: !!adjustmentData.reason,
+            hasEmployeeName: !!adjustmentData.employeeName
         });
 
         // Find existing clock log for the date, or create new one
@@ -789,7 +805,6 @@ export const db = {
         const existingAdjustment = existingAdjustments?.find(log => {
             const logDate = log.clock_in ? new Date(log.clock_in).toISOString().split('T')[0] :
                           log.requested_clock_in ? new Date(log.requested_clock_in).toISOString().split('T')[0] : null;
-            console.log('Checking log date:', { log, logDate, targetDate: adjustmentData.date, matches: logDate === adjustmentData.date });
             return logDate === adjustmentData.date;
         });
 
@@ -810,6 +825,8 @@ export const db = {
             console.log('Allowing new request: Previous status was', existingAdjustment.adjustment_status);
         }
 
+        console.log('🔍 Looking for existing clock log for date:', adjustmentData.date);
+        
         const { data: existingLog, error: findError } = await client
             .from('opoint_clock_logs')
             .select('*')
@@ -819,11 +836,19 @@ export const db = {
             .lte('clock_in', endOfDay.toISOString())
             .single();
 
+        console.log('Existing log query result:', { 
+            found: !!existingLog, 
+            error: findError?.code || null,
+            errorMessage: findError?.message || null
+        });
+
         if (findError && findError.code !== 'PGRST116') { // PGRST116 = no rows found
+            console.error('❌ Error finding existing log:', findError);
             return { data: null, error: findError };
         }
 
         if (existingLog) {
+            console.log('📝 Updating existing clock log with adjustment request');
             // Update existing log with adjustment request
             const updateData = {
                 requested_clock_in: adjustmentData.requestedClockIn,
@@ -841,12 +866,20 @@ export const db = {
                 updateData.requested_clock_out_2 = adjustmentData.requestedClockOut2;
             }
             
+            console.log('📝 Updating existing log with data:', JSON.stringify(updateData, null, 2));
+            
             const { data, error } = await client
                 .from('opoint_clock_logs')
                 .update(updateData)
                 .eq('id', existingLog.id)
                 .select()
                 .single();
+
+            if (error) {
+                console.error('❌ Time adjustment update failed:', error);
+            } else {
+                console.log('✅ Time adjustment updated successfully:', data);
+            }
 
             return { data, error };
         } else {
@@ -870,11 +903,19 @@ export const db = {
                 insertData.requested_clock_out_2 = adjustmentData.requestedClockOut2;
             }
             
+            console.log('📝 Inserting new time adjustment record:', JSON.stringify(insertData, null, 2));
+            
             const { data, error } = await client
                 .from('opoint_clock_logs')
                 .insert(insertData)
                 .select()
                 .single();
+
+            if (error) {
+                console.error('❌ Time adjustment insert failed:', error);
+            } else {
+                console.log('✅ Time adjustment inserted successfully:', data);
+            }
 
             return { data, error };
         }
@@ -1033,10 +1074,13 @@ export const db = {
         const client = getSupabaseAdminClient(); // Use admin client to bypass RLS
         if (!client) return { data: null, error: 'Database not configured' };
 
+        // Normalize email to lowercase
+        const normalizedEmail = email.trim().toLowerCase();
+
         const { data, error } = await client
             .from('opoint_users')
             .select('*')
-            .ilike('email', email)
+            .ilike('email', normalizedEmail)
             .eq('status', 'Active')
             .single();
 

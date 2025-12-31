@@ -963,8 +963,9 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
             });
 
             // Add the new request to local state
+            // The response.data contains the full clock log record
             const newRequest: AdjustmentRequest = {
-                id: response.id || `temp-${Date.now()}`, // Use temp ID if not returned
+                id: response.data?.id || `temp-${Date.now()}`, // Use the ID from the database record
                 userId: currentUser.id,
                 employeeName: currentUser.name,
                 date: adjustment.date, // Keep as string
@@ -979,6 +980,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
             };
             
             console.log('Adding new adjustment request:', newRequest);
+            console.log('Server response:', response);
             
             setAdjustmentRequests(prev => {
                 const updated = [...prev, newRequest];

@@ -1,0 +1,62 @@
+===========================================
+FIX TIME ADJUSTMENT WITH BREAK TRACKING
+===========================================
+
+ISSUE:
+------
+Time adjustment requests with break tracking fail with error:
+"Could not find the 'requested_clock_in_2' column of 'opoint_clock_logs' in the schema cache"
+
+SOLUTION:
+---------
+Add the missing columns to the database table.
+
+METHOD 1: Run SQL in Supabase Dashboard (RECOMMENDED)
+------------------------------------------------------
+
+1. Go to: https://supabase.com/dashboard
+2. Select your project: "dbprobdekaafxefhdbjt"
+3. Click on "SQL Editor" in the left sidebar
+4. Click "New Query"
+5. Copy and paste this SQL:
+
+   -- Add break tracking columns for time adjustment requests
+   ALTER TABLE opoint_clock_logs 
+   ADD COLUMN IF NOT EXISTS requested_clock_in_2 TIMESTAMP WITH TIME ZONE,
+   ADD COLUMN IF NOT EXISTS requested_clock_out_2 TIMESTAMP WITH TIME ZONE;
+
+   -- Add helpful comments
+   COMMENT ON COLUMN opoint_clock_logs.requested_clock_in_2 IS 'Second clock-in time (return from break) for adjustment requests';
+   COMMENT ON COLUMN opoint_clock_logs.requested_clock_out_2 IS 'Second clock-out time for adjustment requests';
+
+6. Click "Run" (or press Ctrl+Enter)
+7. You should see: "Success. No rows returned"
+
+METHOD 2: Run Migration Script
+-------------------------------
+
+Run this command in PowerShell:
+
+   node run_break_adjustment_migration.js
+
+VERIFICATION:
+-------------
+
+After running the migration, test by:
+1. Restart your server (if running)
+2. Try submitting a time adjustment request with break tracking
+3. The request should now be created successfully and appear in the Approvals section
+
+WHAT THIS FIXES:
+----------------
+
+✅ Allows time adjustment requests with break periods
+✅ Stores: Clock In 1 → Clock Out 1 (break) → Clock In 2 → Clock Out 2
+✅ Admins can see and approve/reject requests with break times
+✅ Applied adjustments will correctly update time entries
+
+COLUMNS ADDED:
+--------------
+
+- requested_clock_in_2: Second clock-in time (after break)
+- requested_clock_out_2: Second clock-out time (end of day)
