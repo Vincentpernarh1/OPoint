@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">VPENA OnPoint</string>
-    <string name="title_activity_main">VPENA OnPoint</string>
-    <string name="package_name">com.vpena.onpoint</string>
-    <string name="custom_url_scheme">com.vpena.onpoint</string>
+    <string name="app_name">OPoint</string>
+    <string name="title_activity_main">OPoint</string>
+    <string name="package_name">com.opoint</string>
+    <string name="custom_url_scheme">com.opoint</string>
 </resources>

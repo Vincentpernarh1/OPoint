@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.vpena.onpoint',
-  appName: 'VPENA OnPoint',
+  appName: 'OPoint',
   webDir: 'dist',
   plugins: {
     Keyboard: {

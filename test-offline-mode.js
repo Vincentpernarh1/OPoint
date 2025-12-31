@@ -397,7 +397,7 @@ ERROR HANDLING:
 
 async function runAllTests() {
     console.log('\n' + '='.repeat(60));
-    console.log('  VPENA ONPOINT - OFFLINE MODE TEST SUITE');
+    console.log('  OPOINT - OFFLINE MODE TEST SUITE');
     console.log('='.repeat(60) + '\n');
     
     await testOfflineStorage();
