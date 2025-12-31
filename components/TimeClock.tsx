@@ -549,6 +549,26 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
         }
     }, [isOnline, currentUser.tenantId]);
 
+    // Listen for adjustment approval events to refresh time entries
+    useEffect(() => {
+        const handleAdjustmentApproved = async (event: any) => {
+            console.log('Adjustment approved event received:', event.detail);
+            const { userId, date, status } = event.detail || {};
+            
+            // Refresh time entries if the adjustment was for this user
+            if (userId === currentUser.id || !userId) {
+                console.log('Refreshing time entries after adjustment approval');
+                await refreshTimeEntries();
+            }
+        };
+
+        window.addEventListener('adjustment-approved', handleAdjustmentApproved);
+
+        return () => {
+            window.removeEventListener('adjustment-approved', handleAdjustmentApproved);
+        };
+    }, [currentUser.id]);
+
     const lastEntry = useMemo(() => {
         if (timeEntries.length === 0) return null;
         return timeEntries[0]; // Already sorted

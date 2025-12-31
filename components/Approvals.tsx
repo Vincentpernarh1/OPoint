@@ -4,8 +4,10 @@ import { USERS, LEAVE_REQUESTS, ADJUSTMENT_REQUESTS, EXPENSE_REQUESTS, PROFILE_U
 import { LeaveRequest, AdjustmentRequest, RequestStatus, User, ExpenseRequest, ProfileUpdateRequest, LeaveType, UserRole } from '../types';
 import { CheckIcon, XIcon } from './Icons';
 import EmployeeLogModal from './EmployeeLogModal';
+import PullToRefreshIndicator from './PullToRefreshIndicator';
 import { api } from '../services/api';
 import { offlineStorage } from '../services/offlineStorage';
+import { useRefreshable } from '../hooks/useRefreshable';
 
 interface ViewingLogState {
     user: User;
@@ -61,134 +63,139 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        const fetchRequests = async () => {
-            try {
-                setLoading(true);
-                setError(null);
-                
-                const leaveStatusValue = leaveStatusFilter === 'All' ? undefined : leaveStatusFilter;
-                const userFilter = isAdmin ? undefined : currentUser.id;
-                
-                // Build filters object conditionally to avoid passing undefined values
-                const leaveFilters: { status?: string; userId?: string } = {};
-                if (leaveStatusValue !== undefined) leaveFilters.status = leaveStatusValue;
-                if (userFilter !== undefined) leaveFilters.userId = userFilter;
-                
-                // Fetch leave requests
-                const leaveData = await api.getLeaveRequests(currentUser.tenantId!, leaveFilters);
-                const transformedLeaveData: LeaveRequest[] = leaveData.map((item: any) => ({
+    const fetchRequests = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            
+            const leaveStatusValue = leaveStatusFilter === 'All' ? undefined : leaveStatusFilter;
+            const userFilter = isAdmin ? undefined : currentUser.id;
+            
+            // Build filters object conditionally to avoid passing undefined values
+            const leaveFilters: { status?: string; userId?: string } = {};
+            if (leaveStatusValue !== undefined) leaveFilters.status = leaveStatusValue;
+            if (userFilter !== undefined) leaveFilters.userId = userFilter;
+            
+            // Fetch leave requests
+            const leaveData = await api.getLeaveRequests(currentUser.tenantId!, leaveFilters);
+            const transformedLeaveData: LeaveRequest[] = leaveData.map((item: any) => ({
+                id: item.id,
+                userId: item.employee_id,
+                employeeName: item.employee_name,
+                leaveType: item.leave_type as LeaveType,
+                startDate: new Date(item.start_date),
+                endDate: new Date(item.end_date),
+                reason: item.reason,
+                status: item.status as RequestStatus
+            }));
+            
+            // Fetch time adjustment requests
+            const adjustmentStatusValue = adjustmentStatusFilter === 'All' ? undefined : adjustmentStatusFilter;
+            const adjustmentUserFilter = isAdmin ? undefined : currentUser.id;
+            
+            const adjustmentFilters: { status?: string; userId?: string } = {};
+            if (adjustmentStatusValue !== undefined) adjustmentFilters.status = adjustmentStatusValue;
+            if (adjustmentUserFilter !== undefined) adjustmentFilters.userId = adjustmentUserFilter;
+            
+            const adjustmentData = await api.getTimeAdjustmentRequests(currentUser.tenantId!, adjustmentFilters);
+            
+            // For non-admin, no need to filter out own requests since we already filtered at DB
+            const filteredAdjustmentData = isAdmin ? adjustmentData.filter((item: any) => item.employee_id !== currentUser.id) : adjustmentData;
+            
+            const transformedAdjustmentData: AdjustmentRequest[] = filteredAdjustmentData.map((item: any) => {
+                // Determine a safe date string (YYYY-MM-DD) without constructing Dates from null
+                const dateFromRequestedClockIn = item.requested_clock_in ? canonicalDate(new Date(item.requested_clock_in)) : '';
+                const dateFromRequestedClockOut = item.requested_clock_out ? canonicalDate(new Date(item.requested_clock_out)) : '';
+                const dateFromClockIn = item.clock_in ? canonicalDate(new Date(item.clock_in)) : '';
+                const dateStr = item.requested_date || dateFromRequestedClockIn || dateFromRequestedClockOut || dateFromClockIn || '';
+
+                return {
                     id: item.id,
                     userId: item.employee_id,
                     employeeName: item.employee_name,
-                    leaveType: item.leave_type as LeaveType,
-                    startDate: new Date(item.start_date),
-                    endDate: new Date(item.end_date),
-                    reason: item.reason,
-                    status: item.status as RequestStatus
-                }));
-                
-                // Fetch time adjustment requests
-                const adjustmentStatusValue = adjustmentStatusFilter === 'All' ? undefined : adjustmentStatusFilter;
-                const adjustmentUserFilter = isAdmin ? undefined : currentUser.id;
-                
-                const adjustmentFilters: { status?: string; userId?: string } = {};
-                if (adjustmentStatusValue !== undefined) adjustmentFilters.status = adjustmentStatusValue;
-                if (adjustmentUserFilter !== undefined) adjustmentFilters.userId = adjustmentUserFilter;
-                
-                const adjustmentData = await api.getTimeAdjustmentRequests(currentUser.tenantId!, adjustmentFilters);
-                
-                // For non-admin, no need to filter out own requests since we already filtered at DB
-                const filteredAdjustmentData = isAdmin ? adjustmentData.filter((item: any) => item.employee_id !== currentUser.id) : adjustmentData;
-                
-                const transformedAdjustmentData: AdjustmentRequest[] = filteredAdjustmentData.map((item: any) => {
-                    // Determine a safe date string (YYYY-MM-DD) without constructing Dates from null
-                    const dateFromRequestedClockIn = item.requested_clock_in ? canonicalDate(new Date(item.requested_clock_in)) : '';
-                    const dateFromRequestedClockOut = item.requested_clock_out ? canonicalDate(new Date(item.requested_clock_out)) : '';
-                    const dateFromClockIn = item.clock_in ? canonicalDate(new Date(item.clock_in)) : '';
-                    const dateStr = item.requested_date || dateFromRequestedClockIn || dateFromRequestedClockOut || dateFromClockIn || '';
+                    date: dateStr,
+                    originalClockIn: item.clock_in ? new Date(item.clock_in) : undefined,
+                    originalClockOut: item.clock_out ? new Date(item.clock_out) : undefined,
+                    requestedClockIn: item.requested_clock_in ? new Date(item.requested_clock_in) : undefined,
+                    requestedClockOut: item.requested_clock_out ? new Date(item.requested_clock_out) : undefined,
+                    requestedClockIn2: item.requested_clock_in_2 ? new Date(item.requested_clock_in_2) : undefined,
+                    requestedClockOut2: item.requested_clock_out_2 ? new Date(item.requested_clock_out_2) : undefined,
+                    reason: item.adjustment_reason,
+                    status: item.adjustment_status as RequestStatus,
+                    reviewedBy: item.adjustment_reviewed_by,
+                    reviewedAt: item.adjustment_reviewed_at ? new Date(item.adjustment_reviewed_at) : undefined
+                } as AdjustmentRequest;
+            });
+            
+            // Fetch profile update requests
+            const profileStatusValue = profileStatusFilter === 'All' ? undefined : profileStatusFilter;
+            const profileUserFilter = isAdmin ? undefined : currentUser.id;
+            
+            const profileFilters: { status?: string; userId?: string } = {};
+            if (profileStatusValue !== undefined) profileFilters.status = profileStatusValue;
+            if (profileUserFilter !== undefined) profileFilters.userId = profileUserFilter;
+            
+            const profileData = await api.getProfileUpdateRequests(currentUser.tenantId!, profileFilters);
 
-                    return {
-                        id: item.id,
-                        userId: item.employee_id,
-                        employeeName: item.employee_name,
-                        date: dateStr,
-                        originalClockIn: item.clock_in ? new Date(item.clock_in) : undefined,
-                        originalClockOut: item.clock_out ? new Date(item.clock_out) : undefined,
-                        requestedClockIn: item.requested_clock_in ? new Date(item.requested_clock_in) : undefined,
-                        requestedClockOut: item.requested_clock_out ? new Date(item.requested_clock_out) : undefined,
-                        requestedClockIn2: item.requested_clock_in_2 ? new Date(item.requested_clock_in_2) : undefined,
-                        requestedClockOut2: item.requested_clock_out_2 ? new Date(item.requested_clock_out_2) : undefined,
-                        reason: item.adjustment_reason,
-                        status: item.adjustment_status as RequestStatus,
-                        reviewedBy: item.adjustment_reviewed_by,
-                        reviewedAt: item.adjustment_reviewed_at ? new Date(item.adjustment_reviewed_at) : undefined
-                    } as AdjustmentRequest;
-                });
+            // Fetch expense claims
+            const expenseStatusValue = isAdmin ? 'pending' : undefined;
+            const expenseUserFilter = isAdmin ? undefined : currentUser.id;
+            
+            const expenseFilters: { status?: string; employee_id?: string } = {};
+            if (expenseStatusValue !== undefined) expenseFilters.status = expenseStatusValue;
+            if (expenseUserFilter !== undefined) expenseFilters.employee_id = expenseUserFilter;
+            
+            const expenseData = await api.getExpenseClaims(currentUser.tenantId!, expenseFilters);
+            
+            // Use only API data - cache for offline use
+            await offlineStorage.cacheData(`approval_leaves_${leaveStatusFilter}`, transformedLeaveData, currentUser.tenantId!);
+            await offlineStorage.cacheData(`approval_adjustments_${adjustmentStatusFilter}`, transformedAdjustmentData, currentUser.tenantId!);
+            await offlineStorage.cacheData(`approval_profiles_${profileStatusFilter}`, profileData, currentUser.tenantId!);
+            await offlineStorage.cacheData(`approval_expenses`, expenseData, currentUser.tenantId!);
+            
+            setLeaveRequests(transformedLeaveData);
+            setAdjustmentRequests(transformedAdjustmentData);
+            setProfileRequests(profileData);
+            setExpenseRequests(expenseData);
+        } catch (err) {
+            console.error('Failed to fetch requests:', err);
+            // OFFLINE FALLBACK: Try to load cached data
+            try {
+                const cachedLeaves = await offlineStorage.getCachedData(`approval_leaves_${leaveStatusFilter}`, currentUser.tenantId!) || [];
+                const cachedAdjustments = await offlineStorage.getCachedData(`approval_adjustments_${adjustmentStatusFilter}`, currentUser.tenantId!) || [];
+                const cachedProfiles = await offlineStorage.getCachedData(`approval_profiles_${profileStatusFilter}`, currentUser.tenantId!) || [];
+                const cachedExpenses = await offlineStorage.getCachedData(`approval_expenses`, currentUser.tenantId!) || [];
                 
-                // Fetch profile update requests
-                const profileStatusValue = profileStatusFilter === 'All' ? undefined : profileStatusFilter;
-                const profileUserFilter = isAdmin ? undefined : currentUser.id;
+                setLeaveRequests(cachedLeaves);
+                setAdjustmentRequests(cachedAdjustments);
+                setProfileRequests(cachedProfiles);
+                setExpenseRequests(cachedExpenses);
                 
-                const profileFilters: { status?: string; userId?: string } = {};
-                if (profileStatusValue !== undefined) profileFilters.status = profileStatusValue;
-                if (profileUserFilter !== undefined) profileFilters.userId = profileUserFilter;
-                
-                const profileData = await api.getProfileUpdateRequests(currentUser.tenantId!, profileFilters);
-
-                // Fetch expense claims
-                const expenseStatusValue = isAdmin ? 'pending' : undefined;
-                const expenseUserFilter = isAdmin ? undefined : currentUser.id;
-                
-                const expenseFilters: { status?: string; employee_id?: string } = {};
-                if (expenseStatusValue !== undefined) expenseFilters.status = expenseStatusValue;
-                if (expenseUserFilter !== undefined) expenseFilters.employee_id = expenseUserFilter;
-                
-                const expenseData = await api.getExpenseClaims(currentUser.tenantId!, expenseFilters);
-                
-                // Use only API data - cache for offline use
-                await offlineStorage.cacheData(`approval_leaves_${leaveStatusFilter}`, transformedLeaveData, currentUser.tenantId!);
-                await offlineStorage.cacheData(`approval_adjustments_${adjustmentStatusFilter}`, transformedAdjustmentData, currentUser.tenantId!);
-                await offlineStorage.cacheData(`approval_profiles_${profileStatusFilter}`, profileData, currentUser.tenantId!);
-                await offlineStorage.cacheData(`approval_expenses`, expenseData, currentUser.tenantId!);
-                
-                setLeaveRequests(transformedLeaveData);
-                setAdjustmentRequests(transformedAdjustmentData);
-                setProfileRequests(profileData);
-                setExpenseRequests(expenseData);
-            } catch (err) {
-                console.error('Failed to fetch requests:', err);
-                // OFFLINE FALLBACK: Try to load cached data
-                try {
-                    const cachedLeaves = await offlineStorage.getCachedData(`approval_leaves_${leaveStatusFilter}`, currentUser.tenantId!) || [];
-                    const cachedAdjustments = await offlineStorage.getCachedData(`approval_adjustments_${adjustmentStatusFilter}`, currentUser.tenantId!) || [];
-                    const cachedProfiles = await offlineStorage.getCachedData(`approval_profiles_${profileStatusFilter}`, currentUser.tenantId!) || [];
-                    const cachedExpenses = await offlineStorage.getCachedData(`approval_expenses`, currentUser.tenantId!) || [];
-                    
-                    setLeaveRequests(cachedLeaves);
-                    setAdjustmentRequests(cachedAdjustments);
-                    setProfileRequests(cachedProfiles);
-                    setExpenseRequests(cachedExpenses);
-                    
-                    const hasCache = cachedLeaves.length || cachedAdjustments.length || cachedProfiles.length || cachedExpenses.length;
-                    if (hasCache) {
-                        setError('📴 Offline - Showing cached approval data');
-                    } else {
-                        setError('📴 Offline - No cached data available. Please connect to internet and load data first.');
-                    }
-                } catch (cacheErr) {
-                    console.error('Failed to load cached data:', cacheErr);
-                    setError('Failed to load requests. Please check your connection.');
-                    // Show empty arrays on error
-                    setLeaveRequests([]);
-                    setAdjustmentRequests([]);
-                    setProfileRequests([]);
-                    setExpenseRequests([]);
+                const hasCache = cachedLeaves.length || cachedAdjustments.length || cachedProfiles.length || cachedExpenses.length;
+                if (hasCache) {
+                    setError('📴 Offline - Showing cached approval data');
+                } else {
+                    setError('📴 Offline - No cached data available. Please connect to internet and load data first.');
                 }
-            } finally {
-                setLoading(false);
+            } catch (cacheErr) {
+                console.error('Failed to load cached data:', cacheErr);
+                setError('Failed to load requests. Please check your connection.');
+                // Show empty arrays on error
+                setLeaveRequests([]);
+                setAdjustmentRequests([]);
+                setProfileRequests([]);
+                setExpenseRequests([]);
             }
-        };
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Pull-to-refresh functionality
+    const { containerRef, isRefreshing, pullDistance, pullProgress } = useRefreshable(fetchRequests);
+
+    useEffect(() => {
+
 
         // Initial fetch
         fetchRequests();
@@ -261,6 +268,18 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 await api.updateTimeAdjustmentRequest(currentUser.tenantId!, id, updateData);
                 console.log('API call successful');
                 
+                // Dispatch event to notify TimeClock to refresh and invalidate cache
+                if (adjustmentRequest) {
+                    const event = new CustomEvent('adjustment-approved', {
+                        detail: {
+                            userId: adjustmentRequest.userId,
+                            date: adjustmentRequest.date,
+                            status: status
+                        }
+                    });
+                    window.dispatchEvent(event);
+                }
+                
                 // Update status in local state instead of removing
                 setAdjustmentRequests(prev => prev.map(req => 
                     req.id === id ? { 
@@ -271,6 +290,9 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                     } : req
                 ));
                 console.log('Updated local state');
+                
+                // Immediately refetch to get fresh data from server
+                await fetchRequests();
             } catch (err) {
                 console.error(`Failed to ${actionType} time adjustment request:`, err);
                 setError(`Failed to ${actionType} time adjustment request`);
@@ -401,6 +423,16 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                     onClose={() => setViewingLog(null)} 
                 />
             )}
+            <div ref={containerRef} className="h-full overflow-auto">
+                {/* Pull-to-refresh indicator */}
+                {(pullDistance > 0 || isRefreshing) && (
+                    <PullToRefreshIndicator 
+                        isRefreshing={isRefreshing}
+                        pullDistance={pullDistance}
+                        pullProgress={pullProgress}
+                    />
+                )}
+                
             <div className="bg-white p-6 rounded-xl shadow-lg">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">Approval Requests</h2>
                 <div className="border-b border-gray-200">
@@ -679,6 +711,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                         </div>
                     )}
                 </div>
+            </div>
             </div>
         </>
     );
