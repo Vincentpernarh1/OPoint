@@ -501,6 +501,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                         <option value="Pending">⏳ Pending</option>
                                         <option value="Approved">✅ Approved</option>
                                         <option value="Rejected">❌ Rejected</option>
+                                        <option value="Cancelled">🚫 Cancelled</option>
                                     </select>
                                     <select 
                                         title="Filter by leave type"
