@@ -81,11 +81,16 @@ const AnnouncementForm = memo(({ currentUser, onPost }: { currentUser: User, onP
 
     return (
         <>
-            <div className="lg:col-span-1 bg-white p-4 sm:p-6 rounded-xl shadow-lg h-fit">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Post Announcement</h2>
-                <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="lg:col-span-1 bg-white p-4 sm:p-6 rounded-2xl shadow-xl h-fit">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="p-3 bg-gradient-to-br from-primary to-pink-600 rounded-xl shadow-lg backdrop-blur-sm bg-opacity-90">
+                        <span className="text-2xl">📢</span>
+                    </div>
+                    <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-pink-600 bg-clip-text text-transparent">Post Announcement</h2>
+                </div>
+                <form onSubmit={handleSubmit} className="space-y-5">
                     <div>
-                        <label htmlFor="title" className="block text-sm font-medium text-gray-700">Title</label>
+                        <label htmlFor="title" className="block text-sm font-semibold text-gray-700 mb-2">Title</label>
                         <input 
                             key="announcement-title"
                             type="text" 
@@ -94,11 +99,12 @@ const AnnouncementForm = memo(({ currentUser, onPost }: { currentUser: User, onP
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                             required 
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" 
+                            placeholder="Enter announcement title"
+                            className="block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent transition-all" 
                         />
                     </div>
                     <div>
-                        <label htmlFor="content" className="block text-sm font-medium text-gray-700">Content</label>
+                        <label htmlFor="content" className="block text-sm font-semibold text-gray-700 mb-2">Content</label>
                         <textarea 
                             key="announcement-content"
                             id="content" 
@@ -107,16 +113,20 @@ const AnnouncementForm = memo(({ currentUser, onPost }: { currentUser: User, onP
                             onChange={(e) => setContent(e.target.value)}
                             rows={5} 
                             required 
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                            placeholder="Write your announcement here..."
+                            className="block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                         ></textarea>
                     </div>
                     <div>
-                        <label htmlFor="image" className="block text-sm font-medium text-gray-700">Attachment (Image)</label>
-                        <div className="mt-1 flex items-center">
-                            <label htmlFor="image" className="cursor-pointer bg-white py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
-                                Choose File
+                        <label htmlFor="image" className="block text-sm font-semibold text-gray-700 mb-2">Attachment (Image)</label>
+                        <div className="flex items-center gap-3">
+                            <label htmlFor="image" className="cursor-pointer bg-gradient-to-r from-primary to-pink-600 hover:shadow-lg text-white py-3 px-6 rounded-xl shadow-sm text-sm font-semibold transition-all">
+                                <span className="flex items-center gap-2">
+                                    <span>📎</span>
+                                    Choose File
+                                </span>
                             </label>
-                            <span className="ml-3 text-xs text-gray-500 truncate">
+                            <span className="text-xs text-gray-600 truncate flex-1">
                                 {selectedImage ? selectedImage.name : 'No file chosen'}
                             </span>
                             <input 
@@ -130,7 +140,8 @@ const AnnouncementForm = memo(({ currentUser, onPost }: { currentUser: User, onP
                             />
                         </div>
                     </div>
-                    <button type="submit" disabled={isSubmitting} className="w-full bg-primary hover:bg-primary-hover disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded-lg">
+                    <button type="submit" disabled={isSubmitting} className="w-full bg-gradient-to-r from-primary to-pink-600 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2">
+                        <span>📤</span>
                         {isSubmitting ? 'Posting...' : 'Post Announcement'}
                     </button>
                 </form>
@@ -185,11 +196,21 @@ const AnnouncementList = memo(({ announcements, currentUser, onDelete, onShowCon
 
     return (
         <>
-            <div className="bg-white p-6 rounded-xl shadow-lg">
-                <h3 className="text-xl font-bold text-gray-800 mb-4">Company Announcements</h3>
+            <div className="bg-white p-6 rounded-2xl shadow-xl">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2.5 bg-gradient-to-br from-primary to-pink-600 rounded-xl shadow-lg backdrop-blur-sm bg-opacity-90">
+                        <span className="text-xl">📬</span>
+                    </div>
+                    <h3 className="text-xl font-bold bg-gradient-to-r from-primary to-pink-600 bg-clip-text text-transparent">Company Announcements</h3>
+                </div>
                 <div className="space-y-6">
-                    {announcements.map(ann => (
-                        <div key={ann.id} className={`p-4 border rounded-lg bg-slate-50 ${isUnread(ann) ? 'border-l-4 border-l-primary bg-blue-50' : ''}`}>
+                    {announcements.map(ann => {
+                        const bgGradient = isUnread(ann) 
+                            ? 'from-blue-50 to-indigo-100/50 border-l-4 border-l-primary' 
+                            : 'from-white to-gray-50/50';
+                        
+                        return (
+                        <div key={ann.id} className={`p-5 border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all bg-gradient-to-br ${bgGradient}`}>
                             <div className="flex flex-col lg:flex-row lg:items-start lg:space-x-4 space-y-4 lg:space-y-0">
                                 <div className="flex-1 min-w-0">
                                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-3">
@@ -197,8 +218,8 @@ const AnnouncementList = memo(({ announcements, currentUser, onDelete, onShowCon
                                             <div className="flex items-center space-x-2 mb-2">
                                                 <h4 className="font-bold text-gray-800 text-lg leading-tight break-words">{ann.title}</h4>
                                                 {isUnread(ann) && (
-                                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary text-white">
-                                                        NEW
+                                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-primary to-pink-600 text-white shadow-md">
+                                                        ✨ NEW
                                                     </span>
                                                 )}
                                             </div>
@@ -208,7 +229,7 @@ const AnnouncementList = memo(({ announcements, currentUser, onDelete, onShowCon
                                         {(currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.HR) && (
                                             <button
                                                 onClick={() => handleDeleteAnnouncement(ann.id)}
-                                                className="mt-2 sm:mt-0 sm:ml-4 p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                                                className="mt-2 sm:mt-0 sm:ml-4 p-2.5 text-red-500 hover:text-white hover:bg-gradient-to-r hover:from-red-500 hover:to-red-600 rounded-xl transition-all shadow-sm hover:shadow-md flex-shrink-0"
                                                 title="Delete Announcement"
                                             >
                                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -223,7 +244,7 @@ const AnnouncementList = memo(({ announcements, currentUser, onDelete, onShowCon
                                             <img 
                                                 src={ann.image_url} 
                                                 alt="Announcement Attachment" 
-                                                className="rounded-lg max-h-64 w-full object-contain border border-gray-200 shadow-sm"
+                                                className="rounded-xl max-h-64 w-full object-contain border-2 border-gray-200 shadow-md"
                                             />
                                         </div>
                                     )}
@@ -243,7 +264,8 @@ const AnnouncementList = memo(({ announcements, currentUser, onDelete, onShowCon
                                 </div>
                             </div>
                         </div>
-                    ))}
+                        );
+                    })}
                     {announcements.length === 0 && (
                         <p className="text-center text-gray-500 py-8">No announcements yet.</p>
                     )}

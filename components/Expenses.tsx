@@ -160,37 +160,50 @@ const Expenses = ({ currentUser }: ExpensesProps) => {
         <>
             {notification && <Notification message={notification} type="success" onClose={() => setNotification(null)} />}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-1 bg-white p-4 sm:p-6 rounded-xl shadow-lg">
-                    <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Submit Expense Claim</h2>
-                    <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="lg:col-span-1 bg-white p-4 sm:p-6 rounded-2xl shadow-xl">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-3 bg-gradient-to-br from-primary to-amber-600 rounded-xl shadow-lg backdrop-blur-sm bg-opacity-90">
+                            <span className="text-2xl">💰</span>
+                        </div>
+                        <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-amber-600 bg-clip-text text-transparent">Submit Expense Claim</h2>
+                    </div>
+                    <form onSubmit={handleSubmit} className="space-y-5">
                          <div>
-                            <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
-                            <input type="text" id="description" value={description} onChange={e => setDescription(e.target.value)} required placeholder="e.g., Client Lunch" className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"/>
+                            <label htmlFor="description" className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                            <input type="text" id="description" value={description} onChange={e => setDescription(e.target.value)} required placeholder="e.g., Client Lunch" className="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"/>
                         </div>
                          <div className="grid grid-cols-2 gap-4">
                              <div>
-                                <label htmlFor="amount" className="block text-sm font-medium text-gray-700">Amount (GHS)</label>
-                                <input type="number" id="amount" value={amount} onChange={e => setAmount(e.target.value)} required placeholder="150.00" className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"/>
+                                <label htmlFor="amount" className="block text-sm font-semibold text-gray-700 mb-2">Amount (GHS)</label>
+                                <input type="number" id="amount" value={amount} onChange={e => setAmount(e.target.value)} required placeholder="150.00" step="0.01" className="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"/>
                             </div>
                             <div>
-                                <label htmlFor="date" className="block text-sm font-medium text-gray-700">Date</label>
-                                <input type="date" id="date" value={date} onChange={e => setDate(e.target.value)} required className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"/>
+                                <label htmlFor="date" className="block text-sm font-semibold text-gray-700 mb-2">Date</label>
+                                <input type="date" id="date" value={date} onChange={e => setDate(e.target.value)} required className="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"/>
                             </div>
                         </div>
                         <div>
-                            <label htmlFor="receipt" className="block text-sm font-medium text-gray-700">Upload Receipt</label>
-                            <input type="file" id="receipt" onChange={e => setReceipt(e.target.files ? e.target.files[0] : null)} accept="image/*" className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-light file:text-primary hover:file:bg-indigo-200"/>
+                            <label htmlFor="receipt" className="block text-sm font-semibold text-gray-700 mb-2">Upload Receipt</label>
+                            <input type="file" id="receipt" onChange={e => setReceipt(e.target.files ? e.target.files[0] : null)} accept="image/*" className="block w-full text-sm text-gray-600 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-gradient-to-r file:from-primary file:to-amber-600 file:text-white hover:file:shadow-lg file:transition-all cursor-pointer"/>
                         </div>
-                        <button type="submit" className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg transition-colors">Submit Claim</button>
+                        <button type="submit" className="w-full bg-gradient-to-r from-primary to-amber-600 hover:shadow-lg text-white font-bold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2">
+                            <span>💸</span>
+                            Submit Claim
+                        </button>
                     </form>
                 </div>
-                 <div className="lg:col-span-2 bg-white p-4 sm:p-6 rounded-xl shadow-lg">
+                 <div className="lg:col-span-2 bg-white p-4 sm:p-6 rounded-2xl shadow-xl">
                     <button 
                         onClick={() => setIsHistoryExpanded(!isHistoryExpanded)} 
-                        className="w-full flex justify-between items-center mb-4"
+                        className="w-full flex justify-between items-center mb-4 group"
                     >
-                        <h3 className="text-lg sm:text-xl font-bold text-gray-800">My Expense Claims</h3>
-                        <div className="text-gray-600 text-sm">&#x25BC;</div>
+                        <div className="flex items-center gap-3">
+                            <div className="p-2.5 bg-gradient-to-br from-primary to-amber-600 rounded-xl shadow-lg backdrop-blur-sm bg-opacity-90">
+                                <span className="text-xl">📊</span>
+                            </div>
+                            <h3 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-primary to-amber-600 bg-clip-text text-transparent">My Expense Claims</h3>
+                        </div>
+                        <div className="text-gray-500 group-hover:text-primary transition-colors">{isHistoryExpanded ? '▲' : '▼'}</div>
                     </button>
                     
                     {loading ? (
@@ -219,9 +232,9 @@ const Expenses = ({ currentUser }: ExpensesProps) => {
                                                 }
                                                 setExpandedYears(newExpanded);
                                             }}
-                                            className="w-full flex justify-between items-center p-3 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors"
+                                            className="w-full flex justify-between items-center p-4 bg-gradient-to-br from-gray-50 to-gray-100/50 hover:shadow-md rounded-xl transition-all border border-gray-200"
                                         >
-                                            <h4 className="font-bold text-lg text-gray-800">📁 {year}</h4>
+                                            <h4 className="font-bold text-lg text-gray-800 flex items-center gap-2"><span className="text-xl">📅</span> {year}</h4>
                                             <div className="text-gray-600">{isYearExpanded ? '▲' : '▼'}</div>
                                         </button>
                                         
@@ -244,9 +257,9 @@ const Expenses = ({ currentUser }: ExpensesProps) => {
                                                                     }
                                                                     setExpandedMonths(newExpanded);
                                                                 }}
-                                                                className="w-full flex justify-between items-center p-2 bg-white hover:bg-gray-50 rounded-md transition-colors border"
+                                                                className="w-full flex justify-between items-center p-3 bg-white hover:bg-gradient-to-r hover:from-white hover:to-gray-50 rounded-lg transition-all border border-gray-200 shadow-sm hover:shadow"
                                                             >
-                                                                <span className="font-semibold text-gray-700">📅 {month} ({expenses.length})</span>
+                                                                <span className="font-semibold text-gray-700 flex items-center gap-2"><span className="text-lg">📆</span> {month} <span className="ml-1 px-2 py-0.5 bg-gradient-to-r from-primary to-amber-600 text-white text-xs rounded-full">{expenses.length}</span></span>
                                                                 <div className="text-gray-600">{isMonthExpanded ? '▲' : '▼'}</div>
                                                             </button>
                                                             
@@ -254,19 +267,26 @@ const Expenses = ({ currentUser }: ExpensesProps) => {
                                                                 <div className="mt-2 ml-6 space-y-2 animate-fade-in-down">
                                                                     {expenses.map(req => {
                                                                         const StatusIcon = statusInfo[req.status].icon;
+                                                                        const statusGradients = {
+                                                                            'pending': 'from-yellow-50 to-yellow-100/50',
+                                                                            'approved': 'from-green-50 to-green-100/50',
+                                                                            'rejected': 'from-red-50 to-red-100/50',
+                                                                            'cancelled': 'from-gray-50 to-gray-100/50',
+                                                                            'Pending Sync': 'from-blue-50 to-blue-100/50'
+                                                                        };
                                                                         return (
-                                                                            <div key={req.id} className="p-3 border rounded-lg flex items-start space-x-3 bg-slate-50">
-                                                                                <div className={`p-2.5 rounded-full mt-1 ${statusInfo[req.status].color}`}>
+                                                                            <div key={req.id} className={`p-4 border border-gray-200 rounded-xl flex items-start space-x-3 bg-gradient-to-br ${statusGradients[req.status] || 'from-white to-gray-50'} shadow-sm hover:shadow-md transition-all`}>
+                                                                                <div className={`p-3 rounded-xl shadow-md backdrop-blur-sm bg-white/50 ${statusInfo[req.status].color}`}>
                                                                                     <StatusIcon className="h-5 w-5" />
                                                                                 </div>
                                                                                 <div className="flex-1">
                                                                                     <div className="flex justify-between items-center">
-                                                                                        <p className="font-semibold text-gray-700">{req.description}</p>
+                                                                                        <p className="font-bold text-gray-800">{req.description}</p>
                                                                                         <p className={`font-bold text-lg ${statusInfo[req.status].color}`}>{formatCurrency(req.amount)}</p>
                                                                                     </div>
-                                                                                    <div className="flex justify-between items-center text-sm">
-                                                                                        <p className="text-gray-500 mt-1">{new Date(req.expense_date).toLocaleDateString()}</p>
-                                                                                        <span className={`px-2 py-1 text-xs font-medium rounded-full bg-gray-100 ${statusInfo[req.status].color}`}>
+                                                                                    <div className="flex justify-between items-center text-sm mt-2">
+                                                                                        <p className="text-gray-600 flex items-center gap-1"><span>📅</span> {new Date(req.expense_date).toLocaleDateString()}</p>
+                                                                                        <span className={`px-3 py-1 text-xs font-semibold rounded-full bg-white/80 shadow-sm ${statusInfo[req.status].color}`}>
                                                                                             {req.status}
                                                                                         </span>
                                                                                     </div>
