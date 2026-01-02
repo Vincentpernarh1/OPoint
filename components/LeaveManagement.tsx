@@ -171,7 +171,6 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
 
             // Fetch leave balances
             const balanceData = await api.getLeaveBalances(tenantId, currentUser.id);
-            console.log('Leave balance data received:', balanceData);
             
             if (balanceData && balanceData.length > 0) {
                 // Group balances by type for easier access
@@ -183,7 +182,6 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                 // CACHE THE BALANCE DATA for offline use
                 try {
                     await offlineStorage.cacheData('leaveBalances', balanceData, tenantId, currentUser.id);
-                    console.log('Cached leave balances for offline use');
                 } catch (cacheError) {
                     console.warn('Failed to cache leave balances:', cacheError);
                 }
@@ -692,10 +690,10 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                                             <span className="text-white/80 text-xs">Used</span>
                                             <span className="text-white font-bold text-sm">{userBalance.annual.used} days</span>
                                         </div>
-                                        <div className="w-full bg-white/30 rounded-full h-2">
+                                        <div className="w-full bg-white/30 rounded-full h-2 overflow-hidden">
                                             <div 
-                                                className="leave-progress-bar bg-white h-2 rounded-full"
-                                                data-progress={Math.round(userBalance.annual.total > 0 ? (userBalance.annual.used / userBalance.annual.total * 100) : 0)}
+                                                className="bg-white h-full rounded-full transition-all duration-500 ease-out"
+                                                style={{ width: `${userBalance.annual.total > 0 ? Math.min(Math.round((userBalance.annual.used / userBalance.annual.total) * 100), 100) : 0}%` }}
                                             ></div>
                                         </div>
                                         <p className="text-white/70 text-xs mt-1">{userBalance.annual.used} of {userBalance.annual.total} days used</p>
@@ -722,10 +720,10 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                                             <span className="text-white/80 text-xs">Used</span>
                                             <span className="text-white font-bold text-sm">{userBalance.maternity.used} days</span>
                                         </div>
-                                        <div className="w-full bg-white/30 rounded-full h-2">
+                                        <div className="w-full bg-white/30 rounded-full h-2 overflow-hidden">
                                             <div 
-                                                className="leave-progress-bar bg-white h-2 rounded-full"
-                                                data-progress={Math.round(userBalance.maternity.total > 0 ? (userBalance.maternity.used / userBalance.maternity.total * 100) : 0)}
+                                                className="bg-white h-full rounded-full transition-all duration-500 ease-out"
+                                                style={{ width: `${userBalance.maternity.total > 0 ? Math.min(Math.round((userBalance.maternity.used / userBalance.maternity.total) * 100), 100) : 0}%` }}
                                             ></div>
                                         </div>
                                         <p className="text-white/70 text-xs mt-1">{userBalance.maternity.used} of {userBalance.maternity.total} days used</p>
@@ -752,10 +750,10 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                                             <span className="text-white/80 text-xs">Used</span>
                                             <span className="text-white font-bold text-sm">{userBalance.sick.used} days</span>
                                         </div>
-                                        <div className="w-full bg-white/30 rounded-full h-2">
+                                        <div className="w-full bg-white/30 rounded-full h-2 overflow-hidden">
                                             <div 
-                                                className="leave-progress-bar bg-white h-2 rounded-full"
-                                                data-progress={Math.round(userBalance.sick.total > 0 ? (userBalance.sick.used / userBalance.sick.total * 100) : 0)}
+                                                className="bg-white h-full rounded-full transition-all duration-500 ease-out"
+                                                style={{ width: `${userBalance.sick.total > 0 ? Math.min(Math.round((userBalance.sick.used / userBalance.sick.total) * 100), 100) : 0}%` }}
                                             ></div>
                                         </div>
                                         <p className="text-white/70 text-xs mt-1">{userBalance.sick.used} of {userBalance.sick.total} days used</p>

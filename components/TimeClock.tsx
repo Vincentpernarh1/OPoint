@@ -342,7 +342,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                             }
                             return value;
                         });
-                        console.log('Loaded local adjustments:', localAdjustments.length, 'items');
+                        // console.log('Loaded local adjustments:', localAdjustments.length, 'items');
                     } catch (e) {
                         console.error('Error parsing localStorage:', e);
                         localAdjustments = [];
@@ -357,7 +357,6 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
 
                 // Load adjustment requests from API
                 try {
-                    console.log('Loading adjustment requests from API for user:', currentUser.id, 'tenant:', currentUser.tenantId);
                     const adjustmentData = await api.getTimeAdjustmentRequests(currentUser.tenantId!, { 
                         userId: currentUser.id 
                     });

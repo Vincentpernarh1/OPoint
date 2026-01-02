@@ -4,11 +4,20 @@
     border-radius: 9999px; /* Equivalent to rounded-full */
     height: 10px; /* Equivalent to h-2.5 */
     overflow: hidden;
+    position: relative;
 }
 
 .progress-bar-fill {
-    height: 10px; /* Equivalent to h-2.5 */
+    height: 100%; /* Fill parent height */
     background-color: #4f46e5; /* primary DEFAULT from tailwind config */
-    border-radius: 9999px; /* Equivalent to rounded-full */
-    transition: width 1s ease-linear; /* Equivalent to transition-all duration-1000 ease-linear */
+    border-radius: 0; /* No rounding to prevent visual distortion */
+    transition: width 1s ease-linear;
+}
+
+/* Mobile adjustment: Scale down visual width on smaller screens */
+@media (max-width: 768px) {
+    .progress-bar-fill {
+        transform-origin: left;
+        transform: scaleX(0.5);
+    }
 }
