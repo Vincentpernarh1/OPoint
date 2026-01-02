@@ -26,6 +26,32 @@ const Expenses = ({ currentUser }: ExpensesProps) => {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [receipt, setReceipt] = useState<File | null>(null);
     const [notification, setNotification] = useState<string | null>(null);
+    const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
+    const [expandedYears, setExpandedYears] = useState<Set<string>>(new Set());
+    const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
+
+    // Group requests by year and month
+    const requestsByYearAndMonth = React.useMemo(() => {
+        const grouped: Record<string, Record<string, ExpenseRequest[]>> = {};
+        requests.forEach(req => {
+            const date = new Date(req.expense_date);
+            const year = date.getFullYear().toString();
+            const month = date.toLocaleString('en-US', { month: 'long' });
+            
+            if (!grouped[year]) {
+                grouped[year] = {};
+            }
+            if (!grouped[year][month]) {
+                grouped[year][month] = [];
+            }
+            grouped[year][month].push(req);
+        });
+        return grouped;
+    }, [requests]);
+
+    const sortedExpenseYears = React.useMemo(() => {
+        return Object.keys(requestsByYearAndMonth).sort((a, b) => parseInt(b) - parseInt(a));
+    }, [requestsByYearAndMonth]);
 
     // Fetch expense claims on component mount
     useEffect(() => {
@@ -159,39 +185,110 @@ const Expenses = ({ currentUser }: ExpensesProps) => {
                     </form>
                 </div>
                  <div className="lg:col-span-2 bg-white p-4 sm:p-6 rounded-xl shadow-lg">
-                    <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4">My Expense Claims</h3>
+                    <button 
+                        onClick={() => setIsHistoryExpanded(!isHistoryExpanded)} 
+                        className="w-full flex justify-between items-center mb-4"
+                    >
+                        <h3 className="text-lg sm:text-xl font-bold text-gray-800">My Expense Claims</h3>
+                        <div className="text-gray-600 text-sm">&#x25BC;</div>
+                    </button>
+                    
                     {loading ? (
                         <div className="text-center py-8">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
                             <p className="text-gray-500 mt-2">Loading expense claims...</p>
                         </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {requests.length > 0 ? requests.map(req => {
-                                const StatusIcon = statusInfo[req.status].icon;
+                    ) : isHistoryExpanded ? (
+                        <div className="space-y-3 animate-fade-in-down">
+                            {sortedExpenseYears.length > 0 ? sortedExpenseYears.map(year => {
+                                const isYearExpanded = expandedYears.has(year);
+                                const months = Object.keys(requestsByYearAndMonth[year]).sort((a, b) => {
+                                    const monthOrder = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                                    return monthOrder.indexOf(b) - monthOrder.indexOf(a);
+                                });
+                                
                                 return (
-                                    <div key={req.id} className="p-3 border rounded-lg flex items-start space-x-3 bg-slate-50">
-                                        <div className={`p-2.5 rounded-full mt-1 ${statusInfo[req.status].color}`}>
-                                            <StatusIcon className="h-5 w-5" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="flex justify-between items-center">
-                                                <p className="font-semibold text-gray-700">{req.description}</p>
-                                                <p className={`font-bold text-lg ${statusInfo[req.status].color}`}>{formatCurrency(req.amount)}</p>
+                                    <div key={year} className="border-b pb-3 last:border-b-0">
+                                        <button
+                                            onClick={() => {
+                                                const newExpanded = new Set(expandedYears);
+                                                if (isYearExpanded) {
+                                                    newExpanded.delete(year);
+                                                } else {
+                                                    newExpanded.add(year);
+                                                }
+                                                setExpandedYears(newExpanded);
+                                            }}
+                                            className="w-full flex justify-between items-center p-3 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors"
+                                        >
+                                            <h4 className="font-bold text-lg text-gray-800">📁 {year}</h4>
+                                            <div className="text-gray-600">{isYearExpanded ? '▲' : '▼'}</div>
+                                        </button>
+                                        
+                                        {isYearExpanded && (
+                                            <div className="mt-2 ml-4 space-y-2 animate-fade-in-down">
+                                                {months.map(month => {
+                                                    const monthKey = `${year}-${month}`;
+                                                    const isMonthExpanded = expandedMonths.has(monthKey);
+                                                    const expenses = requestsByYearAndMonth[year][month];
+                                                    
+                                                    return (
+                                                        <div key={monthKey}>
+                                                            <button
+                                                                onClick={() => {
+                                                                    const newExpanded = new Set(expandedMonths);
+                                                                    if (isMonthExpanded) {
+                                                                        newExpanded.delete(monthKey);
+                                                                    } else {
+                                                                        newExpanded.add(monthKey);
+                                                                    }
+                                                                    setExpandedMonths(newExpanded);
+                                                                }}
+                                                                className="w-full flex justify-between items-center p-2 bg-white hover:bg-gray-50 rounded-md transition-colors border"
+                                                            >
+                                                                <span className="font-semibold text-gray-700">📅 {month} ({expenses.length})</span>
+                                                                <div className="text-gray-600">{isMonthExpanded ? '▲' : '▼'}</div>
+                                                            </button>
+                                                            
+                                                            {isMonthExpanded && (
+                                                                <div className="mt-2 ml-6 space-y-2 animate-fade-in-down">
+                                                                    {expenses.map(req => {
+                                                                        const StatusIcon = statusInfo[req.status].icon;
+                                                                        return (
+                                                                            <div key={req.id} className="p-3 border rounded-lg flex items-start space-x-3 bg-slate-50">
+                                                                                <div className={`p-2.5 rounded-full mt-1 ${statusInfo[req.status].color}`}>
+                                                                                    <StatusIcon className="h-5 w-5" />
+                                                                                </div>
+                                                                                <div className="flex-1">
+                                                                                    <div className="flex justify-between items-center">
+                                                                                        <p className="font-semibold text-gray-700">{req.description}</p>
+                                                                                        <p className={`font-bold text-lg ${statusInfo[req.status].color}`}>{formatCurrency(req.amount)}</p>
+                                                                                    </div>
+                                                                                    <div className="flex justify-between items-center text-sm">
+                                                                                        <p className="text-gray-500 mt-1">{new Date(req.expense_date).toLocaleDateString()}</p>
+                                                                                        <span className={`px-2 py-1 text-xs font-medium rounded-full bg-gray-100 ${statusInfo[req.status].color}`}>
+                                                                                            {req.status}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
-                                            <div className="flex justify-between items-center text-sm">
-                                                <p className="text-gray-500 mt-1">{new Date(req.expense_date).toLocaleDateString()}</p>
-                                                <span className={`px-2 py-1 text-xs font-medium rounded-full bg-gray-100 ${statusInfo[req.status].color}`}>
-                                                    {req.status}
-                                                </span>
-                                            </div>
-                                        </div>
+                                        )}
                                     </div>
                                 );
                             }) : (
                                 <p className="text-gray-500 text-center py-8">You have no expense claims.</p>
                             )}
                         </div>
+                    ) : (
+                        <p className="text-gray-500 text-center py-4 text-sm">Click to view expense history</p>
                     )}
                  </div>
             </div>

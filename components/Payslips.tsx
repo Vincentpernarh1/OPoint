@@ -31,6 +31,23 @@ const groupPayslipsByYear = (payslips: Partial<Payslip>[]) => {
     }, {} as Record<string, Partial<Payslip>[]>);
 };
 
+const groupPayslipsByYearAndMonth = (payslips: Partial<Payslip>[]) => {
+    return payslips.reduce((acc, payslip) => {
+        const date = new Date(payslip.payDate!);
+        const year = date.getFullYear().toString();
+        const month = date.toLocaleString('en-US', { month: 'long' });
+        
+        if (!acc[year]) {
+            acc[year] = {};
+        }
+        if (!acc[year][month]) {
+            acc[year][month] = [];
+        }
+        acc[year][month].push(payslip);
+        return acc;
+    }, {} as Record<string, Record<string, Partial<Payslip>[]>>);
+};
+
 
 const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: User, onViewChange: (view: View) => void, isManager: boolean }) => {
     const [userPayslipHistory, setUserPayslipHistory] = useState<Partial<Payslip>[]>([]);
@@ -42,6 +59,8 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
+    const [expandedYears, setExpandedYears] = useState<Set<string>>(new Set());
+    const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
 
     // Fetch payslip history on component mount
     const fetchPayslipHistory = async () => {
@@ -212,7 +231,7 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
         fetchPayslip();
     }, [selectedPayslipId]);
 
-    const groupedPayslips = useMemo(() => groupPayslipsByYear(userPayslipHistory), [userPayslipHistory]);
+    const groupedPayslips = useMemo(() => groupPayslipsByYearAndMonth(userPayslipHistory), [userPayslipHistory]);
     const sortedYears = useMemo(() => Object.keys(groupedPayslips).sort((a, b) => parseInt(b) - parseInt(a)), [groupedPayslips]);
 
     const handleDownloadCSV = () => {
@@ -400,19 +419,84 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                 </button>
                 {isHistoryExpanded && (
                     <div className="px-6 pb-6 border-t animate-fade-in-down">
-                        {sortedYears.map(year => (
-                            <div key={year} className="mt-4">
-                                <h3 className="font-semibold text-lg text-gray-700 mb-2">{year}</h3>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                                    {groupedPayslips[year].map(p => (
-                                        <button key={p.id} onClick={() => { setSelectedPayslipId(p); setIsHistoryExpanded(false); }}
-                                            className={`w-full text-left p-3 rounded-md transition-colors text-sm ${selectedPayslipId?.id === p.id ? 'bg-primary text-white font-semibold shadow' : 'bg-gray-100 hover:bg-primary-light hover:text-primary text-gray-700'}`}>
-                                            <p>Pay Date: {formatDate(p.payDate!)}</p>
-                                        </button>
-                                    ))}
+                        {sortedYears.map(year => {
+                            const isYearExpanded = expandedYears.has(year);
+                            const months = Object.keys(groupedPayslips[year]).sort((a, b) => {
+                                const monthOrder = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                                return monthOrder.indexOf(b) - monthOrder.indexOf(a);
+                            });
+                            
+                            return (
+                                <div key={year} className="mt-4 border-b pb-4 last:border-b-0">
+                                    <button 
+                                        onClick={() => {
+                                            const newExpanded = new Set(expandedYears);
+                                            if (isYearExpanded) {
+                                                newExpanded.delete(year);
+                                            } else {
+                                                newExpanded.add(year);
+                                            }
+                                            setExpandedYears(newExpanded);
+                                        }}
+                                        className="w-full flex justify-between items-center p-3 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors"
+                                    >
+                                        <h3 className="font-bold text-lg text-gray-800">📁 {year}</h3>
+                                        <ChevronDownIcon className={`h-5 w-5 text-gray-600 transition-transform duration-300 ${isYearExpanded ? 'rotate-180' : ''}`} />
+                                    </button>
+                                    
+                                    {isYearExpanded && (
+                                        <div className="mt-2 ml-4 space-y-2 animate-fade-in-down">
+                                            {months.map(month => {
+                                                const monthKey = `${year}-${month}`;
+                                                const isMonthExpanded = expandedMonths.has(monthKey);
+                                                const payslips = groupedPayslips[year][month];
+                                                
+                                                return (
+                                                    <div key={monthKey}>
+                                                        <button
+                                                            onClick={() => {
+                                                                const newExpanded = new Set(expandedMonths);
+                                                                if (isMonthExpanded) {
+                                                                    newExpanded.delete(monthKey);
+                                                                } else {
+                                                                    newExpanded.add(monthKey);
+                                                                }
+                                                                setExpandedMonths(newExpanded);
+                                                            }}
+                                                            className="w-full flex justify-between items-center p-2 bg-white hover:bg-gray-50 rounded-md transition-colors border"
+                                                        >
+                                                            <span className="font-semibold text-gray-700">📅 {month} ({payslips.length})</span>
+                                                            <ChevronDownIcon className={`h-4 w-4 text-gray-600 transition-transform duration-300 ${isMonthExpanded ? 'rotate-180' : ''}`} />
+                                                        </button>
+                                                        
+                                                        {isMonthExpanded && (
+                                                            <div className="mt-2 ml-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 animate-fade-in-down">
+                                                                {payslips.map(p => (
+                                                                    <button 
+                                                                        key={p.id} 
+                                                                        onClick={() => { 
+                                                                            setSelectedPayslipId(p); 
+                                                                            setIsHistoryExpanded(false); 
+                                                                        }}
+                                                                        className={`w-full text-left p-3 rounded-md transition-colors text-sm ${
+                                                                            selectedPayslipId?.id === p.id 
+                                                                                ? 'bg-primary text-white font-semibold shadow' 
+                                                                                : 'bg-gray-100 hover:bg-primary-light hover:text-primary text-gray-700'
+                                                                        }`}
+                                                                    >
+                                                                        <p>{formatDate(p.payDate!)}</p>
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>

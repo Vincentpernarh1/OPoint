@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { TimeEntry, TimeEntryType, User, UserRole, Announcement, AdjustmentRequest, RequestStatus } from '../types';
 import { ADJUSTMENT_REQUESTS } from '../constants';
-import { MapPinIcon, ArrowUpRightIcon, ArrowDownLeftIcon, MegaphoneIcon, ClockIcon, XIcon, CameraIcon } from './Icons';
+import { MapPinIcon, ArrowUpRightIcon, ArrowDownLeftIcon, MegaphoneIcon, ClockIcon, XIcon, CameraIcon, ChevronDownIcon } from './Icons';
 import { Button } from './ui';
 import CameraModal from './CameraModal';
 import ImagePreviewModal from './ImagePreviewModal';
@@ -123,6 +123,9 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     });
     const [isProcessing, setIsProcessing] = useState(false);
     const [isLoadingAdjustments, setIsLoadingAdjustments] = useState(true);
+    const [isPunchHistoryExpanded, setIsPunchHistoryExpanded] = useState(false);
+    const [expandedYears, setExpandedYears] = useState<Set<string>>(new Set());
+    const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
     
     const progressBarRef = useRef<HTMLDivElement>(null);
     const lastActionTimeRef = useRef<number>(0);
@@ -602,10 +605,10 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 
                 if (approvedAdjustment) {
                     // Adjustment: use requested times (can have 2 sessions for break tracking)
-                    const session1In = approvedAdjustment.requestedClockIn;
-                    const session1Out = approvedAdjustment.requestedClockOut;
-                    const session2In = approvedAdjustment.requestedClockIn2;
-                    const session2Out = approvedAdjustment.requestedClockOut2;
+                    const session1In = approvedAdjustment.requestedClockIn ? new Date(approvedAdjustment.requestedClockIn) : null;
+                    const session1Out = approvedAdjustment.requestedClockOut ? new Date(approvedAdjustment.requestedClockOut) : null;
+                    const session2In = approvedAdjustment.requestedClockIn2 ? new Date(approvedAdjustment.requestedClockIn2) : null;
+                    const session2Out = approvedAdjustment.requestedClockOut2 ? new Date(approvedAdjustment.requestedClockOut2) : null;
                     
                     // Calculate first session
                     if (session1In && session1Out) {
@@ -689,6 +692,23 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
             }))
             .sort((a, b) => b.month.localeCompare(a.month)); // Sort by month descending
     }, [dailyWorkHistory]);
+
+    // Group monthly history by year for collapsible structure
+    const punchHistoryByYear = useMemo(() => {
+        const yearGroups: Record<string, typeof monthlyWorkHistory> = {};
+        monthlyWorkHistory.forEach(month => {
+            const year = month.month.split('-')[0];
+            if (!yearGroups[year]) {
+                yearGroups[year] = [];
+            }
+            yearGroups[year].push(month);
+        });
+        return yearGroups;
+    }, [monthlyWorkHistory]);
+
+    const sortedPunchYears = useMemo(() => {
+        return Object.keys(punchHistoryByYear).sort((a, b) => parseInt(b) - parseInt(a));
+    }, [punchHistoryByYear]);
 
     const currentMonthTotal = useMemo(() => {
         const currentMonth = `${time.getFullYear()}-${(time.getMonth() + 1).toString().padStart(2, '0')}`;
@@ -1336,9 +1356,18 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 </div>
 
                 <div className="bg-white p-6 rounded-xl shadow-lg w-full">
-                    <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-3">Work History</h3>
+                    <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-3">Work History (This Month)</h3>
                     <div className="space-y-8">
-                        {dailyWorkHistory.length > 0 ? dailyWorkHistory.map(day => {
+                        {dailyWorkHistory.filter(day => {
+                            // Only show current month
+                            const currentMonth = `${time.getFullYear()}-${(time.getMonth() + 1).toString().padStart(2, '0')}`;
+                            const dayMonth = `${day.date.getFullYear()}-${(day.date.getMonth() + 1).toString().padStart(2, '0')}`;
+                            return dayMonth === currentMonth;
+                        }).length > 0 ? dailyWorkHistory.filter(day => {
+                            const currentMonth = `${time.getFullYear()}-${(time.getMonth() + 1).toString().padStart(2, '0')}`;
+                            const dayMonth = `${day.date.getFullYear()}-${(day.date.getMonth() + 1).toString().padStart(2, '0')}`;
+                            return dayMonth === currentMonth;
+                        }).map(day => {
                             const { needed, reason } = isAdjustmentNeeded(day.summary, day.entries, day.date);
                             const adjustmentRequest = adjustmentRequests.find(req => {
                                 const reqDate = req.date;
@@ -1478,21 +1507,121 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 </div>
 
                 <div className="bg-white p-6 rounded-xl shadow-lg w-full">
-                    <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-3">Monthly Work History</h3>
-                    <div className="space-y-4">
-                        {monthlyWorkHistory.length > 0 ? monthlyWorkHistory.map(month => (
-                            <div key={month.month} className="border-b pb-4 last:border-b-0">
-                                <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg">
-                                    <h4 className="font-bold text-lg text-gray-700">
-                                        {new Date(month.month + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
-                                    </h4>
-                                    <p className="font-bold text-gray-800">{formatDuration(month.totalWorked)}</p>
-                                </div>
-                            </div>
-                        )) : (
-                            <p className="text-gray-500 text-center py-8">No monthly history found.</p>
-                        )}
-                    </div>
+                    <button 
+                        onClick={() => setIsPunchHistoryExpanded(!isPunchHistoryExpanded)} 
+                        className="w-full flex justify-between items-center mb-4"
+                    >
+                        <h3 className="text-xl font-bold text-gray-800">Punch History</h3>
+                        <ChevronDownIcon className={`h-6 w-6 text-gray-600 transition-transform duration-300 ${isPunchHistoryExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+                    
+                    {isPunchHistoryExpanded && (
+                        <div className="space-y-4 animate-fade-in-down">
+                            {sortedPunchYears.length > 0 ? sortedPunchYears.map(year => {
+                                const isYearExpanded = expandedYears.has(year);
+                                const yearMonths = punchHistoryByYear[year];
+                                
+                                return (
+                                    <div key={year} className="border-b pb-4 last:border-b-0">
+                                        <button
+                                            onClick={() => {
+                                                const newExpanded = new Set(expandedYears);
+                                                if (isYearExpanded) {
+                                                    newExpanded.delete(year);
+                                                } else {
+                                                    newExpanded.add(year);
+                                                }
+                                                setExpandedYears(newExpanded);
+                                            }}
+                                            className="w-full flex justify-between items-center p-3 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors"
+                                        >
+                                            <h4 className="font-bold text-lg text-gray-800">📁 {year}</h4>
+                                            <ChevronDownIcon className={`h-5 w-5 text-gray-600 transition-transform duration-300 ${isYearExpanded ? 'rotate-180' : ''}`} />
+                                        </button>
+                                        
+                                        {isYearExpanded && (
+                                            <div className="mt-2 ml-4 space-y-2 animate-fade-in-down">
+                                                {yearMonths.map(monthData => {
+                                                    const monthKey = monthData.month;
+                                                    const isMonthExpanded = expandedMonths.has(monthKey);
+                                                    const monthName = new Date(monthKey + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+                                                    
+                                                    return (
+                                                        <div key={monthKey}>
+                                                            <button
+                                                                onClick={() => {
+                                                                    const newExpanded = new Set(expandedMonths);
+                                                                    if (isMonthExpanded) {
+                                                                        newExpanded.delete(monthKey);
+                                                                    } else {
+                                                                        newExpanded.add(monthKey);
+                                                                    }
+                                                                    setExpandedMonths(newExpanded);
+                                                                }}
+                                                                className="w-full flex justify-between items-center p-2 bg-white hover:bg-gray-50 rounded-md transition-colors border"
+                                                            >
+                                                                <span className="font-semibold text-gray-700">📅 {monthName} ({monthData.days.length} days)</span>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-sm text-gray-600">{formatDuration(monthData.totalWorked)}</span>
+                                                                    <ChevronDownIcon className={`h-4 w-4 text-gray-600 transition-transform duration-300 ${isMonthExpanded ? 'rotate-180' : ''}`} />
+                                                                </div>
+                                                            </button>
+                                                            
+                                                            {isMonthExpanded && (
+                                                                <div className="mt-2 ml-6 space-y-3 animate-fade-in-down">
+                                                                    {monthData.days.map(day => {
+                                                                        const adjustmentRequest = adjustmentRequests.find(req => req.date === canonicalDate(day.date));
+                                                                        const needed = adjustmentRequest === undefined && (day.entries.length === 0 || day.entries.length % 2 !== 0);
+                                                                        const reason = needed ? (day.entries.length === 0 ? 'Missing time entries' : 'Incomplete clock log') : '';
+                                                                        
+                                                                        return (
+                                                                            <div key={day.date.toISOString()} className="border rounded-lg p-3 bg-gray-50">
+                                                                                <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-2">
+                                                                                    <h5 className="font-semibold text-gray-700">
+                                                                                        {day.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                                                                    </h5>
+                                                                                    <div className="text-sm mt-1 sm:mt-0">
+                                                                                        <span className="font-medium text-gray-600">Worked: </span>
+                                                                                        <span className="font-bold text-gray-800">{formatDuration(day.summary.worked)}</span>
+                                                                                        <span className={`ml-2 font-medium ${day.summary.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                                                            ({formatDuration(day.summary.balance, true)})
+                                                                                        </span>
+                                                                                    </div>
+                                                                                </div>
+                                                                                
+                                                                                {day.entries.length > 0 && (
+                                                                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 text-xs">
+                                                                                        {day.entries.map(entry => (
+                                                                                            <div key={entry.id} className={`p-2 rounded ${
+                                                                                                entry.type === TimeEntryType.CLOCK_IN ? 'bg-green-100' : 'bg-red-100'
+                                                                                            }`}>
+                                                                                                <div className="font-medium">
+                                                                                                    {entry.type === TimeEntryType.CLOCK_IN ? '⬇️ In' : '⬆️ Out'}
+                                                                                                </div>
+                                                                                                <div className="text-gray-700">
+                                                                                                    {new Date(entry.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            }) : (
+                                <p className="text-gray-500 text-center py-8">No punch history found.</p>
+                            )}
+                        </div>
+                    )}
                 </div>
                 </div>
             </div>

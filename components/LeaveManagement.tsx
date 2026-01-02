@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { LeaveRequest, User, RequestStatus, LeaveType, UserRole } from '../types';
-import { BriefcaseIcon, PencilIcon, TrashIcon } from './Icons';
+import { BriefcaseIcon, PencilIcon, TrashIcon, ChevronDownIcon } from './Icons';
 import Notification from './Notification';
 import Calendar from './Calendar';
 import EditLeaveRequestModal from './EditLeaveRequestModal';
@@ -32,11 +32,37 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
     const [displayedDate, setDisplayedDate] = useState(new Date());
     const [editingRequest, setEditingRequest] = useState<LeaveRequest | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
+    const [expandedYears, setExpandedYears] = useState<Set<string>>(new Set());
+    const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
     const [userBalance, setUserBalance] = useState({ 
         annual: { remaining: 0, used: 0, total: 0 }, 
         maternity: { remaining: 0, used: 0, total: 0 }, 
         sick: { remaining: 0, used: 0, total: 0 } 
     });
+
+    // Group requests by year and month
+    const requestsByYearAndMonth = useMemo(() => {
+        const grouped: Record<string, Record<string, LeaveRequest[]>> = {};
+        requests.forEach(req => {
+            const date = new Date(req.startDate);
+            const year = date.getFullYear().toString();
+            const month = date.toLocaleString('en-US', { month: 'long' });
+            
+            if (!grouped[year]) {
+                grouped[year] = {};
+            }
+            if (!grouped[year][month]) {
+                grouped[year][month] = [];
+            }
+            grouped[year][month].push(req);
+        });
+        return grouped;
+    }, [requests]);
+
+    const sortedLeaveYears = useMemo(() => {
+        return Object.keys(requestsByYearAndMonth).sort((a, b) => parseInt(b) - parseInt(a));
+    }, [requestsByYearAndMonth]);
 
     // Calculate actual used days from approved leave requests based on passed dates
     const calculateUsedDays = (requests: LeaveRequest[], leaveType: LeaveType): number => {
@@ -710,41 +736,111 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
 
                 {/* Request History */}
                 <div className="bg-white p-6 rounded-xl shadow-lg">
-                    <h3 className="text-xl font-bold text-gray-800 mb-4">My Requests</h3>
-                    <div className="space-y-3">
-                        {loading ? (
-                            <p className="text-gray-500 text-center py-8">Loading leave requests...</p>
-                        ) : requests.length > 0 ? requests.map(req => (
-                            <div key={req.id} className="p-3 border rounded-lg flex items-center space-x-3 bg-slate-50 hover:bg-slate-100 transition-colors">
-                                <div className="bg-primary-light p-2.5 rounded-full">
-                                    <BriefcaseIcon className="h-5 w-5 text-primary" />
+                    <button
+                        onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
+                        className="w-full flex justify-between items-center mb-4"
+                    >
+                        <h3 className="text-xl font-bold text-gray-800">My Requests</h3>
+                        <ChevronDownIcon className={`h-6 w-6 text-gray-600 transition-transform duration-300 ${isHistoryExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {isHistoryExpanded && (
+                        <div className="space-y-3 animate-fade-in-down">
+                            {loading ? (
+                                <p className="text-gray-500 text-center py-8">Loading leave requests...</p>
+                            ) : requests.length > 0 ? (
+                                <div className="space-y-4">
+                                    {sortedLeaveYears.map(year => (
+                                        <div key={year} className="border rounded-lg overflow-hidden">
+                                            <button
+                                                onClick={() => {
+                                                    const newExpanded = new Set(expandedYears);
+                                                    if (newExpanded.has(year)) {
+                                                        newExpanded.delete(year);
+                                                    } else {
+                                                        newExpanded.add(year);
+                                                    }
+                                                    setExpandedYears(newExpanded);
+                                                }}
+                                                className="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors flex justify-between items-center"
+                                            >
+                                                <span className="font-semibold text-gray-800">📁 {year}</span>
+                                                <ChevronDownIcon className={`h-5 w-5 text-gray-600 transition-transform duration-300 ${expandedYears.has(year) ? 'rotate-180' : ''}`} />
+                                            </button>
+
+                                            {expandedYears.has(year) && requestsByYearAndMonth[year] && (
+                                                <div className="p-2 space-y-2">
+                                                    {Object.keys(requestsByYearAndMonth[year] || {})
+                                                        .sort((a, b) => {
+                                                            const monthOrder = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                                                            return monthOrder.indexOf(b) - monthOrder.indexOf(a);
+                                                        })
+                                                        .map(month => {
+                                                            const monthKey = `${year}-${month}`;
+                                                            return (
+                                                                <div key={monthKey} className="border rounded-lg overflow-hidden">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const newExpanded = new Set(expandedMonths);
+                                                                            if (newExpanded.has(monthKey)) {
+                                                                                newExpanded.delete(monthKey);
+                                                                            } else {
+                                                                                newExpanded.add(monthKey);
+                                                                            }
+                                                                            setExpandedMonths(newExpanded);
+                                                                        }}
+                                                                        className="w-full px-4 py-2 bg-blue-50 hover:bg-blue-100 transition-colors flex justify-between items-center"
+                                                                    >
+                                                                        <span className="font-medium text-gray-700">📅 {month}</span>
+                                                                        <ChevronDownIcon className={`h-4 w-4 text-gray-600 transition-transform duration-300 ${expandedMonths.has(monthKey) ? 'rotate-180' : ''}`} />
+                                                                    </button>
+
+                                                                    {expandedMonths.has(monthKey) && (
+                                                                        <div className="p-2 space-y-2">
+                                                                            {requestsByYearAndMonth[year][month].map(req => (
+                                                                                <div key={req.id} className="p-3 border rounded-lg flex items-center space-x-3 bg-slate-50 hover:bg-slate-100 transition-colors">
+                                                                                    <div className="bg-primary-light p-2.5 rounded-full">
+                                                                                        <BriefcaseIcon className="h-5 w-5 text-primary" />
+                                                                                    </div>
+                                                                                    <div className="flex-1">
+                                                                                        <div className="flex justify-between items-center">
+                                                                                            <p className="font-semibold text-gray-700">{req.leaveType}</p>
+                                                                                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColorMap[req.status] || 'bg-gray-100 text-gray-800'}`}>
+                                                                                                {req.status}
+                                                                                            </span>
+                                                                                        </div>
+                                                                                        <p className="text-sm font-semibold text-gray-600 mt-1">
+                                                                                            {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()}
+                                                                                        </p>
+                                                                                        <p className="text-sm text-gray-500 mt-1">{req.reason || 'No reason provided.'}</p>
+                                                                                    </div>
+                                                                                    {req.status === RequestStatus.PENDING && (
+                                                                                        <div className="flex space-x-2">
+                                                                                            <button title="Edit" onClick={() => setEditingRequest(req)} className="p-2 text-gray-500 rounded-full hover:bg-gray-200 hover:text-primary transition-colors">
+                                                                                                <PencilIcon className="h-4 w-4" />
+                                                                                            </button>
+                                                                                            <button title="Cancel" onClick={() => handleCancelRequest(req.id)} className="p-2 text-gray-500 rounded-full hover:bg-gray-200 hover:text-red-500 transition-colors">
+                                                                                                <TrashIcon className="h-4 w-4" />
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
                                 </div>
-                                <div className="flex-1">
-                                    <div className="flex justify-between items-center">
-                                        <p className="font-semibold text-gray-700">{req.leaveType}</p>
-                                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColorMap[req.status] || 'bg-gray-100 text-gray-800'}`}>
-                                            {req.status}
-                                        </span>
-                                    </div>
-                                    <p className="text-sm font-semibold text-gray-600 mt-1">
-                                        {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()}
-                                    </p>
-                                    <p className="text-sm text-gray-500 mt-1">{req.reason || 'No reason provided.'}</p>
-                                </div>
-                                {req.status === RequestStatus.PENDING && (
-                                     <div className="flex space-x-2">
-                                        <button  title="Edit" onClick={() => setEditingRequest(req)} className="p-2 text-gray-500 rounded-full hover:bg-gray-200 hover:text-primary transition-colors">
-                                            <PencilIcon className="h-4 w-4" />
-                                        </button>
-                                        <button title="Cancel" onClick={() => handleCancelRequest(req.id)} className="p-2 text-gray-500 rounded-full hover:bg-gray-200 hover:text-red-500 transition-colors">
-                                            <TrashIcon className="h-4 w-4" />
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        )) : (
-                            <p className="text-gray-500 text-center py-8">You have no leave requests.</p>
-                        )}  </div>
+                            ) : (
+                                <p className="text-gray-500 text-center py-8">You have no leave requests.</p>
+                            )}
+                        </div>
+                    )}
                 </div>
                 </div>
             </div>
