@@ -1,0 +1,40 @@
+/* Swipeable Card Styles */
+.swipeable-card-container {
+    position: relative;
+    overflow: hidden;
+}
+
+.swipe-action {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 1.5rem;
+    transition: width 0.1s ease-out, opacity 0.1s ease-out;
+}
+
+.swipe-action-right {
+    left: 0;
+    justify-content: flex-start;
+}
+
+.swipe-action-left {
+    right: 0;
+    justify-content: flex-end;
+}
+
+.swipe-card-content {
+    position: relative;
+    background-color: white;
+    transition-property: transform;
+    transition-timing-function: ease-out;
+}
+
+.swipe-card-content.dragging {
+    transition-duration: 0s;
+}
+
+.swipe-card-content.not-dragging {
+    transition-duration: 300ms;
+}

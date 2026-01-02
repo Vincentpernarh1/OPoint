@@ -6,3 +6,8 @@ export type { InputProps } from './Input';
 
 export { default as Skeleton, SkeletonCard, SkeletonList, SkeletonTable, SkeletonDashboard } from './Skeleton';
 export type { SkeletonProps } from './Skeleton';
+
+// New modern components
+export { default as BottomSheet } from '../BottomSheet';
+export { default as SwipeableCard } from '../SwipeableCard';
+export { default as ExpandableCard } from '../ExpandableCard';

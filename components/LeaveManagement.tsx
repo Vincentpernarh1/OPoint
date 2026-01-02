@@ -711,7 +711,7 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                 {/* Request History */}
                 <div className="bg-white p-6 rounded-xl shadow-lg">
                     <h3 className="text-xl font-bold text-gray-800 mb-4">My Requests</h3>
-                    <div className="space-y-3 max-h-96 overflow-y-auto pr-2 pb-2">
+                    <div className="space-y-3">
                         {loading ? (
                             <p className="text-gray-500 text-center py-8">Loading leave requests...</p>
                         ) : requests.length > 0 ? requests.map(req => (

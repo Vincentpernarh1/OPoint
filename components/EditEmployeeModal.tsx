@@ -96,7 +96,7 @@ const EditEmployeeModal = ({ user, currentUser, onClose, onSubmit }: EditEmploye
                     <button onClick={onClose} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 z-10" title="Close modal">
                         <XIcon className="h-6 w-6"/>
                     </button>
-                    <div className="p-6 flex-1 overflow-y-auto">
+                    <div className="p-6 flex-1 scroll-container">
                         <h3 className="text-xl font-semibold mb-4">Edit Employee: {user.name}</h3>
                         <form onSubmit={handleSubmit} className="space-y-4">
                         <div>

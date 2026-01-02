@@ -55,6 +55,117 @@
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
   }
+
+  /* Scroll container fixes - prevents nested scroll conflicts */
+  .scroll-container {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    scroll-behavior: smooth;
+  }
+
+  .scroll-container-strict {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: none;
+    touch-action: pan-y;
+    scroll-behavior: smooth;
+  }
+
+  .no-scroll {
+    overflow: hidden;
+    touch-action: none;
+  }
+
+  /* Expandable card - replaces nested scrolls */
+  .expandable-card {
+    transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+    overflow: hidden;
+  }
+
+  /* Better touch targets */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Smooth spring animation */
+  .spring-bounce {
+    transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  /* Haptic feedback simulation */
+  @keyframes haptic-pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.95); }
+    100% { transform: scale(1); }
+  }
+
+  .haptic-feedback:active {
+    animation: haptic-pulse 0.15s ease-in-out;
+  }
+
+  /* Horizontal scroll tabs */
+  .horizontal-scroll-tabs {
+    overflow-y: hidden;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .horizontal-scroll-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Bottom sheet animations */
+  .bottom-sheet-container {
+    max-height: 85vh;
+  }
+
+  .bottom-sheet-visible {
+    transform: translateY(0);
+  }
+
+  .bottom-sheet-hidden {
+    transform: translateY(100%);
+  }
+
+  .bottom-sheet-content-scroll {
+    max-height: calc(85vh - 100px);
+  }
+
+  /* Swipeable Card Styles */
+  .swipe-action-left,
+  .swipe-action-right {
+    position: absolute;
+    inset-block: 0;
+    display: flex;
+    align-items: center;
+    padding-inline: 1.5rem;
+    width: var(--swipe-width, 0);
+    opacity: var(--swipe-opacity, 0);
+  }
+
+  .swipe-action-left {
+    inset-inline-end: 0;
+    justify-content: flex-end;
+  }
+
+  .swipe-action-right {
+    inset-inline-start: 0;
+  }
+
+  .swipe-card-content {
+    transform: translateX(var(--swipe-x, 0));
+  }
+
+  /* Expandable card smooth transition */
+  .expandable-card-transition {
+    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-in-out;
+  }
 }
 
 /* Custom component classes */

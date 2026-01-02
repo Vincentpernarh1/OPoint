@@ -28,14 +28,14 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     },
     ref
   ) => {
-    const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
+    const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed touch-target haptic-feedback';
     
     const variantStyles = {
-      primary: 'bg-primary text-white hover:bg-primary-hover focus:ring-primary-500 active:scale-95 shadow-soft hover:shadow-medium',
-      secondary: 'bg-secondary text-white hover:bg-secondary-hover focus:ring-secondary active:scale-95 shadow-soft hover:shadow-medium',
-      destructive: 'bg-error text-white hover:bg-error-hover focus:ring-error active:scale-95 shadow-soft hover:shadow-medium',
+      primary: 'bg-primary text-white hover:bg-primary-hover focus:ring-primary-500 active:scale-95 shadow-soft hover:shadow-medium spring-bounce',
+      secondary: 'bg-secondary text-white hover:bg-secondary-hover focus:ring-secondary active:scale-95 shadow-soft hover:shadow-medium spring-bounce',
+      destructive: 'bg-error text-white hover:bg-error-hover focus:ring-error active:scale-95 shadow-soft hover:shadow-medium spring-bounce',
       ghost: 'bg-transparent text-gray-700 hover:bg-gray-100 focus:ring-gray-300 active:bg-gray-200',
-      outline: 'bg-white text-gray-700 border-2 border-gray-300 hover:border-primary hover:text-primary focus:ring-primary-500 active:scale-95',
+      outline: 'bg-white text-gray-700 border-2 border-gray-300 hover:border-primary hover:text-primary focus:ring-primary-500 active:scale-95 spring-bounce',
     };
     
     const sizeStyles = {

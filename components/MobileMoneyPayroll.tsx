@@ -489,7 +489,7 @@ const MobileMoneyPayroll = ({ currentUser }: MobileMoneyPayrollProps) => {
                     </div>
 
                     <h4 className="font-semibold text-gray-700 mb-2">Payment Breakdown</h4>
-                    <div className="overflow-x-auto border rounded-lg max-h-60 overflow-y-auto">
+                    <div className="overflow-x-auto border rounded-lg">
                         <table className="w-full text-sm text-left">
                             <thead className="bg-gray-100 sticky top-0">
                                 <tr>
@@ -559,7 +559,7 @@ const MobileMoneyPayroll = ({ currentUser }: MobileMoneyPayrollProps) => {
                     </div>
                     <h3 className="text-xl font-bold text-center text-gray-800 mb-6">Payment Processing Complete</h3>
                     
-                     <div className="space-y-2 max-h-60 overflow-y-auto">
+                     <div className="space-y-2">
                          {paymentResults.map(result => {
                              const user = allEmployees.find(u => u.id === result.userId) || { name: 'Unknown' };
                              const isSuccess = result.status === 'success';

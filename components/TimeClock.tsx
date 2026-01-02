@@ -1337,7 +1337,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
 
                 <div className="bg-white p-6 rounded-xl shadow-lg w-full">
                     <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-3">Work History</h3>
-                    <div className="space-y-8 max-h-[40rem] overflow-y-auto pr-2 pb-2">
+                    <div className="space-y-8">
                         {dailyWorkHistory.length > 0 ? dailyWorkHistory.map(day => {
                             const { needed, reason } = isAdjustmentNeeded(day.summary, day.entries, day.date);
                             const adjustmentRequest = adjustmentRequests.find(req => {
@@ -1479,7 +1479,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
 
                 <div className="bg-white p-6 rounded-xl shadow-lg w-full">
                     <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-3">Monthly Work History</h3>
-                    <div className="space-y-4 max-h-[40rem] overflow-y-auto pr-2 pb-2">
+                    <div className="space-y-4">
                         {monthlyWorkHistory.length > 0 ? monthlyWorkHistory.map(month => (
                             <div key={month.month} className="border-b pb-4 last:border-b-0">
                                 <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg">
