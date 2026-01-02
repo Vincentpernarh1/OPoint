@@ -86,7 +86,7 @@ const AnnouncementForm = memo(({ currentUser, onPost }: { currentUser: User, onP
                     <div className="p-3 bg-gradient-to-br from-primary to-pink-600 rounded-xl shadow-lg backdrop-blur-sm bg-opacity-90">
                         <span className="text-2xl">📢</span>
                     </div>
-                    <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-pink-600 bg-clip-text text-transparent">Post Announcement</h2>
+                    <h2 className="text-base sm:text-lg lg:text-xl font-bold bg-gradient-to-r from-primary to-pink-600 bg-clip-text text-transparent">Post Announcement</h2>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-5">
                     <div>
@@ -201,7 +201,7 @@ const AnnouncementList = memo(({ announcements, currentUser, onDelete, onShowCon
                     <div className="p-2.5 bg-gradient-to-br from-primary to-pink-600 rounded-xl shadow-lg backdrop-blur-sm bg-opacity-90">
                         <span className="text-xl">📬</span>
                     </div>
-                    <h3 className="text-xl font-bold bg-gradient-to-r from-primary to-pink-600 bg-clip-text text-transparent">Company Announcements</h3>
+                    <h3 className="text-base sm:text-lg lg:text-xl font-bold bg-gradient-to-r from-primary to-pink-600 bg-clip-text text-transparent">Company Announcements</h3>
                 </div>
                 <div className="space-y-6">
                     {announcements.map(ann => {

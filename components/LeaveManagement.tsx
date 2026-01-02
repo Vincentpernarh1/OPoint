@@ -668,8 +668,8 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
 
                     {/* Leave Balances - Modern Gradient Cards */}
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-                            <span className="w-1 h-8 bg-gradient-to-b from-primary to-primary-dark rounded-full mr-3"></span>
+                        <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                            <span className="w-1 h-6 sm:h-8 bg-gradient-to-b from-primary to-primary-dark rounded-full mr-3"></span>
                             Your Leave Balances
                         </h2>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
@@ -774,7 +774,7 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                                     <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
                                         <span className="text-2xl">📝</span>
                                     </div>
-                                    <h2 className="text-xl sm:text-2xl font-bold text-white">Request Leave</h2>
+                                    <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Request Leave</h2>
                                 </div>
                             </div>
                             <div className="p-4 sm:p-6">
@@ -864,7 +864,7 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                                     <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
                                         <span className="text-2xl">📅</span>
                                     </div>
-                                    <h2 className="text-xl sm:text-2xl font-bold text-white">Select Dates</h2>
+                                    <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Select Dates</h2>
                                 </div>
                                 <p className="text-white/80 text-sm mt-2">Click to select your leave period on the calendar</p>
                             </div>
@@ -892,7 +892,7 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                             <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-lg flex items-center justify-center shadow-md">
                                 <span className="text-xl">📋</span>
                             </div>
-                            <h3 className="text-xl font-bold text-gray-800">My Requests</h3>
+                            <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-800">My Requests</h3>
                         </div>
                         <ChevronDownIcon className={`h-6 w-6 text-gray-600 transition-transform duration-300 ${isHistoryExpanded ? 'rotate-180' : ''}`} />
                     </button>

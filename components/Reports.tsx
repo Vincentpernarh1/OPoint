@@ -168,8 +168,8 @@ const Reports = ({ currentUser }: ReportsProps) => {
                             <div className="text-3xl">📊</div>
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold text-white">Reports</h1>
-                            <p className="text-white/90 text-sm mt-1">
+                            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">Reports</h1>
+                            <p className="text-white/90 text-xs sm:text-sm mt-1">
                                 {hasFullAccess 
                                     ? 'Generate and download company reports for compliance and management'
                                     : 'Generate and download your personal reports'}

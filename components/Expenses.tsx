@@ -165,7 +165,7 @@ const Expenses = ({ currentUser }: ExpensesProps) => {
                         <div className="p-3 bg-gradient-to-br from-primary to-amber-600 rounded-xl shadow-lg backdrop-blur-sm bg-opacity-90">
                             <span className="text-2xl">💰</span>
                         </div>
-                        <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-amber-600 bg-clip-text text-transparent">Submit Expense Claim</h2>
+                        <h2 className="text-base sm:text-lg lg:text-xl font-bold bg-gradient-to-r from-primary to-amber-600 bg-clip-text text-transparent">Submit Expense Claim</h2>
                     </div>
                     <form onSubmit={handleSubmit} className="space-y-5">
                          <div>
@@ -201,7 +201,7 @@ const Expenses = ({ currentUser }: ExpensesProps) => {
                             <div className="p-2.5 bg-gradient-to-br from-primary to-amber-600 rounded-xl shadow-lg backdrop-blur-sm bg-opacity-90">
                                 <span className="text-xl">📊</span>
                             </div>
-                            <h3 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-primary to-amber-600 bg-clip-text text-transparent">My Expense Claims</h3>
+                            <h3 className="text-base sm:text-lg font-bold bg-gradient-to-r from-primary to-amber-600 bg-clip-text text-transparent">My Expense Claims</h3>
                         </div>
                         <div className="text-gray-500 group-hover:text-primary transition-colors">{isHistoryExpanded ? '▲' : '▼'}</div>
                     </button>

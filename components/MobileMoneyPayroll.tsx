@@ -308,35 +308,58 @@ const MobileMoneyPayroll = ({ currentUser }: MobileMoneyPayrollProps) => {
     }
 
     return (
-        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Mobile Money Payroll</h2>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-primary to-purple-600 rounded-2xl shadow-xl overflow-hidden mb-8">
+                <div className="px-6 py-8 sm:px-8">
+                    <div className="flex items-center space-x-3">
+                        <div className="bg-white/20 backdrop-blur-sm p-3 rounded-xl">
+                            <div className="text-3xl">💰</div>
+                        </div>
+                        <div>
+                            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">Mobile Money Payroll</h1>
+                            <p className="text-white/90 text-xs sm:text-sm mt-1">Process employee payments via mobile money</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-xl border border-gray-100">
             
             {step === 1 && (
                 <div>
-                    <div className="flex space-x-4 border-b mb-4">
+                    <div className="flex space-x-2 mb-6">
                         <button 
                             onClick={() => setActiveTab('pending')}
-                            className={`py-2 px-4 border-b-2 font-medium transition-colors ${activeTab === 'pending' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                            className={`flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl text-sm sm:text-base font-semibold transition-all duration-200 ${activeTab === 'pending' ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                         >
-                            Pending Payments ({pendingEmployees.length})
+                            <span className="mr-1 sm:mr-2">⏳</span>
+                            <span className="hidden sm:inline">Pending Payments</span>
+                            <span className="sm:hidden">Pending</span>
+                            <span> ({pendingEmployees.length})</span>
                         </button>
                         <button 
                             onClick={() => setActiveTab('paid')}
-                            className={`py-2 px-4 border-b-2 font-medium transition-colors ${activeTab === 'paid' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                            className={`flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl text-sm sm:text-base font-semibold transition-all duration-200 ${activeTab === 'paid' ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                         >
-                            Payment History ({paidEmployees.length})
+                            <span className="mr-1 sm:mr-2">✅</span>
+                            <span className="hidden sm:inline">Payment History</span>
+                            <span className="sm:hidden">History</span>
+                            <span> ({paidEmployees.length})</span>
                         </button>
                     </div>
 
                     {activeTab === 'pending' ? (
                         <>
                             {pendingEmployees.filter(u => !u.mobileMoneyNumber).length > 0 && (
-                                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                                    <div className="flex items-center">
-                                        <div className="text-yellow-600 mr-2">⚠️</div>
-                                        <div>
-                                            <p className="text-sm font-medium text-yellow-800">Mobile Money Setup Required</p>
-                                            <p className="text-xs text-yellow-700">
+                                <div className="mb-6 bg-gradient-to-r from-yellow-50 to-amber-50/50 border-l-4 border-yellow-500 rounded-xl p-4 shadow-md">
+                                    <div className="flex items-start">
+                                        <div className="flex-shrink-0">
+                                            <span className="text-2xl">⚠️</span>
+                                        </div>
+                                        <div className="ml-3">
+                                            <p className="text-sm font-semibold text-yellow-800">Mobile Money Setup Required</p>
+                                            <p className="text-xs text-yellow-700 mt-1">
                                                 {pendingEmployees.filter(u => !u.mobileMoneyNumber).length} employee(s) need mobile money numbers before they can be paid. 
                                                 Please update their profiles or request them to add their mobile money details.
                                             </p>
@@ -344,11 +367,14 @@ const MobileMoneyPayroll = ({ currentUser }: MobileMoneyPayrollProps) => {
                                     </div>
                                 </div>
                             )}
-                            <h3 className="text-base sm:text-lg font-semibold mb-2">Select Employees to Pay</h3>
+                            <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-800 mb-4 flex items-center">
+                                <span className="w-1 h-5 sm:h-6 bg-gradient-to-b from-primary to-purple-600 rounded-full mr-2 sm:mr-3"></span>
+                                Select Employees to Pay
+                            </h3>
                             <div className="overflow-x-auto border rounded-lg">
                                 <div className="min-w-[800px]">
                                     <table className="w-full text-sm text-left">
-                                    <thead className="bg-slate-50 text-gray-700">
+                                    <thead className="bg-gradient-to-r from-gray-50 to-gray-100/50 text-gray-800">
                                         <tr>
                                             <th className="p-3 w-10"><input  title="Select All" type="checkbox" onChange={handleSelectAll} checked={selectedUserIds.size === pendingEmployees.filter(u => u.mobileMoneyNumber).length && pendingEmployees.filter(u => u.mobileMoneyNumber).length > 0} /></th>
                                             <th className="p-3">Employee</th>
@@ -422,21 +448,34 @@ const MobileMoneyPayroll = ({ currentUser }: MobileMoneyPayrollProps) => {
                                 </table>
                                 </div>
                             </div>
-                            <div className="mt-4 flex justify-between items-center">
-                                <p className="text-sm text-gray-600">
-                                    Selected: <span className="font-bold">{selectedUserIds.size}</span> | Total Payout: <span className="font-bold text-lg text-primary">{formatCurrency(totalPayment)}</span>
-                                </p>
-                                <button onClick={() => setStep(2)} disabled={selectedUserIds.size === 0} className="bg-primary text-white font-bold py-2 px-6 rounded-lg disabled:bg-gray-300 hover:bg-primary-hover transition-colors">Next: Review</button>
+                            <div className="mt-6 p-4 bg-gradient-to-r from-gray-50 to-gray-100/50 rounded-xl">
+                                <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                                    <div className="text-center sm:text-left">
+                                        <p className="text-sm text-gray-600 mb-1">
+                                            Selected: <span className="font-bold text-gray-800">{selectedUserIds.size}</span> employee(s)
+                                        </p>
+                                        <p className="text-lg font-bold text-primary">
+                                            Total Payout: {formatCurrency(totalPayment)}
+                                        </p>
+                                    </div>
+                                    <button onClick={() => setStep(2)} disabled={selectedUserIds.size === 0} className="bg-gradient-to-r from-primary to-purple-600 hover:shadow-lg hover:scale-105 text-white font-bold py-3 px-8 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center space-x-2">
+                                        <span>Next: Review</span>
+                                        <span>→</span>
+                                    </button>
+                                </div>
                             </div>
                         </>
                     ) : (
                         // PAID HISTORY TAB
                         <>
-                            <h3 className="text-base sm:text-lg font-semibold mb-2">Completed Transactions (This Month)</h3>
+                            <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-800 mb-4 flex items-center">
+                                <span className="w-1 h-5 sm:h-6 bg-gradient-to-b from-green-500 to-emerald-600 rounded-full mr-2 sm:mr-3"></span>
+                                Completed Transactions (This Month)
+                            </h3>
                             <div className="overflow-x-auto border rounded-lg">
                                 <div className="min-w-[700px]">
                                     <table className="w-full text-sm text-left">
-                                        <thead className="bg-green-50 text-green-800">
+                                        <thead className="bg-gradient-to-r from-green-50 to-emerald-50/50 text-green-800">
                                         <tr>
                                             <th className="p-3">Employee</th>
                                             <th className="p-3">Date Paid</th>
@@ -475,9 +514,12 @@ const MobileMoneyPayroll = ({ currentUser }: MobileMoneyPayrollProps) => {
             
             {step === 2 && (
                  <div>
-                    <h3 className="text-lg font-semibold mb-4">Step 2: Review Discrepancies</h3>
+                    <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-800 mb-6 flex items-center">
+                        <span className="bg-gradient-to-r from-primary to-purple-600 text-white w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center mr-2 sm:mr-3 text-sm">2</span>
+                        Review Discrepancies
+                    </h3>
                     
-                    <div className="bg-slate-50 p-4 rounded-lg mb-6 border">
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50/50 p-6 rounded-2xl mb-6 border border-blue-200 shadow-md">
                         <div className="flex justify-between items-center mb-2">
                              <p className="text-gray-600">Total Employees Selected:</p>
                              <p className="font-bold">{selectedUsersData.length}</p>
@@ -522,29 +564,59 @@ const MobileMoneyPayroll = ({ currentUser }: MobileMoneyPayrollProps) => {
                             </tbody>
                         </table>
                                 </div>
-                    <div className="mt-6 flex justify-between">
-                        <button onClick={() => setStep(1)} className="bg-gray-200 font-bold py-2 px-6 rounded-lg hover:bg-gray-300">Back</button>
-                        <button onClick={() => setStep(3)} className="bg-primary text-white font-bold py-2 px-6 rounded-lg hover:bg-primary-hover">Proceed to Approval</button>
+                    <div className="mt-6 flex flex-col sm:flex-row justify-between gap-4">
+                        <button onClick={() => setStep(1)} className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2">
+                            <span>←</span>
+                            <span>Back</span>
+                        </button>
+                        <button onClick={() => setStep(3)} className="bg-gradient-to-r from-primary to-purple-600 hover:shadow-lg hover:scale-105 text-white font-bold py-3 px-8 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2">
+                            <span>Proceed to Approval</span>
+                            <span>→</span>
+                        </button>
                     </div>
                 </div>
             )}
             
             {step === 3 && (
                  <div>
-                    <h3 className="text-lg font-semibold mb-2">Step 3: Final Approval</h3>
-                    <p className="text-sm text-red-600 mb-4 bg-red-50 p-3 rounded border border-red-200">Warning: This action initiates money transfer. Ensure all amounts are correct.</p>
+                    <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-800 mb-6 flex items-center">
+                        <span className="bg-gradient-to-r from-primary to-purple-600 text-white w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center mr-2 sm:mr-3 text-sm">3</span>
+                        Final Approval
+                    </h3>
+                    <div className="bg-gradient-to-r from-red-50 to-rose-50/50 border-l-4 border-red-500 rounded-xl p-4 shadow-md mb-6">
+                        <div className="flex items-start">
+                            <span className="text-2xl mr-3">⚠️</span>
+                            <p className="text-sm font-semibold text-red-700">Warning: This action initiates money transfer. Ensure all amounts are correct.</p>
+                        </div>
+                    </div>
                     
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Enter Approval Password</label>
-                        <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="w-full p-2 border rounded focus:ring-primary focus:border-primary"/>
-                        {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
-                        <p className="text-xs text-gray-500 mt-1">Hint: use 'approve123' for this demo.</p>
+                    <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm mb-6">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center space-x-2">
+                            <span>🔒</span>
+                            <span>Enter Approval Password</span>
+                        </label>
+                        <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"/>
+                        {error && <p className="text-red-500 text-sm mt-2 font-medium">{error}</p>}
+                        <p className="text-xs text-gray-500 mt-2">💡 Hint: use 'approve123' for this demo.</p>
                     </div>
 
-                     <div className="mt-6 flex justify-between">
-                        <button onClick={() => setStep(2)} className="bg-gray-200 font-bold py-2 px-6 rounded-lg hover:bg-gray-300" disabled={isLoading}>Back</button>
-                        <button onClick={processPayments} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg flex items-center justify-center disabled:bg-green-300 min-w-[150px]" disabled={isLoading}>
-                             {isLoading ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : 'Approve & Pay'}
+                     <div className="mt-6 flex flex-col sm:flex-row justify-between gap-4">
+                        <button onClick={() => setStep(2)} className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2" disabled={isLoading}>
+                            <span>←</span>
+                            <span>Back</span>
+                        </button>
+                        <button onClick={processPayments} className="bg-gradient-to-r from-green-500 to-emerald-600 hover:shadow-lg hover:scale-105 text-white font-bold py-3 px-8 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 min-w-[180px]" disabled={isLoading}>
+                             {isLoading ? (
+                                 <>
+                                     <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                                     <span>Processing...</span>
+                                 </>
+                             ) : (
+                                 <>
+                                     <span>💸</span>
+                                     <span>Approve & Pay</span>
+                                 </>
+                             )}
                         </button>
                     </div>
                 </div>
@@ -552,12 +624,12 @@ const MobileMoneyPayroll = ({ currentUser }: MobileMoneyPayrollProps) => {
             
              {step === 4 && (
                  <div>
-                    <div className="flex items-center justify-center mb-4">
-                        <div className="bg-green-100 p-3 rounded-full">
-                            <CheckSquareIcon className="h-8 w-8 text-green-600" />
+                    <div className="flex items-center justify-center mb-6">
+                        <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-4 rounded-2xl shadow-xl">
+                            <CheckSquareIcon className="h-12 w-12 text-white" />
                         </div>
                     </div>
-                    <h3 className="text-xl font-bold text-center text-gray-800 mb-6">Payment Processing Complete</h3>
+                    <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-center text-gray-800 mb-8">Payment Processing Complete</h3>
                     
                      <div className="space-y-2">
                          {paymentResults.map(result => {
@@ -575,11 +647,14 @@ const MobileMoneyPayroll = ({ currentUser }: MobileMoneyPayrollProps) => {
                          })}
                     </div>
                      <div className="mt-8 text-center">
-                        <button onClick={resetProcess} className="bg-primary text-white font-bold py-3 px-8 rounded-lg hover:bg-primary-hover shadow-lg">Done / Start New Batch</button>
+                        <button onClick={resetProcess} className="bg-gradient-to-r from-primary to-purple-600 hover:shadow-xl hover:scale-105 text-white font-bold py-3 px-8 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2 mx-auto">
+                            <span>✨</span>
+                            <span>Done / Start New Batch</span>
+                        </button>
                     </div>
                 </div>
             )}
-
+            </div>
         </div>
     );
 };
