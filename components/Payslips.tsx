@@ -6,6 +6,7 @@ import { TrendingUpIcon, TrendingDownIcon, LogoIcon, ChevronDownIcon, ArrowLeftI
 import { api } from '../services/api';
 import { offlineStorage } from '../services/offlineStorage';
 import { useRefreshable } from '../hooks/useRefreshable';
+import PullToRefreshIndicator from './PullToRefreshIndicator';
 
 interface PayslipsProps {
     currentUser: User;
@@ -164,7 +165,7 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
             }
         };
     
-    const { containerRef, isRefreshing } = useRefreshable(fetchPayslipHistory);
+    const { containerRef, isRefreshing, pullDistance, pullProgress } = useRefreshable(fetchPayslipHistory);
 
     useEffect(() => {
         fetchPayslipHistory();
@@ -313,14 +314,16 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
     }
 
     return (
-        <div ref={containerRef} className="relative">
-            {isRefreshing && (
-                <div className="absolute top-0 left-0 right-0 flex justify-center pt-4 z-50">
-                    <div className="bg-primary text-white px-4 py-2 rounded-full shadow-lg">
-                        Refreshing...
-                    </div>
-                </div>
+        <div ref={containerRef} className="h-full overflow-auto relative">
+            {/* Pull-to-refresh indicator */}
+            {(pullDistance > 0 || isRefreshing) && (
+                <PullToRefreshIndicator 
+                    isRefreshing={isRefreshing}
+                    pullDistance={pullDistance}
+                    pullProgress={pullProgress}
+                />
             )}
+            
             {isLoading && (
                  <div className="bg-white p-6 md:p-8 rounded-xl shadow-xl animate-fade-in text-center">
                     <LogoIcon className="h-12 w-12 mx-auto animate-pulse text-primary" />
