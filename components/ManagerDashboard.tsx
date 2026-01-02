@@ -168,27 +168,27 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
     const StatCard = ({ title, value, icon: Icon, linkTo, isLoading, gradient, emoji }: { title: string, value: string | number, icon: React.FC<{className?: string}>, linkTo: View, isLoading?: boolean, gradient: string, emoji: string }) => (
         <button 
             onClick={() => onViewChange(linkTo)} 
-            className="group relative overflow-hidden bg-white p-6 rounded-2xl shadow-lg hover:shadow-2xl border-2 border-transparent hover:border-primary/20 transition-all duration-300 transform hover:scale-105 text-left"
+            className="group relative overflow-hidden bg-white p-4 sm:p-6 rounded-2xl shadow-lg hover:shadow-2xl border-2 border-transparent hover:border-primary/20 transition-all duration-300 transform hover:scale-105 text-left"
         >
             <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-300`}></div>
             <div className="relative z-10">
-                <div className="flex items-start justify-between mb-4">
-                    <div className={`w-14 h-14 bg-gradient-to-br ${gradient} rounded-xl flex items-center justify-center shadow-md transform group-hover:rotate-6 group-hover:scale-110 transition-all duration-300`}>
-                        <span className="text-2xl">{emoji}</span>
+                <div className="flex items-start justify-between mb-3">
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br ${gradient} rounded-xl flex items-center justify-center shadow-md transform group-hover:rotate-6 group-hover:scale-110 transition-all duration-300`}>
+                        <span className="text-xl sm:text-2xl">{emoji}</span>
                     </div>
-                    <div className="bg-gray-50 p-2 rounded-lg group-hover:bg-primary/10 transition-colors">
-                        <Icon className="h-6 w-6 text-gray-600 group-hover:text-primary transition-colors" />
+                    <div className="bg-gray-50 p-1.5 sm:p-2 rounded-lg group-hover:bg-primary/10 transition-colors">
+                        <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-gray-600 group-hover:text-primary transition-colors" />
                     </div>
                 </div>
-                <p className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-wide">{title}</p>
+                <p className="text-xs sm:text-sm font-semibold text-gray-500 mb-1 sm:mb-2 uppercase tracking-wide">{title}</p>
                 {isLoading ? (
-                    <Skeleton className="h-10 w-40 mt-2" />
+                    <Skeleton className="h-8 sm:h-10 w-32 sm:w-40 mt-1 sm:mt-2" />
                 ) : (
-                    <p className="text-4xl font-extrabold text-gray-800 group-hover:text-primary transition-colors">{value}</p>
+                    <p className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-800 group-hover:text-primary transition-colors">{value}</p>
                 )}
-                <div className="mt-4 flex items-center text-sm text-gray-500 group-hover:text-primary transition-colors">
+                <div className="mt-2 sm:mt-3 flex items-center text-xs sm:text-sm text-gray-500 group-hover:text-primary transition-colors">
                     <span className="font-medium">View details</span>
-                    <svg className="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3 h-3 sm:w-4 sm:h-4 ml-1 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                 </div>

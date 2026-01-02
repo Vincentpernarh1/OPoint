@@ -528,7 +528,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                                 return (
                                                 <div 
                                                     key={req.id} 
-                                                    className={`group p-6 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border ${
+                                                    className={`group p-4 sm:p-5 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border ${
                                                         req.status === RequestStatus.APPROVED 
                                                             ? 'bg-gradient-to-br from-green-50 to-emerald-50/50 border-green-200' 
                                                             : req.status === RequestStatus.REJECTED 
@@ -536,23 +536,23 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                                             : 'bg-gradient-to-br from-white to-blue-50/30 border-blue-100'
                                                     }`}
                                                 >
-                                                    <div className="flex justify-between items-start">
+                                                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                                                         <div className="flex-1 space-y-2">
-                                                            <div className="flex items-center space-x-3">
-                                                                <div className="bg-white rounded-full p-2 shadow-sm">
-                                                                    <span className="text-2xl">
+                                                            <div className="flex items-center space-x-2 sm:space-x-3">
+                                                                <div className="bg-white rounded-full p-1.5 sm:p-2 shadow-sm flex-shrink-0">
+                                                                    <span className="text-lg sm:text-xl">
                                                                         {req.leaveType === LeaveType.ANNUAL ? '🌴' : 
                                                                          req.leaveType === LeaveType.SICK ? '🤒' : 
                                                                          req.leaveType === LeaveType.MATERNITY ? '👶' : '🏖️'}
                                                                     </span>
                                                                 </div>
-                                                                <div>
-                                                                    <p className="text-lg font-bold text-gray-900">{req.employeeName}</p>
-                                                                    <p className="text-sm text-gray-600 font-medium">{req.leaveType}</p>
+                                                                <div className="min-w-0">
+                                                                    <p className="text-base sm:text-lg font-bold text-gray-900 truncate">{req.employeeName}</p>
+                                                                    <p className="text-xs sm:text-sm text-gray-600 font-medium">{req.leaveType}</p>
                                                                 </div>
                                                             </div>
                                                             
-                                                            <div className="pl-14 space-y-1">
+                                                            <div className="pl-9 sm:pl-11 space-y-1">
                                                                 <div className="flex items-center space-x-2 text-sm text-gray-700">
                                                                     <span className="font-semibold">📅</span>
                                                                     <span>{new Date(req.startDate).toLocaleDateString('en-US')} - {new Date(req.endDate).toLocaleDateString('en-US')}</span>
@@ -570,34 +570,34 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                                             </div>
                                                         </div>
                                                         
-                                                        <div className="flex space-x-2 flex-shrink-0 ml-4">
+                                                        <div className="flex space-x-1.5 sm:space-x-2 flex-shrink-0 self-start">
                                                             {currentUser.role === UserRole.ADMIN && req.status === RequestStatus.PENDING ? (
                                                                 <>
                                                                     <button 
                                                                         title="Approve leave request"
                                                                         onClick={() => handleAction(req.id, 'approve')} 
-                                                                        className="p-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200 group-hover:animate-pulse"
+                                                                        className="p-2 sm:p-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg sm:rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200"
                                                                     >
-                                                                        <CheckIcon className="h-6 w-6"/>
+                                                                        <CheckIcon className="h-4 w-4 sm:h-5 sm:w-5"/>
                                                                     </button>
                                                                     <button 
                                                                         title="Reject leave request"
                                                                         onClick={() => handleAction(req.id, 'reject')} 
-                                                                        className="p-3 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200"
+                                                                        className="p-2 sm:p-2.5 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-lg sm:rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200"
                                                                     >
-                                                                        <XIcon className="h-6 w-6"/>
+                                                                        <XIcon className="h-4 w-4 sm:h-5 sm:w-5"/>
                                                                     </button>
                                                                 </>
                                                             ) : req.status === RequestStatus.PENDING && currentUser.role !== UserRole.ADMIN ? (
                                                                 <button 
                                                                     title="Cancel leave request"
                                                                     onClick={() => handleAction(req.id, 'cancel')} 
-                                                                    className="p-3 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200"
+                                                                    className="p-2 sm:p-2.5 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-lg sm:rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200"
                                                                 >
-                                                                    <XIcon className="h-6 w-6"/>
+                                                                    <XIcon className="h-4 w-4 sm:h-5 sm:w-5"/>
                                                                 </button>
                                                             ) : (
-                                                                <span className={`px-4 py-2 rounded-xl text-sm font-bold shadow-sm ${
+                                                                <span className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold shadow-sm whitespace-nowrap ${
                                                                     req.status === RequestStatus.APPROVED 
                                                                         ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white' 
                                                                         : req.status === RequestStatus.REJECTED 
@@ -647,7 +647,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                         return (
                                             <div 
                                                 key={req.id} 
-                                                className={`group p-6 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border ${
+                                                className={`group p-4 sm:p-5 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border ${
                                                     req.status === RequestStatus.APPROVED 
                                                         ? 'bg-gradient-to-br from-green-50 to-emerald-50/50 border-green-200' 
                                                         : req.status === RequestStatus.REJECTED 
@@ -655,19 +655,19 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                                         : 'bg-gradient-to-br from-white to-indigo-50/30 border-indigo-100'
                                                 }`}
                                             >
-                                                <div className="flex justify-between items-start">
+                                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                                                     <div className="flex-1 space-y-2">
-                                                        <div className="flex items-center space-x-3">
-                                                            <div className="bg-white rounded-full p-2 shadow-sm">
-                                                                <span className="text-2xl">⏰</span>
+                                                        <div className="flex items-center space-x-2 sm:space-x-3">
+                                                            <div className="bg-white rounded-full p-1.5 sm:p-2 shadow-sm flex-shrink-0">
+                                                                <span className="text-lg sm:text-xl">⏰</span>
                                                             </div>
-                                                            <div>
-                                                                <p className="text-lg font-bold text-gray-900">{req.employeeName || getUser(req.userId)?.name || `User ${req.userId}`}</p>
-                                                                <p className="text-sm text-gray-600 font-medium">{displayDate ? displayDate.toLocaleDateString('en-US') : '—'}</p>
+                                                            <div className="min-w-0">
+                                                                <p className="text-base sm:text-lg font-bold text-gray-900 truncate">{req.employeeName || getUser(req.userId)?.name || `User ${req.userId}`}</p>
+                                                                <p className="text-xs sm:text-sm text-gray-600 font-medium">{displayDate ? displayDate.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}) : '—'}</p>
                                                             </div>
                                                         </div>
                                                         
-                                                        <div className="pl-14 space-y-1">
+                                                        <div className="pl-9 sm:pl-11 space-y-1">
                                                             {(() => {
                                                                 const requestedIn = req.requestedClockIn ? new Date(req.requestedClockIn) : (req.originalClockIn ? new Date(req.originalClockIn) : undefined);
                                                                 const requestedOut = req.requestedClockOut ? new Date(req.requestedClockOut) : (req.originalClockOut ? new Date(req.originalClockOut) : undefined);
@@ -676,22 +676,22 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                                                 const hasBreakSession = requestedIn2 || requestedOut2;
                                                                 
                                                                 return (
-                                                                    <div className="text-sm text-gray-700 space-y-1">
+                                                                    <div className="text-xs sm:text-sm text-gray-700 space-y-0.5 sm:space-y-1">
                                                                         {hasBreakSession ? (
                                                                             <>
-                                                                                <div className="flex items-center space-x-2">
-                                                                                    <span className="font-semibold">🔵 Session 1:</span>
-                                                                                    <span>{requestedIn ? requestedIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'} - {requestedOut ? requestedOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</span>
+                                                                                <div className="flex items-center space-x-1.5 flex-wrap">
+                                                                                    <span className="font-semibold flex-shrink-0">🔵 S1:</span>
+                                                                                    <span className="break-all">{requestedIn ? requestedIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'} - {requestedOut ? requestedOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</span>
                                                                                 </div>
-                                                                                <div className="flex items-center space-x-2">
-                                                                                    <span className="font-semibold">🟢 Session 2:</span>
-                                                                                    <span>{requestedIn2 ? requestedIn2.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'} - {requestedOut2 ? requestedOut2.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</span>
+                                                                                <div className="flex items-center space-x-1.5 flex-wrap">
+                                                                                    <span className="font-semibold flex-shrink-0">🟢 S2:</span>
+                                                                                    <span className="break-all">{requestedIn2 ? requestedIn2.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'} - {requestedOut2 ? requestedOut2.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</span>
                                                                                 </div>
                                                                             </>
                                                                         ) : (
-                                                                            <div className="flex items-center space-x-2">
-                                                                                <span className="font-semibold">🕐 Requested:</span>
-                                                                                <span>{requestedIn ? requestedIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'} - {requestedOut ? requestedOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</span>
+                                                                            <div className="flex items-center space-x-1.5 flex-wrap">
+                                                                                <span className="font-semibold flex-shrink-0">🕐</span>
+                                                                                <span className="break-all">{requestedIn ? requestedIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'} - {requestedOut ? requestedOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</span>
                                                                             </div>
                                                                         )}
                                                                     </div>
@@ -699,42 +699,42 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                                             })()}
                                                             
                                                             {req.reason && (
-                                                                <div className="flex items-start space-x-2 text-sm text-gray-600 mt-2">
-                                                                    <span className="font-semibold mt-0.5">💬</span>
-                                                                    <span className="italic">{req.reason}</span>
+                                                                <div className="flex items-start space-x-1.5 text-xs sm:text-sm text-gray-600 mt-1.5">
+                                                                    <span className="font-semibold mt-0.5 flex-shrink-0">💬</span>
+                                                                    <span className="italic break-words line-clamp-2">{req.reason}</span>
                                                                 </div>
                                                             )}
                                                         </div>
                                                     </div>
                                                     
-                                                    <div className="flex space-x-2 flex-shrink-0 ml-4">
+                                                    <div className="flex space-x-1.5 sm:space-x-2 flex-shrink-0 self-start">
                                                         {currentUser.role === UserRole.ADMIN && req.status === RequestStatus.PENDING ? (
                                                             <>
                                                                 <button 
                                                                     title="Approve time adjustment" 
                                                                     onClick={() => handleAction(req.id, 'approve', 'adjustment')} 
-                                                                    className="p-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200 group-hover:animate-pulse"
+                                                                    className="p-2 sm:p-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg sm:rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200"
                                                                 >
-                                                                    <CheckIcon className="h-6 w-6"/>
+                                                                    <CheckIcon className="h-4 w-4 sm:h-5 sm:w-5"/>
                                                                 </button>
                                                                 <button 
                                                                     title="Reject time adjustment" 
                                                                     onClick={() => handleAction(req.id, 'reject', 'adjustment')} 
-                                                                    className="p-3 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200"
+                                                                    className="p-2 sm:p-2.5 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-lg sm:rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200"
                                                                 >
-                                                                    <XIcon className="h-6 w-6"/>
+                                                                    <XIcon className="h-4 w-4 sm:h-5 sm:w-5"/>
                                                                 </button>
                                                             </>
                                                         ) : req.status === RequestStatus.PENDING && currentUser.role !== UserRole.ADMIN ? (
                                                             <button 
                                                                 title="Cancel time adjustment" 
                                                                 onClick={() => handleAction(req.id, 'cancel', 'adjustment')} 
-                                                                className="p-3 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200"
+                                                                className="p-2 sm:p-2.5 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-lg sm:rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200"
                                                             >
-                                                                <XIcon className="h-6 w-6"/>
+                                                                <XIcon className="h-4 w-4 sm:h-5 sm:w-5"/>
                                                             </button>
                                                         ) : (
-                                                            <span className={`px-4 py-2 rounded-xl text-sm font-bold shadow-sm ${
+                                                            <span className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold shadow-sm whitespace-nowrap ${
                                                                 req.status === RequestStatus.APPROVED 
                                                                     ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white' 
                                                                     : req.status === RequestStatus.REJECTED 
@@ -775,27 +775,27 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                     {expenseRequests.map(req => (
                                         <div 
                                             key={req.id} 
-                                            className="group p-6 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 bg-gradient-to-br from-white to-amber-50/30 border border-amber-100"
+                                            className="group p-4 sm:p-5 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 bg-gradient-to-br from-white to-amber-50/30 border border-amber-100"
                                         >
-                                            <div className="flex justify-between items-start">
+                                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                                                 <div className="flex-1 space-y-2">
-                                                    <div className="flex items-center space-x-3">
-                                                        <div className="bg-white rounded-full p-2 shadow-sm">
-                                                            <span className="text-2xl">💰</span>
+                                                    <div className="flex items-center space-x-2 sm:space-x-3">
+                                                        <div className="bg-white rounded-full p-1.5 sm:p-2 shadow-sm flex-shrink-0">
+                                                            <span className="text-lg sm:text-xl">💰</span>
                                                         </div>
-                                                        <div>
-                                                            <p className="text-lg font-bold text-gray-900">{req.employee_name}</p>
-                                                            <p className="text-sm text-gray-600 font-medium">{req.description}</p>
+                                                        <div className="min-w-0">
+                                                            <p className="text-base sm:text-lg font-bold text-gray-900 truncate">{req.employee_name}</p>
+                                                            <p className="text-xs sm:text-sm text-gray-600 font-medium truncate">{req.description}</p>
                                                         </div>
                                                     </div>
                                                     
-                                                    <div className="pl-14 space-y-1">
-                                                        <div className="flex items-center space-x-2 text-lg">
+                                                    <div className="pl-9 sm:pl-11 space-y-1">
+                                                        <div className="flex items-center space-x-1.5 text-base sm:text-lg">
                                                             <span className="font-bold text-green-600">{formatCurrency(req.amount)}</span>
                                                         </div>
-                                                        <div className="flex items-center space-x-2 text-sm text-gray-600">
+                                                        <div className="flex items-center space-x-1.5 text-xs sm:text-sm text-gray-600">
                                                             <span className="font-semibold">📅</span>
-                                                            <span>{new Date(req.expense_date).toLocaleDateString('en-US')}</span>
+                                                            <span>{new Date(req.expense_date).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}</span>
                                                         </div>
                                                         {req.receipt_url && (
                                                             <a 

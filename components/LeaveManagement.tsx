@@ -674,18 +674,20 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                         </h2>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                             {/* Annual Leave Card */}
-                            <div className="group relative overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 animate-fade-in">
+                            <div className="group relative overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 p-3 sm:p-4 md:p-5 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 animate-fade-in">
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
                                 <div className="relative z-10">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                                            <span className="text-2xl">🏖️</span>
+                                    <div className="flex items-center justify-between mb-2 sm:mb-3">
+                                        <div className="w-9 h-9 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                                            <span className="text-lg sm:text-xl">🏖️</span>
                                         </div>
-                                        <span className="text-white/80 text-sm font-medium">Annual</span>
+                                        <span className="text-white/80 text-xs font-medium">Annual</span>
                                     </div>
-                                    <p className="text-5xl font-extrabold text-white mb-2">{userBalance.annual.remaining}</p>
-                                    <p className="text-white/90 text-lg font-semibold mb-3">Days Available</p>
-                                    <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3">
+                                    <div className="flex items-baseline justify-center gap-2 mb-2 sm:mb-3">
+                                        <p className="text-3xl sm:text-4xl font-extrabold text-white">{userBalance.annual.remaining}</p>
+                                        <p className="text-white/90 text-sm sm:text-base font-semibold">Days Available</p>
+                                    </div>
+                                    <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2">
                                         <div className="flex justify-between items-center mb-2">
                                             <span className="text-white/80 text-xs">Used</span>
                                             <span className="text-white font-bold text-sm">{userBalance.annual.used} days</span>
@@ -702,18 +704,20 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                             </div>
 
                             {/* Maternity Leave Card */}
-                            <div className="group relative overflow-hidden bg-gradient-to-br from-pink-500 to-rose-600 p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 animate-fade-in [animation-delay:100ms]">
+                            <div className="group relative overflow-hidden bg-gradient-to-br from-pink-500 to-rose-600 p-3 sm:p-4 md:p-5 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 animate-fade-in [animation-delay:100ms]">
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
                                 <div className="relative z-10">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                                            <span className="text-2xl">👶</span>
+                                    <div className="flex items-center justify-between mb-2 sm:mb-3">
+                                        <div className="w-9 h-9 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                                            <span className="text-lg sm:text-xl">👶</span>
                                         </div>
-                                        <span className="text-white/80 text-sm font-medium">Maternity</span>
+                                        <span className="text-white/80 text-xs font-medium">Maternity</span>
                                     </div>
-                                    <p className="text-5xl font-extrabold text-white mb-2">{Math.floor(userBalance.maternity.remaining / 30)}</p>
-                                    <p className="text-white/90 text-lg font-semibold mb-3">Months Available</p>
-                                    <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3">
+                                    <div className="flex items-baseline justify-center gap-2 mb-2 sm:mb-3">
+                                        <p className="text-3xl sm:text-4xl font-extrabold text-white">{Math.floor(userBalance.maternity.remaining / 30)}</p>
+                                        <p className="text-white/90 text-sm sm:text-base font-semibold">Months Available</p>
+                                    </div>
+                                    <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2">
                                         <div className="flex justify-between items-center mb-2">
                                             <span className="text-white/80 text-xs">Used</span>
                                             <span className="text-white font-bold text-sm">{userBalance.maternity.used} days</span>
@@ -730,18 +734,20 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                             </div>
 
                             {/* Sick Leave Card */}
-                            <div className="group relative overflow-hidden bg-gradient-to-br from-amber-500 to-orange-600 p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 animate-fade-in [animation-delay:200ms]">
+                            <div className="group relative overflow-hidden bg-gradient-to-br from-amber-500 to-orange-600 p-3 sm:p-4 md:p-5 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 animate-fade-in [animation-delay:200ms]">
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
                                 <div className="relative z-10">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                                            <span className="text-2xl">🏥</span>
+                                    <div className="flex items-center justify-between mb-2 sm:mb-3">
+                                        <div className="w-9 h-9 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                                            <span className="text-lg sm:text-xl">🏥</span>
                                         </div>
-                                        <span className="text-white/80 text-sm font-medium">Sick</span>
+                                        <span className="text-white/80 text-xs font-medium">Sick</span>
                                     </div>
-                                    <p className="text-5xl font-extrabold text-white mb-2">{userBalance.sick.remaining}</p>
-                                    <p className="text-white/90 text-lg font-semibold mb-3">Days Available</p>
-                                    <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3">
+                                    <div className="flex items-baseline justify-center gap-2 mb-2 sm:mb-3">
+                                        <p className="text-3xl sm:text-4xl font-extrabold text-white">{userBalance.sick.remaining}</p>
+                                        <p className="text-white/90 text-sm sm:text-base font-semibold">Days Available</p>
+                                    </div>
+                                    <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2">
                                         <div className="flex justify-between items-center mb-2">
                                             <span className="text-white/80 text-xs">Used</span>
                                             <span className="text-white font-bold text-sm">{userBalance.sick.used} days</span>
@@ -956,34 +962,34 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                                                                     {expandedMonths.has(monthKey) && (
                                                                         <div className="p-2 space-y-2">
                                                                             {requestsByYearAndMonth[year][month].map(req => (
-                                                                                <div key={req.id} className="group p-4 border-2 border-gray-200 rounded-xl flex items-center space-x-4 bg-white hover:bg-gradient-to-r hover:from-gray-50 hover:to-white hover:border-primary/30 hover:shadow-md transition-all duration-300">
-                                                                                    <div className="bg-gradient-to-br from-primary to-primary-dark p-3 rounded-xl shadow-sm group-hover:shadow-md transition-shadow">
-                                                                                        <BriefcaseIcon className="h-5 w-5 text-white" />
+                                                                                <div key={req.id} className="group p-3 sm:p-4 border-2 border-gray-200 rounded-xl flex items-center space-x-3 sm:space-x-4 bg-white hover:bg-gradient-to-r hover:from-gray-50 hover:to-white hover:border-primary/30 hover:shadow-md transition-all duration-300">
+                                                                                    <div className="bg-gradient-to-br from-primary to-primary-dark p-2 sm:p-2.5 rounded-xl shadow-sm group-hover:shadow-md transition-shadow flex-shrink-0">
+                                                                                        <BriefcaseIcon className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                                                                                     </div>
                                                                                     <div className="flex-1 min-w-0">
-                                                                                        <div className="flex justify-between items-center gap-2 mb-2">
-                                                                                            <p className="font-bold text-gray-800 text-base">{req.leaveType}</p>
-                                                                                            <span className={`px-3 py-1 text-xs font-bold rounded-full shadow-sm ${statusColorMap[req.status] || 'bg-gray-100 text-gray-800'}`}>
+                                                                                        <div className="flex justify-between items-center gap-2 mb-1.5 sm:mb-2">
+                                                                                            <p className="font-bold text-gray-800 text-sm sm:text-base truncate">{req.leaveType}</p>
+                                                                                            <span className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-xs font-bold rounded-full shadow-sm whitespace-nowrap ${statusColorMap[req.status] || 'bg-gray-100 text-gray-800'}`}>
                                                                                                 {req.status}
                                                                                             </span>
                                                                                         </div>
-                                                                                        <div className="flex items-center space-x-2 mb-2">
-                                                                                            <span className="text-sm">📅</span>
-                                                                                            <p className="text-sm font-semibold text-gray-600">
-                                                                                                {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()}
+                                                                                        <div className="flex items-center space-x-1.5 sm:space-x-2 mb-1.5 sm:mb-2">
+                                                                                            <span className="text-xs sm:text-sm flex-shrink-0">📅</span>
+                                                                                            <p className="text-xs sm:text-sm font-semibold text-gray-600 truncate">
+                                                                                                {new Date(req.startDate).toLocaleDateString('en-US', {month:'short', day:'numeric'})} - {new Date(req.endDate).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}
                                                                                             </p>
                                                                                         </div>
                                                                                         {req.reason && (
-                                                                                            <p className="text-sm text-gray-500 italic line-clamp-1">"{req.reason}"</p>
+                                                                                            <p className="text-xs sm:text-sm text-gray-500 italic line-clamp-1">"{req.reason}"</p>
                                                                                         )}
                                                                                     </div>
                                                                                     {req.status === RequestStatus.PENDING && (
-                                                                                        <div className="flex space-x-2">
-                                                                                            <button title="Edit" onClick={() => setEditingRequest(req)} className="p-2.5 text-primary bg-primary/10 rounded-lg hover:bg-primary hover:text-white transition-all duration-200 transform hover:scale-110">
-                                                                                                <PencilIcon className="h-4 w-4" />
+                                                                                        <div className="flex space-x-1.5 sm:space-x-2 flex-shrink-0">
+                                                                                            <button title="Edit" onClick={() => setEditingRequest(req)} className="p-1.5 sm:p-2 text-primary bg-primary/10 rounded-lg hover:bg-primary hover:text-white transition-all duration-200 transform hover:scale-110">
+                                                                                                <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                                                             </button>
-                                                                                            <button title="Cancel" onClick={() => handleCancelRequest(req.id)} className="p-2.5 text-red-500 bg-red-50 rounded-lg hover:bg-red-500 hover:text-white transition-all duration-200 transform hover:scale-110">
-                                                                                                <TrashIcon className="h-4 w-4" />
+                                                                                            <button title="Cancel" onClick={() => handleCancelRequest(req.id)} className="p-1.5 sm:p-2 text-red-500 bg-red-50 rounded-lg hover:bg-red-500 hover:text-white transition-all duration-200 transform hover:scale-110">
+                                                                                                <TrashIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                                                             </button>
                                                                                         </div>
                                                                                     )}
