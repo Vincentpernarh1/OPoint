@@ -692,8 +692,8 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                                         </div>
                                         <div className="w-full bg-white/30 rounded-full h-2 overflow-hidden">
                                             <div 
-                                                className="bg-white h-full rounded-full transition-all duration-500 ease-out"
-                                                style={{ width: `${userBalance.annual.total > 0 ? Math.min(Math.round((userBalance.annual.used / userBalance.annual.total) * 100), 100) : 0}%` }}
+                                                className="leave-progress-bar bg-white h-full rounded-full"
+                                                data-progress={userBalance.annual.total > 0 ? Math.min(Math.round((userBalance.annual.used / userBalance.annual.total) * 100), 100) : 0}
                                             ></div>
                                         </div>
                                         <p className="text-white/70 text-xs mt-1">{userBalance.annual.used} of {userBalance.annual.total} days used</p>
@@ -722,8 +722,8 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                                         </div>
                                         <div className="w-full bg-white/30 rounded-full h-2 overflow-hidden">
                                             <div 
-                                                className="bg-white h-full rounded-full transition-all duration-500 ease-out"
-                                                style={{ width: `${userBalance.maternity.total > 0 ? Math.min(Math.round((userBalance.maternity.used / userBalance.maternity.total) * 100), 100) : 0}%` }}
+                                                className="leave-progress-bar bg-white h-full rounded-full"
+                                                data-progress={userBalance.maternity.total > 0 ? Math.min(Math.round((userBalance.maternity.used / userBalance.maternity.total) * 100), 100) : 0}
                                             ></div>
                                         </div>
                                         <p className="text-white/70 text-xs mt-1">{userBalance.maternity.used} of {userBalance.maternity.total} days used</p>
@@ -752,8 +752,8 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                                         </div>
                                         <div className="w-full bg-white/30 rounded-full h-2 overflow-hidden">
                                             <div 
-                                                className="bg-white h-full rounded-full transition-all duration-500 ease-out"
-                                                style={{ width: `${userBalance.sick.total > 0 ? Math.min(Math.round((userBalance.sick.used / userBalance.sick.total) * 100), 100) : 0}%` }}
+                                                className="leave-progress-bar bg-white h-full rounded-full"
+                                                data-progress={userBalance.sick.total > 0 ? Math.min(Math.round((userBalance.sick.used / userBalance.sick.total) * 100), 100) : 0}
                                             ></div>
                                         </div>
                                         <p className="text-white/70 text-xs mt-1">{userBalance.sick.used} of {userBalance.sick.total} days used</p>
