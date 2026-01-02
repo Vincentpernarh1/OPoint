@@ -165,19 +165,32 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
         return announcements.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
     }, [announcements]);
 
-    const StatCard = ({ title, value, icon: Icon, linkTo, isLoading }: { title: string, value: string | number, icon: React.FC<{className?: string}>, linkTo: View, isLoading?: boolean }) => (
-        <button onClick={() => onViewChange(linkTo)} className="bg-white p-6 rounded-xl shadow-lg w-full text-left hover:shadow-xl hover:border-primary border-2 border-transparent transition-all">
-            <div className="flex items-center justify-between">
-                <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-500">{title}</p>
-                    {isLoading ? (
-                        <Skeleton className="h-9 w-32 mt-2" />
-                    ) : (
-                        <p className="text-3xl font-bold text-gray-800">{value}</p>
-                    )}
+    const StatCard = ({ title, value, icon: Icon, linkTo, isLoading, gradient, emoji }: { title: string, value: string | number, icon: React.FC<{className?: string}>, linkTo: View, isLoading?: boolean, gradient: string, emoji: string }) => (
+        <button 
+            onClick={() => onViewChange(linkTo)} 
+            className="group relative overflow-hidden bg-white p-6 rounded-2xl shadow-lg hover:shadow-2xl border-2 border-transparent hover:border-primary/20 transition-all duration-300 transform hover:scale-105 text-left"
+        >
+            <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-300`}></div>
+            <div className="relative z-10">
+                <div className="flex items-start justify-between mb-4">
+                    <div className={`w-14 h-14 bg-gradient-to-br ${gradient} rounded-xl flex items-center justify-center shadow-md transform group-hover:rotate-6 group-hover:scale-110 transition-all duration-300`}>
+                        <span className="text-2xl">{emoji}</span>
+                    </div>
+                    <div className="bg-gray-50 p-2 rounded-lg group-hover:bg-primary/10 transition-colors">
+                        <Icon className="h-6 w-6 text-gray-600 group-hover:text-primary transition-colors" />
+                    </div>
                 </div>
-                <div className="bg-primary-light text-primary p-3 rounded-full">
-                    <Icon className="h-7 w-7" />
+                <p className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-wide">{title}</p>
+                {isLoading ? (
+                    <Skeleton className="h-10 w-40 mt-2" />
+                ) : (
+                    <p className="text-4xl font-extrabold text-gray-800 group-hover:text-primary transition-colors">{value}</p>
+                )}
+                <div className="mt-4 flex items-center text-sm text-gray-500 group-hover:text-primary transition-colors">
+                    <span className="font-medium">View details</span>
+                    <svg className="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
                 </div>
             </div>
         </button>
@@ -195,35 +208,102 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
             )}
             
             <div className="space-y-8">
-                <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Welcome back, {currentUser.name.split(' ')[0]}!</h1>
-                    <p className="text-gray-500 mt-1">Here's a quick overview of your company's activities.</p>
+                {/* Modern Gradient Header */}
+                <div className="relative overflow-hidden bg-gradient-to-br from-primary via-indigo-600 to-purple-700 rounded-2xl p-6 sm:p-8 shadow-2xl">
+                    <div className="relative z-10">
+                        <div className="flex items-center space-x-3 mb-3">
+                            <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                                <span className="text-3xl">👋</span>
+                            </div>
+                            <div>
+                                <h1 className="text-2xl sm:text-4xl font-extrabold text-white">Welcome back, {currentUser.name.split(' ')[0]}!</h1>
+                                <p className="text-white/90 text-sm sm:text-base mt-1">Here's your company overview at a glance</p>
+                            </div>
+                        </div>
+                    </div>
+                    {/* Decorative elements */}
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-32 -mt-32"></div>
+                    <div className="absolute bottom-0 left-0 w-40 h-40 bg-white opacity-5 rounded-full -ml-20 -mb-20"></div>
+                    <div className="absolute top-1/2 right-1/4 w-20 h-20 bg-white opacity-5 rounded-full"></div>
                 </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <StatCard title="Total Employees" value={employeeCount} icon={UsersGroupIcon} linkTo="employees" isLoading={loadingEmployees} />
-                <StatCard title="Pending Approvals" value={pendingApprovalsCount} icon={CheckSquareIcon} linkTo="approvals" isLoading={loadingApprovals} />
-                <StatCard title="Monthly Payout" value={`GHS ${totalMonthlyPayout.toLocaleString()}`} icon={DollarSignIcon} linkTo="payslips" isLoading={loadingPayout} />
+            {/* Modern Stat Cards */}
+            <div>
+                <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                    <span className="w-1 h-8 bg-gradient-to-b from-primary to-purple-600 rounded-full mr-3"></span>
+                    Key Metrics
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                    <StatCard 
+                        title="Total Employees" 
+                        value={employeeCount} 
+                        icon={UsersGroupIcon} 
+                        linkTo="employees" 
+                        isLoading={loadingEmployees}
+                        gradient="from-blue-500 to-indigo-600"
+                        emoji="👥"
+                    />
+                    <StatCard 
+                        title="Pending Approvals" 
+                        value={pendingApprovalsCount} 
+                        icon={CheckSquareIcon} 
+                        linkTo="approvals" 
+                        isLoading={loadingApprovals}
+                        gradient="from-amber-500 to-orange-600"
+                        emoji="✅"
+                    />
+                    <StatCard 
+                        title="Monthly Payout" 
+                        value={`GHS ${totalMonthlyPayout.toLocaleString()}`} 
+                        icon={DollarSignIcon} 
+                        linkTo="payslips" 
+                        isLoading={loadingPayout}
+                        gradient="from-green-500 to-emerald-600"
+                        emoji="💰"
+                    />
+                </div>
             </div>
             
              {latestAnnouncement && (
-                <div>
-                    <h2 className="text-xl font-bold text-gray-800 mb-3">Latest Announcement</h2>
-                    <div className="bg-white border-l-4 border-primary text-primary-dark p-4 rounded-r-lg shadow-lg" role="alert">
-                        <div className="flex items-start">
-                            <div className="py-1"><MegaphoneIcon className="h-6 w-6 text-primary" /></div>
-                            <div className="ml-4 flex-1">
-                                <div className="flex justify-between items-center">
-                                    <p className="font-bold">{latestAnnouncement.title}</p>
-                                    <Button 
-                                        variant="ghost" 
-                                        size="sm" 
-                                        onClick={() => onViewChange('announcements')}
-                                    >
-                                        View All
-                                    </Button>
+                <div className="animate-fade-in">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <span className="w-1 h-8 bg-gradient-to-b from-pink-500 to-rose-600 rounded-full mr-3"></span>
+                        Latest Announcement
+                    </h2>
+                    <div className="relative overflow-hidden bg-white rounded-2xl shadow-xl border-2 border-gray-100 hover:border-primary/30 transition-all duration-300">
+                        <div className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-b from-primary to-purple-600"></div>
+                        <div className="p-6 pl-8">
+                            <div className="flex items-start">
+                                <div className="flex-shrink-0">
+                                    <div className="w-12 h-12 bg-gradient-to-br from-primary to-purple-600 rounded-xl flex items-center justify-center shadow-md">
+                                        <MegaphoneIcon className="h-6 w-6 text-white" />
+                                    </div>
                                 </div>
-                                <p className="text-sm mt-1">{latestAnnouncement.content}</p>
+                                <div className="ml-5 flex-1">
+                                    <div className="flex justify-between items-start gap-4">
+                                        <div className="flex-1">
+                                            <h3 className="text-xl font-bold text-gray-800 mb-2">{latestAnnouncement.title}</h3>
+                                            <p className="text-gray-600 leading-relaxed">{latestAnnouncement.content}</p>
+                                            <p className="text-sm text-gray-400 mt-3">
+                                                {new Date(latestAnnouncement.created_at).toLocaleDateString('en-US', { 
+                                                    month: 'long', 
+                                                    day: 'numeric', 
+                                                    year: 'numeric',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit'
+                                                })}
+                                            </p>
+                                        </div>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="sm" 
+                                            onClick={() => onViewChange('announcements')}
+                                            className="bg-primary/10 hover:bg-primary hover:text-white text-primary font-semibold px-4 py-2 rounded-lg transition-all duration-200 transform hover:scale-105 whitespace-nowrap"
+                                        >
+                                            View All →
+                                        </Button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

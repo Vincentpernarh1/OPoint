@@ -1,0 +1,26 @@
+/* Animation delay utilities using data attributes */
+.profile-item[data-delay="0"] { animation-delay: 0ms; }
+.profile-item[data-delay="1"] { animation-delay: 50ms; }
+.profile-item[data-delay="2"] { animation-delay: 100ms; }
+.profile-item[data-delay="3"] { animation-delay: 150ms; }
+.profile-item[data-delay="4"] { animation-delay: 200ms; }
+.profile-item[data-delay="5"] { animation-delay: 250ms; }
+.profile-item[data-delay="6"] { animation-delay: 300ms; }
+.profile-item[data-delay="7"] { animation-delay: 350ms; }
+.profile-item[data-delay="8"] { animation-delay: 400ms; }
+.profile-item[data-delay="9"] { animation-delay: 450ms; }
+.profile-item[data-delay="10"] { animation-delay: 500ms; }
+.profile-item[data-delay="11"] { animation-delay: 550ms; }
+.profile-item[data-delay="12"] { animation-delay: 600ms; }
+
+.pending-request[data-delay="0"] { animation-delay: 0ms; }
+.pending-request[data-delay="1"] { animation-delay: 100ms; }
+.pending-request[data-delay="2"] { animation-delay: 200ms; }
+.pending-request[data-delay="3"] { animation-delay: 300ms; }
+.pending-request[data-delay="4"] { animation-delay: 400ms; }
+.pending-request[data-delay="5"] { animation-delay: 500ms; }
+.pending-request[data-delay="6"] { animation-delay: 600ms; }
+.pending-request[data-delay="7"] { animation-delay: 700ms; }
+.pending-request[data-delay="8"] { animation-delay: 800ms; }
+.pending-request[data-delay="9"] { animation-delay: 900ms; }
+.pending-request[data-delay="10"] { animation-delay: 1000ms; }

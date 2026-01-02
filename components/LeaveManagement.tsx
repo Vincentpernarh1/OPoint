@@ -9,6 +9,7 @@ import PullToRefreshIndicator from './PullToRefreshIndicator';
 import { api } from '../services/api';
 import { offlineStorage } from '../services/offlineStorage';
 import { useRefreshable } from '../hooks/useRefreshable';
+import './LeaveManagement.css';
 
 interface LeaveManagementProps {
     currentUser: User;
@@ -652,106 +653,255 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                 )}
                 
                 <div className="space-y-8">
-                    {/* Leave Balances */}
+                    {/* Modern Header Section */}
+                    <div className="relative overflow-hidden bg-gradient-to-br from-primary to-primary-dark rounded-2xl p-6 sm:p-8 shadow-2xl">
+                        <div className="relative z-10">
+                            <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-2">Leave Management</h1>
+                            <p className="text-primary-light text-base sm:text-lg opacity-90">
+                                Manage your time off and track your leave balances
+                            </p>
+                        </div>
+                        {/* Decorative elements */}
+                        <div className="absolute top-0 right-0 w-48 h-48 bg-white opacity-5 rounded-full -mr-24 -mt-24"></div>
+                        <div className="absolute bottom-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -mr-16 -mb-16"></div>
+                    </div>
+
+                    {/* Leave Balances - Modern Gradient Cards */}
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-800 mb-4">My Leave Balances</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                         <div className="bg-white p-4 rounded-xl shadow-lg text-center">
-                            <p className="text-sm font-medium text-gray-500">Annual Leave</p>
-                            <p className="text-3xl font-bold text-primary">{userBalance.annual.remaining} days</p>
-                            <p className="text-xs text-gray-500 mt-1">Used: {userBalance.annual.used} / {userBalance.annual.total} days</p>
-                        </div>
-                        <div className="bg-white p-4 rounded-xl shadow-lg text-center">
-                            <p className="text-sm font-medium text-gray-500">Maternity Leave</p>
-                            <p className="text-3xl font-bold text-pink-500">{Math.floor(userBalance.maternity.remaining / 30)} months</p>
-                            <p className="text-xs text-gray-500 mt-1">Used: {userBalance.maternity.used} / {userBalance.maternity.total} days</p>
-                        </div>
-                        <div className="bg-white p-4 rounded-xl shadow-lg text-center">
-                            <p className="text-sm font-medium text-gray-500">Sick Leave</p>
-                            <p className="text-3xl font-bold text-amber-500">{userBalance.sick.remaining} days</p>
-                            <p className="text-xs text-gray-500 mt-1">Used: {userBalance.sick.used} / {userBalance.sick.total} days</p>
+                        <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                            <span className="w-1 h-8 bg-gradient-to-b from-primary to-primary-dark rounded-full mr-3"></span>
+                            Your Leave Balances
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+                            {/* Annual Leave Card */}
+                            <div className="group relative overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 animate-fade-in">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
+                                <div className="relative z-10">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                                            <span className="text-2xl">🏖️</span>
+                                        </div>
+                                        <span className="text-white/80 text-sm font-medium">Annual</span>
+                                    </div>
+                                    <p className="text-5xl font-extrabold text-white mb-2">{userBalance.annual.remaining}</p>
+                                    <p className="text-white/90 text-lg font-semibold mb-3">Days Available</p>
+                                    <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="text-white/80 text-xs">Used</span>
+                                            <span className="text-white font-bold text-sm">{userBalance.annual.used} days</span>
+                                        </div>
+                                        <div className="w-full bg-white/30 rounded-full h-2">
+                                            <div 
+                                                className="leave-progress-bar bg-white h-2 rounded-full"
+                                                data-progress={Math.round(userBalance.annual.total > 0 ? (userBalance.annual.used / userBalance.annual.total * 100) : 0)}
+                                            ></div>
+                                        </div>
+                                        <p className="text-white/70 text-xs mt-1">{userBalance.annual.used} of {userBalance.annual.total} days used</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Maternity Leave Card */}
+                            <div className="group relative overflow-hidden bg-gradient-to-br from-pink-500 to-rose-600 p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 animate-fade-in [animation-delay:100ms]">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
+                                <div className="relative z-10">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                                            <span className="text-2xl">👶</span>
+                                        </div>
+                                        <span className="text-white/80 text-sm font-medium">Maternity</span>
+                                    </div>
+                                    <p className="text-5xl font-extrabold text-white mb-2">{Math.floor(userBalance.maternity.remaining / 30)}</p>
+                                    <p className="text-white/90 text-lg font-semibold mb-3">Months Available</p>
+                                    <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="text-white/80 text-xs">Used</span>
+                                            <span className="text-white font-bold text-sm">{userBalance.maternity.used} days</span>
+                                        </div>
+                                        <div className="w-full bg-white/30 rounded-full h-2">
+                                            <div 
+                                                className="leave-progress-bar bg-white h-2 rounded-full"
+                                                data-progress={Math.round(userBalance.maternity.total > 0 ? (userBalance.maternity.used / userBalance.maternity.total * 100) : 0)}
+                                            ></div>
+                                        </div>
+                                        <p className="text-white/70 text-xs mt-1">{userBalance.maternity.used} of {userBalance.maternity.total} days used</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Sick Leave Card */}
+                            <div className="group relative overflow-hidden bg-gradient-to-br from-amber-500 to-orange-600 p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 animate-fade-in [animation-delay:200ms]">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
+                                <div className="relative z-10">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                                            <span className="text-2xl">🏥</span>
+                                        </div>
+                                        <span className="text-white/80 text-sm font-medium">Sick</span>
+                                    </div>
+                                    <p className="text-5xl font-extrabold text-white mb-2">{userBalance.sick.remaining}</p>
+                                    <p className="text-white/90 text-lg font-semibold mb-3">Days Available</p>
+                                    <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="text-white/80 text-xs">Used</span>
+                                            <span className="text-white font-bold text-sm">{userBalance.sick.used} days</span>
+                                        </div>
+                                        <div className="w-full bg-white/30 rounded-full h-2">
+                                            <div 
+                                                className="leave-progress-bar bg-white h-2 rounded-full"
+                                                data-progress={Math.round(userBalance.sick.total > 0 ? (userBalance.sick.used / userBalance.sick.total * 100) : 0)}
+                                            ></div>
+                                        </div>
+                                        <p className="text-white/70 text-xs mt-1">{userBalance.sick.used} of {userBalance.sick.total} days used</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-                    {/* Request Form */}
-                    <div className="lg:col-span-1 bg-white p-4 sm:p-6 rounded-xl shadow-lg">
-                        <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Request Leave</h2>
-                        <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 items-start">
+                    {/* Request Form - Modern Design */}
+                    <div className="lg:col-span-1">
+                        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+                            <div className="bg-gradient-to-r from-primary to-primary-dark p-6">
+                                <div className="flex items-center space-x-3">
+                                    <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                                        <span className="text-2xl">📝</span>
+                                    </div>
+                                    <h2 className="text-xl sm:text-2xl font-bold text-white">Request Leave</h2>
+                                </div>
+                            </div>
+                            <div className="p-4 sm:p-6">
+                        <form onSubmit={handleSubmit} className="space-y-5">
                             <div>
-                                <label htmlFor="leaveType" className="block text-sm font-medium text-gray-700">Leave Type</label>
-                                <select id="leaveType" value={leaveType} onChange={e => setLeaveType(e.target.value as LeaveType)} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary">
-                                    <option value={LeaveType.ANNUAL} disabled={!isEligibleForAnnualLeave}>Annual Leave</option>
-                                    <option value={LeaveType.SICK}>Sick Leave</option>
-                                    <option value={LeaveType.MATERNITY}>Maternity Leave</option>
+                                <label htmlFor="leaveType" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                                    <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>
+                                    Leave Type
+                                </label>
+                                <select id="leaveType" value={leaveType} onChange={e => setLeaveType(e.target.value as LeaveType)} className="mt-1 block w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 font-medium">
+                                    <option value={LeaveType.ANNUAL} disabled={!isEligibleForAnnualLeave}>🏖️ Annual Leave</option>
+                                    <option value={LeaveType.SICK}>🏥 Sick Leave</option>
+                                    <option value={LeaveType.MATERNITY}>👶 Maternity Leave</option>
                                 </select>
                                 {!isEligibleForAnnualLeave && (
-                                    <p className="text-xs text-amber-600 mt-1">Annual leave is available after 12 months of service.</p>
+                                    <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                                        <p className="text-xs text-amber-700 font-medium">ℹ️ Annual leave is available after 12 months of service.</p>
+                                    </div>
                                 )}
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">Start Date</label>
-                                    <input type="text" id="startDate" readOnly value={startDate ? startDate.toLocaleDateString() : 'Select on calendar'} className="mt-1 block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md shadow-sm" />
+                                    <label htmlFor="startDate" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                                        <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                                        Start Date
+                                    </label>
+                                    <div className="relative">
+                                        <input type="text" id="startDate" readOnly value={startDate ? startDate.toLocaleDateString() : 'Select below'} className="mt-1 block w-full px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-200 rounded-xl shadow-sm font-medium text-gray-700" />
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xl">📅</div>
+                                    </div>
                                 </div>
                                 <div>
-                                    <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">End Date</label>
-                                    <input type="text" id="endDate" readOnly value={endDate ? endDate.toLocaleDateString() : 'Auto-calculated'} className="mt-1 block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md shadow-sm" />
+                                    <label htmlFor="endDate" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                                        <span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+                                        End Date
+                                    </label>
+                                    <div className="relative">
+                                        <input type="text" id="endDate" readOnly value={endDate ? endDate.toLocaleDateString() : 'Auto-calculated'} className="mt-1 block w-full px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-200 rounded-xl shadow-sm font-medium text-gray-700" />
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xl">📅</div>
+                                    </div>
                                 </div>
                             </div>
                              <div>
-                                <label htmlFor="numDays" className="block text-sm font-medium text-gray-700">Number of Days</label>
-                                <input 
-                                    type="number" 
-                                    id="numDays" 
-                                    name="numDays" 
-                                    value={numDays} 
-                                    onChange={handleNumDaysChange} 
-                                    min="1"
-                                    placeholder="e.g., 5" 
-                                    className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
-                                />
+                                <label htmlFor="numDays" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                                    <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                                    Number of Days
+                                </label>
+                                <div className="relative">
+                                    <input 
+                                        type="number" 
+                                        id="numDays" 
+                                        name="numDays" 
+                                        value={numDays} 
+                                        onChange={handleNumDaysChange} 
+                                        min="1"
+                                        placeholder="Enter number of days" 
+                                        className="mt-1 block w-full px-4 py-3 pl-12 bg-white border-2 border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 font-medium [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                                    />
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-xl">🔢</div>
+                                </div>
                             </div>
                             <div>
-                                <label htmlFor="reason" className="block text-sm font-medium text-gray-700">Reason (optional)</label>
-                                <textarea id="reason" name="reason" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"></textarea>
+                                <label htmlFor="reason" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                                    <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                                    Reason <span className="text-gray-400 text-xs ml-1">(optional)</span>
+                                </label>
+                                <textarea id="reason" name="reason" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Enter reason for your leave request..." className="mt-1 block w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 font-medium resize-none"></textarea>
                             </div>
-                            <button type="submit" disabled={!startDate || !endDate} className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg transition-colors disabled:bg-gray-300">Submit Request</button>
+                            <button 
+                                type="submit" 
+                                disabled={!startDate || !endDate} 
+                                className="w-full bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2"
+                            >
+                                <span>Submit Request</span>
+                                <span className="text-xl">🚀</span>
+                            </button>
                         </form>
+                            </div>
+                        </div>
                     </div>
 
-                    {/* Calendar */}
-                    <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg">
-                         <Calendar 
-                            requests={requests}
-                            displayedDate={displayedDate}
-                            setDisplayedDate={setDisplayedDate}
-                            startDate={startDate}
-                            endDate={endDate}
-                            onDateClick={handleDateClick}
-                        />
+                    {/* Calendar - Modern Design */}
+                    <div className="lg:col-span-2">
+                        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+                            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-6">
+                                <div className="flex items-center space-x-3">
+                                    <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                                        <span className="text-2xl">📅</span>
+                                    </div>
+                                    <h2 className="text-xl sm:text-2xl font-bold text-white">Select Dates</h2>
+                                </div>
+                                <p className="text-white/80 text-sm mt-2">Click to select your leave period on the calendar</p>
+                            </div>
+                            <div className="p-6">
+                                <Calendar 
+                                    requests={requests}
+                                    displayedDate={displayedDate}
+                                    setDisplayedDate={setDisplayedDate}
+                                    startDate={startDate}
+                                    endDate={endDate}
+                                    onDateClick={handleDateClick}
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                {/* Request History */}
-                <div className="bg-white p-6 rounded-xl shadow-lg">
+                {/* Request History - Modern Design */}
+                <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
                     <button
                         onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
-                        className="w-full flex justify-between items-center mb-4"
+                        className="w-full flex justify-between items-center p-6 bg-gradient-to-r from-gray-50 to-white hover:from-gray-100 hover:to-gray-50 transition-all duration-300"
                     >
-                        <h3 className="text-xl font-bold text-gray-800">My Requests</h3>
+                        <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-lg flex items-center justify-center shadow-md">
+                                <span className="text-xl">📋</span>
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-800">My Requests</h3>
+                        </div>
                         <ChevronDownIcon className={`h-6 w-6 text-gray-600 transition-transform duration-300 ${isHistoryExpanded ? 'rotate-180' : ''}`} />
                     </button>
 
                     {isHistoryExpanded && (
-                        <div className="space-y-3 animate-fade-in-down">
+                        <div className="p-6 pt-2 space-y-3 animate-fade-in-down">
                             {loading ? (
-                                <p className="text-gray-500 text-center py-8">Loading leave requests...</p>
+                                <div className="text-center py-12">
+                                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-primary"></div>
+                                    <p className="text-gray-500 mt-4 font-medium">Loading leave requests...</p>
+                                </div>
                             ) : requests.length > 0 ? (
                                 <div className="space-y-4">
                                     {sortedLeaveYears.map(year => (
-                                        <div key={year} className="border rounded-lg overflow-hidden">
+                                        <div key={year} className="border-2 border-gray-200 rounded-xl overflow-hidden hover:border-primary/30 transition-colors">
                                             <button
                                                 onClick={() => {
                                                     const newExpanded = new Set(expandedYears);
@@ -762,9 +912,14 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                                                     }
                                                     setExpandedYears(newExpanded);
                                                 }}
-                                                className="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors flex justify-between items-center"
+                                                className="w-full px-5 py-4 bg-gradient-to-r from-gray-50 to-white hover:from-primary/5 hover:to-primary/10 transition-all duration-300 flex justify-between items-center"
                                             >
-                                                <span className="font-semibold text-gray-800">📁 {year}</span>
+                                                <div className="flex items-center space-x-3">
+                                                    <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary-dark rounded-lg flex items-center justify-center">
+                                                        <span className="text-white text-sm font-bold">{year.slice(2)}</span>
+                                                    </div>
+                                                    <span className="font-bold text-gray-800 text-lg">{year}</span>
+                                                </div>
                                                 <ChevronDownIcon className={`h-5 w-5 text-gray-600 transition-transform duration-300 ${expandedYears.has(year) ? 'rotate-180' : ''}`} />
                                             </button>
 
@@ -778,7 +933,7 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                                                         .map(month => {
                                                             const monthKey = `${year}-${month}`;
                                                             return (
-                                                                <div key={monthKey} className="border rounded-lg overflow-hidden">
+                                                                <div key={monthKey} className="border border-gray-200 rounded-lg overflow-hidden">
                                                                     <button
                                                                         onClick={() => {
                                                                             const newExpanded = new Set(expandedMonths);
@@ -789,37 +944,45 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                                                                             }
                                                                             setExpandedMonths(newExpanded);
                                                                         }}
-                                                                        className="w-full px-4 py-2 bg-blue-50 hover:bg-blue-100 transition-colors flex justify-between items-center"
+                                                                        className="w-full px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-all duration-300 flex justify-between items-center"
                                                                     >
-                                                                        <span className="font-medium text-gray-700">📅 {month}</span>
+                                                                        <div className="flex items-center space-x-2">
+                                                                            <span className="text-lg">📅</span>
+                                                                            <span className="font-semibold text-gray-700">{month}</span>
+                                                                        </div>
                                                                         <ChevronDownIcon className={`h-4 w-4 text-gray-600 transition-transform duration-300 ${expandedMonths.has(monthKey) ? 'rotate-180' : ''}`} />
                                                                     </button>
 
                                                                     {expandedMonths.has(monthKey) && (
                                                                         <div className="p-2 space-y-2">
                                                                             {requestsByYearAndMonth[year][month].map(req => (
-                                                                                <div key={req.id} className="p-3 border rounded-lg flex items-center space-x-3 bg-slate-50 hover:bg-slate-100 transition-colors">
-                                                                                    <div className="bg-primary-light p-2.5 rounded-full">
-                                                                                        <BriefcaseIcon className="h-5 w-5 text-primary" />
+                                                                                <div key={req.id} className="group p-4 border-2 border-gray-200 rounded-xl flex items-center space-x-4 bg-white hover:bg-gradient-to-r hover:from-gray-50 hover:to-white hover:border-primary/30 hover:shadow-md transition-all duration-300">
+                                                                                    <div className="bg-gradient-to-br from-primary to-primary-dark p-3 rounded-xl shadow-sm group-hover:shadow-md transition-shadow">
+                                                                                        <BriefcaseIcon className="h-5 w-5 text-white" />
                                                                                     </div>
-                                                                                    <div className="flex-1">
-                                                                                        <div className="flex justify-between items-center">
-                                                                                            <p className="font-semibold text-gray-700">{req.leaveType}</p>
-                                                                                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColorMap[req.status] || 'bg-gray-100 text-gray-800'}`}>
+                                                                                    <div className="flex-1 min-w-0">
+                                                                                        <div className="flex justify-between items-center gap-2 mb-2">
+                                                                                            <p className="font-bold text-gray-800 text-base">{req.leaveType}</p>
+                                                                                            <span className={`px-3 py-1 text-xs font-bold rounded-full shadow-sm ${statusColorMap[req.status] || 'bg-gray-100 text-gray-800'}`}>
                                                                                                 {req.status}
                                                                                             </span>
                                                                                         </div>
-                                                                                        <p className="text-sm font-semibold text-gray-600 mt-1">
-                                                                                            {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()}
-                                                                                        </p>
-                                                                                        <p className="text-sm text-gray-500 mt-1">{req.reason || 'No reason provided.'}</p>
+                                                                                        <div className="flex items-center space-x-2 mb-2">
+                                                                                            <span className="text-sm">📅</span>
+                                                                                            <p className="text-sm font-semibold text-gray-600">
+                                                                                                {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()}
+                                                                                            </p>
+                                                                                        </div>
+                                                                                        {req.reason && (
+                                                                                            <p className="text-sm text-gray-500 italic line-clamp-1">"{req.reason}"</p>
+                                                                                        )}
                                                                                     </div>
                                                                                     {req.status === RequestStatus.PENDING && (
                                                                                         <div className="flex space-x-2">
-                                                                                            <button title="Edit" onClick={() => setEditingRequest(req)} className="p-2 text-gray-500 rounded-full hover:bg-gray-200 hover:text-primary transition-colors">
+                                                                                            <button title="Edit" onClick={() => setEditingRequest(req)} className="p-2.5 text-primary bg-primary/10 rounded-lg hover:bg-primary hover:text-white transition-all duration-200 transform hover:scale-110">
                                                                                                 <PencilIcon className="h-4 w-4" />
                                                                                             </button>
-                                                                                            <button title="Cancel" onClick={() => handleCancelRequest(req.id)} className="p-2 text-gray-500 rounded-full hover:bg-gray-200 hover:text-red-500 transition-colors">
+                                                                                            <button title="Cancel" onClick={() => handleCancelRequest(req.id)} className="p-2.5 text-red-500 bg-red-50 rounded-lg hover:bg-red-500 hover:text-white transition-all duration-200 transform hover:scale-110">
                                                                                                 <TrashIcon className="h-4 w-4" />
                                                                                             </button>
                                                                                         </div>
@@ -837,7 +1000,13 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                                     ))}
                                 </div>
                             ) : (
-                                <p className="text-gray-500 text-center py-8">You have no leave requests.</p>
+                                <div className="text-center py-12">
+                                    <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <span className="text-4xl">📭</span>
+                                    </div>
+                                    <p className="text-gray-500 font-medium text-lg">No leave requests yet</p>
+                                    <p className="text-gray-400 text-sm mt-2">Submit your first leave request above</p>
+                                </div>
                             )}
                         </div>
                     )}

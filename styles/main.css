@@ -26,6 +26,15 @@
     backdrop-filter: blur(10px);
   }
 
+  /* Hide scrollbar completely */
+  .scrollbar-hide {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+
   /* Hide scrollbar on mobile */
   @media (max-width: 768px) {
     .hide-scrollbar-mobile {
@@ -180,6 +189,11 @@
   
   .input {
     @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200;
+  }
+
+  /* Progress bar with CSS custom properties */
+  .bg-white.h-2.rounded-full.transition-all.duration-500 {
+    width: var(--progress-width, 0%);
   }
 }
 

@@ -433,283 +433,553 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                     />
                 )}
                 
-            <div className="bg-white p-6 rounded-xl shadow-lg">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">Approval Requests</h2>
-                <div className="border-b border-gray-200">
-                    <nav className="-mb-px flex space-x-8 horizontal-scroll-tabs" aria-label="Tabs">
-                        {tabs.map(tab => (
-                             <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`${activeTab === tab.id ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>
-                                {tab.label} ({tab.count})
-                            </button>
-                        ))}
-                    </nav>
-                </div>
-                <div className="mt-6">
-                    {activeTab === 'leave' && (
-                        <div className="space-y-4">
-                            {error && (
-                                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                                    {error}
-                                </div>
-                            )}
-                            <div className="flex flex-col sm:flex-row justify-end sm:space-x-4 space-y-2 sm:space-y-0">
-                                <select 
-                                    title="Filter by status"
-                                    value={leaveStatusFilter} 
-                                    onChange={(e) => setLeaveStatusFilter(e.target.value)}
-                                    className="w-full sm:w-auto block pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md border"
-                                >
-                                    <option value="All">All Statuses</option>
-                                    <option value="Pending">Pending</option>
-                                    <option value="Approved">Approved</option>
-                                    <option value="Rejected">Rejected</option>
-                                </select>
-                                <select 
-                                    title="Filter by leave type"
-                                    value={leaveTypeFilter} 
-                                    onChange={(e) => setLeaveTypeFilter(e.target.value)}
-                                    className="w-full sm:w-auto block pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md border"
-                                >
-                                    <option value="All">All Leave Types</option>
-                                    <option value={LeaveType.ANNUAL}>{LeaveType.ANNUAL}</option>
-                                    <option value={LeaveType.SICK}>{LeaveType.SICK}</option>
-                                    <option value={LeaveType.MATERNITY}>{LeaveType.MATERNITY}</option>
-                                </select>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-primary to-purple-600 rounded-2xl shadow-xl overflow-hidden mb-8">
+                    <div className="px-6 py-8 sm:px-8">
+                        <div className="flex items-center space-x-3">
+                            <div className="bg-white/20 backdrop-blur-sm p-3 rounded-xl">
+                                <div className="text-3xl">✅</div>
                             </div>
-                            {loading ? (
-                                <div className="text-center py-8">
-                                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                                    <p className="mt-2 text-gray-500">Loading leave requests...</p>
+                            <div>
+                                <h1 className="text-3xl font-bold text-white">Approvals</h1>
+                                <p className="text-white/90 text-sm mt-1">Review and manage pending requests</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Main Content */}
+                <div className="bg-white shadow-xl rounded-2xl border border-gray-100 overflow-hidden">
+                    {/* Modern Tabs */}
+                    <div className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-200">
+                        <nav className="flex space-x-2 px-6 py-4 overflow-x-auto scrollbar-hide" aria-label="Tabs">
+                            {tabs.map(tab => (
+                                <button 
+                                    key={tab.id} 
+                                    onClick={() => setActiveTab(tab.id)} 
+                                    className={`${
+                                        activeTab === tab.id 
+                                            ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-lg scale-105' 
+                                            : 'bg-white text-gray-600 hover:bg-gray-50 hover:shadow-md'
+                                    } flex-shrink-0 px-5 py-3 rounded-xl font-semibold text-sm transition-all duration-200 transform flex items-center space-x-2`}
+                                >
+                                    <span>{tab.label}</span>
+                                    <span className={`${
+                                        activeTab === tab.id 
+                                            ? 'bg-white/30 text-white' 
+                                            : 'bg-primary/10 text-primary'
+                                    } px-2.5 py-0.5 rounded-full text-xs font-bold`}>
+                                        {tab.count}
+                                    </span>
+                                </button>
+                            ))}
+                        </nav>
+                    </div>
+                    {/* Tab Content */}
+                    <div className="p-6 sm:p-8">
+                        {activeTab === 'leave' && (
+                            <div className="space-y-6">
+                                {error && (
+                                    <div className="bg-gradient-to-r from-red-50 to-red-100/50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-xl shadow-sm">
+                                        <div className="flex items-center space-x-2">
+                                            <span className="text-lg">⚠️</span>
+                                            <span className="font-medium">{error}</span>
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {/* Modern Filters */}
+                                <div className="flex flex-col sm:flex-row justify-end gap-3">
+                                    <select 
+                                        title="Filter by status"
+                                        value={leaveStatusFilter} 
+                                        onChange={(e) => setLeaveStatusFilter(e.target.value)}
+                                        className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-gray-50 to-gray-100/50 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary rounded-xl text-sm font-medium text-gray-700 shadow-sm hover:shadow-md transition-all"
+                                    >
+                                        <option value="All">📊 All Statuses</option>
+                                        <option value="Pending">⏳ Pending</option>
+                                        <option value="Approved">✅ Approved</option>
+                                        <option value="Rejected">❌ Rejected</option>
+                                    </select>
+                                    <select 
+                                        title="Filter by leave type"
+                                        value={leaveTypeFilter} 
+                                        onChange={(e) => setLeaveTypeFilter(e.target.value)}
+                                        className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-gray-50 to-gray-100/50 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary rounded-xl text-sm font-medium text-gray-700 shadow-sm hover:shadow-md transition-all"
+                                    >
+                                        <option value="All">🏖️ All Leave Types</option>
+                                        <option value={LeaveType.ANNUAL}>🌴 {LeaveType.ANNUAL}</option>
+                                        <option value={LeaveType.SICK}>🤒 {LeaveType.SICK}</option>
+                                        <option value={LeaveType.MATERNITY}>👶 {LeaveType.MATERNITY}</option>
+                                    </select>
                                 </div>
-                            ) : (
-                                <>
-                                    {filteredLeaveRequests.map(req => (
-                                        <div key={req.id} className={`p-4 border rounded-lg flex justify-between items-center ${req.status === RequestStatus.APPROVED ? 'bg-green-50 border-green-200' : req.status === RequestStatus.REJECTED ? 'bg-red-50 border-red-200' : 'bg-slate-50'}`}>
-                                            <div>
-                                                <p className="font-semibold">{req.employeeName || getUser(req.userId)?.name}</p>
-                                                <p className="text-sm text-gray-600">{req.leaveType}: {new Date(req.startDate).toLocaleDateString('en-US')} - {new Date(req.endDate).toLocaleDateString('en-US')}</p>
-                                                <p className="text-xs text-gray-500 mt-1">{req.reason}</p>
-                                                <p className={`text-xs font-semibold mt-1 ${req.status === RequestStatus.APPROVED ? 'text-green-600' : req.status === RequestStatus.REJECTED ? 'text-red-600' : 'text-blue-600'}`}>
-                                                    Status: {req.status}
-                                                </p>
+                                {loading ? (
+                                    <div className="text-center py-12">
+                                        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                                        <p className="text-gray-600 mt-4 font-medium">Loading requests...</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="grid gap-4">
+                                            {filteredLeaveRequests.map((req, index) => {
+                                                const days = Math.ceil((new Date(req.endDate).getTime() - new Date(req.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                                                return (
+                                                <div 
+                                                    key={req.id} 
+                                                    className={`group p-6 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border ${
+                                                        req.status === RequestStatus.APPROVED 
+                                                            ? 'bg-gradient-to-br from-green-50 to-emerald-50/50 border-green-200' 
+                                                            : req.status === RequestStatus.REJECTED 
+                                                            ? 'bg-gradient-to-br from-red-50 to-rose-50/50 border-red-200' 
+                                                            : 'bg-gradient-to-br from-white to-blue-50/30 border-blue-100'
+                                                    }`}
+                                                >
+                                                    <div className="flex justify-between items-start">
+                                                        <div className="flex-1 space-y-2">
+                                                            <div className="flex items-center space-x-3">
+                                                                <div className="bg-white rounded-full p-2 shadow-sm">
+                                                                    <span className="text-2xl">
+                                                                        {req.leaveType === LeaveType.ANNUAL ? '🌴' : 
+                                                                         req.leaveType === LeaveType.SICK ? '🤒' : 
+                                                                         req.leaveType === LeaveType.MATERNITY ? '👶' : '🏖️'}
+                                                                    </span>
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-lg font-bold text-gray-900">{req.employeeName}</p>
+                                                                    <p className="text-sm text-gray-600 font-medium">{req.leaveType}</p>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <div className="pl-14 space-y-1">
+                                                                <div className="flex items-center space-x-2 text-sm text-gray-700">
+                                                                    <span className="font-semibold">📅</span>
+                                                                    <span>{new Date(req.startDate).toLocaleDateString('en-US')} - {new Date(req.endDate).toLocaleDateString('en-US')}</span>
+                                                                </div>
+                                                                <div className="flex items-center space-x-2 text-sm text-gray-700">
+                                                                    <span className="font-semibold">⏱️</span>
+                                                                    <span className="font-medium">{days} {days === 1 ? 'day' : 'days'}</span>
+                                                                </div>
+                                                                {req.reason && (
+                                                                    <div className="flex items-start space-x-2 text-sm text-gray-600 mt-2">
+                                                                        <span className="font-semibold mt-0.5">💬</span>
+                                                                        <span className="italic">{req.reason}</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div className="flex space-x-2 flex-shrink-0 ml-4">
+                                                            {currentUser.role === UserRole.ADMIN && req.status === RequestStatus.PENDING ? (
+                                                                <>
+                                                                    <button 
+                                                                        title="Approve leave request"
+                                                                        onClick={() => handleAction(req.id, 'approve')} 
+                                                                        className="p-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200 group-hover:animate-pulse"
+                                                                    >
+                                                                        <CheckIcon className="h-6 w-6"/>
+                                                                    </button>
+                                                                    <button 
+                                                                        title="Reject leave request"
+                                                                        onClick={() => handleAction(req.id, 'reject')} 
+                                                                        className="p-3 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200"
+                                                                    >
+                                                                        <XIcon className="h-6 w-6"/>
+                                                                    </button>
+                                                                </>
+                                                            ) : req.status === RequestStatus.PENDING && currentUser.role !== UserRole.ADMIN ? (
+                                                                <button 
+                                                                    title="Cancel leave request"
+                                                                    onClick={() => handleAction(req.id, 'cancel')} 
+                                                                    className="p-3 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200"
+                                                                >
+                                                                    <XIcon className="h-6 w-6"/>
+                                                                </button>
+                                                            ) : (
+                                                                <span className={`px-4 py-2 rounded-xl text-sm font-bold shadow-sm ${
+                                                                    req.status === RequestStatus.APPROVED 
+                                                                        ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white' 
+                                                                        : req.status === RequestStatus.REJECTED 
+                                                                        ? 'bg-gradient-to-r from-red-500 to-rose-600 text-white' 
+                                                                        : 'bg-gradient-to-r from-gray-400 to-gray-500 text-white'
+                                                                }`}>
+                                                                    {req.status}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                            })}
+                                        </div>
+                                        {filteredLeaveRequests.length === 0 && (
+                                            <div className="text-center py-16">
+                                                <div className="text-6xl mb-4">📭</div>
+                                                <p className="text-gray-500 text-lg font-medium">No leave requests found</p>
+                                                <p className="text-gray-400 text-sm mt-2">All caught up!</p>
                                             </div>
-                                            <div className="flex space-x-2">
-                                                {currentUser.role === UserRole.ADMIN && req.status === RequestStatus.PENDING ? (
-                                                    <>
-                                                        <button 
-                                                            title="Approve leave request"
-                                                            onClick={() => handleAction(req.id, 'approve')} 
-                                                            className="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200"
-                                                        >
-                                                            <CheckIcon className="h-5 w-5"/>
-                                                        </button>
-                                                        <button 
-                                                            title="Reject leave request"
-                                                            onClick={() => handleAction(req.id, 'reject')} 
-                                                            className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200"
-                                                        >
-                                                            <XIcon className="h-5 w-5"/>
-                                                        </button>
-                                                    </>
-                                                ) : req.status === RequestStatus.PENDING && currentUser.role !== UserRole.ADMIN ? (
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        )}
+                        {activeTab === 'adjustments' && (
+                            <div className="space-y-6">
+                                {/* Modern Filter */}
+                                <div className="flex justify-end">
+                                    <select 
+                                        title="Filter by status"
+                                        value={adjustmentStatusFilter} 
+                                        onChange={(e) => setAdjustmentStatusFilter(e.target.value)}
+                                        className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-gray-50 to-gray-100/50 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary rounded-xl text-sm font-medium text-gray-700 shadow-sm hover:shadow-md transition-all"
+                                    >
+                                        <option value="All">📊 All Statuses</option>
+                                        <option value="Pending">⏳ Pending</option>
+                                        <option value="Approved">✅ Approved</option>
+                                        <option value="Rejected">❌ Rejected</option>
+                                    </select>
+                                </div>
+                                
+                                <div className="grid gap-4">
+                                    {adjustmentRequests.map(req => {
+                                        const displayDate = localDateFromYMD(req.date) || (req.requestedClockIn ? new Date(req.requestedClockIn) : (req.requestedClockOut ? new Date(req.requestedClockOut) : (req.originalClockIn ? new Date(req.originalClockIn) : undefined)));
+                                        return (
+                                            <div 
+                                                key={req.id} 
+                                                className={`group p-6 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border ${
+                                                    req.status === RequestStatus.APPROVED 
+                                                        ? 'bg-gradient-to-br from-green-50 to-emerald-50/50 border-green-200' 
+                                                        : req.status === RequestStatus.REJECTED 
+                                                        ? 'bg-gradient-to-br from-red-50 to-rose-50/50 border-red-200' 
+                                                        : 'bg-gradient-to-br from-white to-indigo-50/30 border-indigo-100'
+                                                }`}
+                                            >
+                                                <div className="flex justify-between items-start">
+                                                    <div className="flex-1 space-y-2">
+                                                        <div className="flex items-center space-x-3">
+                                                            <div className="bg-white rounded-full p-2 shadow-sm">
+                                                                <span className="text-2xl">⏰</span>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-lg font-bold text-gray-900">{req.employeeName || getUser(req.userId)?.name || `User ${req.userId}`}</p>
+                                                                <p className="text-sm text-gray-600 font-medium">{displayDate ? displayDate.toLocaleDateString('en-US') : '—'}</p>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div className="pl-14 space-y-1">
+                                                            {(() => {
+                                                                const requestedIn = req.requestedClockIn ? new Date(req.requestedClockIn) : (req.originalClockIn ? new Date(req.originalClockIn) : undefined);
+                                                                const requestedOut = req.requestedClockOut ? new Date(req.requestedClockOut) : (req.originalClockOut ? new Date(req.originalClockOut) : undefined);
+                                                                const requestedIn2 = req.requestedClockIn2 ? new Date(req.requestedClockIn2) : undefined;
+                                                                const requestedOut2 = req.requestedClockOut2 ? new Date(req.requestedClockOut2) : undefined;
+                                                                const hasBreakSession = requestedIn2 || requestedOut2;
+                                                                
+                                                                return (
+                                                                    <div className="text-sm text-gray-700 space-y-1">
+                                                                        {hasBreakSession ? (
+                                                                            <>
+                                                                                <div className="flex items-center space-x-2">
+                                                                                    <span className="font-semibold">🔵 Session 1:</span>
+                                                                                    <span>{requestedIn ? requestedIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'} - {requestedOut ? requestedOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</span>
+                                                                                </div>
+                                                                                <div className="flex items-center space-x-2">
+                                                                                    <span className="font-semibold">🟢 Session 2:</span>
+                                                                                    <span>{requestedIn2 ? requestedIn2.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'} - {requestedOut2 ? requestedOut2.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</span>
+                                                                                </div>
+                                                                            </>
+                                                                        ) : (
+                                                                            <div className="flex items-center space-x-2">
+                                                                                <span className="font-semibold">🕐 Requested:</span>
+                                                                                <span>{requestedIn ? requestedIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'} - {requestedOut ? requestedOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</span>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })()}
+                                                            
+                                                            {req.reason && (
+                                                                <div className="flex items-start space-x-2 text-sm text-gray-600 mt-2">
+                                                                    <span className="font-semibold mt-0.5">💬</span>
+                                                                    <span className="italic">{req.reason}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="flex space-x-2 flex-shrink-0 ml-4">
+                                                        {currentUser.role === UserRole.ADMIN && req.status === RequestStatus.PENDING ? (
+                                                            <>
+                                                                <button 
+                                                                    title="Approve time adjustment" 
+                                                                    onClick={() => handleAction(req.id, 'approve', 'adjustment')} 
+                                                                    className="p-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200 group-hover:animate-pulse"
+                                                                >
+                                                                    <CheckIcon className="h-6 w-6"/>
+                                                                </button>
+                                                                <button 
+                                                                    title="Reject time adjustment" 
+                                                                    onClick={() => handleAction(req.id, 'reject', 'adjustment')} 
+                                                                    className="p-3 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200"
+                                                                >
+                                                                    <XIcon className="h-6 w-6"/>
+                                                                </button>
+                                                            </>
+                                                        ) : req.status === RequestStatus.PENDING && currentUser.role !== UserRole.ADMIN ? (
+                                                            <button 
+                                                                title="Cancel time adjustment" 
+                                                                onClick={() => handleAction(req.id, 'cancel', 'adjustment')} 
+                                                                className="p-3 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200"
+                                                            >
+                                                                <XIcon className="h-6 w-6"/>
+                                                            </button>
+                                                        ) : (
+                                                            <span className={`px-4 py-2 rounded-xl text-sm font-bold shadow-sm ${
+                                                                req.status === RequestStatus.APPROVED 
+                                                                    ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white' 
+                                                                    : req.status === RequestStatus.REJECTED 
+                                                                    ? 'bg-gradient-to-r from-red-500 to-rose-600 text-white' 
+                                                                    : 'bg-gradient-to-r from-gray-400 to-gray-500 text-white'
+                                                            }`}>
+                                                                {req.status}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="mt-4 pt-4 border-t border-gray-200">
                                                     <button 
-                                                        title="Cancel leave request"
-                                                        onClick={() => handleAction(req.id, 'cancel')} 
-                                                        className="p-2 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200"
+                                                        onClick={() => handleViewLog(req)} 
+                                                        className="text-sm font-semibold text-primary hover:text-purple-600 flex items-center space-x-2 transition-colors"
                                                     >
-                                                        <XIcon className="h-5 w-5"/>
+                                                        <span>📊</span>
+                                                        <span>View Activity for this Day</span>
                                                     </button>
-                                                ) : (
-                                                    <span className={`text-xs px-2 py-1 rounded ${req.status === RequestStatus.APPROVED ? 'bg-green-100 text-green-800' : req.status === RequestStatus.REJECTED ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
-                                                        {req.status}
-                                                    </span>
-                                                )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                
+                                {adjustmentRequests.length === 0 && (
+                                    <div className="text-center py-16">
+                                        <div className="text-6xl mb-4">📭</div>
+                                        <p className="text-gray-500 text-lg font-medium">No time adjustment requests found</p>
+                                        <p className="text-gray-400 text-sm mt-2">All caught up!</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        {activeTab === 'expenses' && (
+                            <div className="space-y-6">
+                                <div className="grid gap-4">
+                                    {expenseRequests.map(req => (
+                                        <div 
+                                            key={req.id} 
+                                            className="group p-6 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 bg-gradient-to-br from-white to-amber-50/30 border border-amber-100"
+                                        >
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex-1 space-y-2">
+                                                    <div className="flex items-center space-x-3">
+                                                        <div className="bg-white rounded-full p-2 shadow-sm">
+                                                            <span className="text-2xl">💰</span>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-lg font-bold text-gray-900">{req.employee_name}</p>
+                                                            <p className="text-sm text-gray-600 font-medium">{req.description}</p>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="pl-14 space-y-1">
+                                                        <div className="flex items-center space-x-2 text-lg">
+                                                            <span className="font-bold text-green-600">{formatCurrency(req.amount)}</span>
+                                                        </div>
+                                                        <div className="flex items-center space-x-2 text-sm text-gray-600">
+                                                            <span className="font-semibold">📅</span>
+                                                            <span>{new Date(req.expense_date).toLocaleDateString('en-US')}</span>
+                                                        </div>
+                                                        {req.receipt_url && (
+                                                            <a 
+                                                                href={req.receipt_url} 
+                                                                target="_blank" 
+                                                                rel="noopener noreferrer" 
+                                                                className="flex items-center space-x-2 text-sm font-semibold text-primary hover:text-purple-600 mt-2 transition-colors"
+                                                            >
+                                                                <span>🧾</span>
+                                                                <span>View Receipt</span>
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="flex space-x-2 flex-shrink-0 ml-4">
+                                                    {currentUser.role === UserRole.ADMIN && req.status === 'pending' ? (
+                                                        <>
+                                                            <button 
+                                                                title="Approve expense claim" 
+                                                                onClick={() => handleAction(req.id, 'approve', 'expense')} 
+                                                                className="p-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200 group-hover:animate-pulse"
+                                                            >
+                                                                <CheckIcon className="h-6 w-6"/>
+                                                            </button>
+                                                            <button 
+                                                                title="Reject expense claim" 
+                                                                onClick={() => handleAction(req.id, 'reject', 'expense')} 
+                                                                className="p-3 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200"
+                                                            >
+                                                                <XIcon className="h-6 w-6"/>
+                                                            </button>
+                                                        </>
+                                                    ) : req.status === 'pending' && currentUser.role !== UserRole.ADMIN ? (
+                                                        <button 
+                                                            title="Cancel expense claim" 
+                                                            onClick={() => handleAction(req.id, 'cancel', 'expense')} 
+                                                            className="p-3 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200"
+                                                        >
+                                                            <XIcon className="h-6 w-6"/>
+                                                        </button>
+                                                    ) : (
+                                                        <span className={`px-4 py-2 rounded-xl text-sm font-bold shadow-sm ${
+                                                            req.status === 'approved' 
+                                                                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white' 
+                                                                : req.status === 'rejected' 
+                                                                ? 'bg-gradient-to-r from-red-500 to-rose-600 text-white' 
+                                                                : 'bg-gradient-to-r from-gray-400 to-gray-500 text-white'
+                                                        }`}>
+                                                            {req.status}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
-                                    {filteredLeaveRequests.length === 0 && <p className="text-gray-500 text-center py-8">No leave requests found.</p>}
-                                </>
-                            )}
-                        </div>
-                    )}
-                    {activeTab === 'adjustments' && (
-                         <div className="space-y-4">
-                            <div className="flex justify-start sm:justify-end">
-                                <select 
-                                    title="Filter by status"
-                                    value={adjustmentStatusFilter} 
-                                    onChange={(e) => setAdjustmentStatusFilter(e.target.value)}
-                                    className="w-full sm:w-auto block pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md border"
-                                >
-                                    <option value="All">All Statuses</option>
-                                    <option value="Pending">Pending</option>
-                                    <option value="Approved">Approved</option>
-                                    <option value="Rejected">Rejected</option>
-                                </select>
+                                </div>
+                                
+                                {expenseRequests.length === 0 && (
+                                    <div className="text-center py-16">
+                                        <div className="text-6xl mb-4">📭</div>
+                                        <p className="text-gray-500 text-lg font-medium">No expense claims found</p>
+                                        <p className="text-gray-400 text-sm mt-2">All caught up!</p>
+                                    </div>
+                                )}
                             </div>
-                            {adjustmentRequests.map(req => {
-                                const displayDate = localDateFromYMD(req.date) || (req.requestedClockIn ? new Date(req.requestedClockIn) : (req.requestedClockOut ? new Date(req.requestedClockOut) : (req.originalClockIn ? new Date(req.originalClockIn) : undefined)));
-                                return (
-                                    <div key={req.id} className={`p-4 border rounded-lg flex flex-col items-stretch ${req.status === RequestStatus.APPROVED ? 'bg-green-50 border-green-200' : req.status === RequestStatus.REJECTED ? 'bg-red-50 border-red-200' : 'bg-slate-50'}`}>
-                                        <div className="flex justify-between items-start w-full">
-                                            <div>
-                                                <p className="font-semibold">{req.employeeName || getUser(req.userId)?.name || `User ${req.userId}`}</p>
-                                                <p className="text-sm text-gray-600">{displayDate ? displayDate.toLocaleDateString('en-US') : '—'}</p>
-                                                {(() => {
-                                                    const requestedIn = req.requestedClockIn ? new Date(req.requestedClockIn) : (req.originalClockIn ? new Date(req.originalClockIn) : undefined);
-                                                    const requestedOut = req.requestedClockOut ? new Date(req.requestedClockOut) : (req.originalClockOut ? new Date(req.originalClockOut) : undefined);
-                                                    const requestedIn2 = req.requestedClockIn2 ? new Date(req.requestedClockIn2) : undefined;
-                                                    const requestedOut2 = req.requestedClockOut2 ? new Date(req.requestedClockOut2) : undefined;
-                                                    
-                                                    // Check if this is a multi-session (break-tracked) adjustment
-                                                    const hasBreakSession = requestedIn2 || requestedOut2;
-                                                    
-                                                    return (
-                                                        <div className="text-sm text-gray-600">
-                                                            {hasBreakSession ? (
-                                                                <>
-                                                                    <p>Session 1: {requestedIn ? requestedIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'} - {requestedOut ? requestedOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</p>
-                                                                    <p>Session 2: {requestedIn2 ? requestedIn2.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'} - {requestedOut2 ? requestedOut2.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</p>
-                                                                </>
-                                                            ) : (
-                                                                <p>Requested: {requestedIn ? requestedIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'} - {requestedOut ? requestedOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</p>
-                                                            )}
+                        )}
+                        {activeTab === 'profile' && (
+                            <div className="space-y-6">
+                                {/* Modern Filter */}
+                                <div className="flex justify-end">
+                                    <select
+                                        title="Filter by status"
+                                        value={profileStatusFilter}
+                                        onChange={(e) => setProfileStatusFilter(e.target.value)}
+                                        className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-gray-50 to-gray-100/50 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary rounded-xl text-sm font-medium text-gray-700 shadow-sm hover:shadow-md transition-all"
+                                    >
+                                        <option value="All">📊 All Statuses</option>
+                                        <option value="Pending">⏳ Pending</option>
+                                        <option value="Approved">✅ Approved</option>
+                                        <option value="Rejected">❌ Rejected</option>
+                                    </select>
+                                </div>
+                                
+                                <div className="grid gap-4">
+                                    {profileRequests.map(req => (
+                                        <div 
+                                            key={req.id} 
+                                            className="group p-6 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 bg-gradient-to-br from-white to-indigo-50/30 border border-indigo-100"
+                                        >
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex-1 space-y-2">
+                                                    <div className="flex items-center space-x-3">
+                                                        <div className="bg-white rounded-full p-2 shadow-sm">
+                                                            <span className="text-2xl">👤</span>
                                                         </div>
-                                                    );
-                                                })()}
+                                                        <div>
+                                                            <p className="text-lg font-bold text-gray-900">{req.employee_name}</p>
+                                                            <p className="text-sm text-gray-600 font-medium">Profile Update Request</p>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="pl-14 space-y-2">
+                                                        <div className="bg-white/70 p-3 rounded-xl border border-indigo-100">
+                                                            <p className="text-xs text-gray-500 font-semibold mb-2">📝 FIELD</p>
+                                                            <p className="text-sm font-medium text-gray-900">
+                                                                {req.field_name === 'mobile_money_number' ? 'Mobile Money Number' : req.field_name}
+                                                            </p>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            <div className="bg-red-50/50 p-3 rounded-xl border border-red-100">
+                                                                <p className="text-xs text-red-600 font-semibold mb-1">❌ CURRENT</p>
+                                                                <p className="text-sm text-gray-700">{req.current_value || 'Not set'}</p>
+                                                            </div>
+                                                            <div className="bg-green-50/50 p-3 rounded-xl border border-green-100">
+                                                                <p className="text-xs text-green-600 font-semibold mb-1">✅ REQUESTED</p>
+                                                                <p className="text-sm text-gray-700 font-medium">{req.requested_value}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center space-x-2 text-xs text-gray-500 mt-2">
+                                                            <span>📅</span>
+                                                            <span>Requested: {new Date(req.requested_at).toLocaleDateString()}</span>
+                                                        </div>
+                                                        {req.reviewed_at && (
+                                                            <div className="flex items-center space-x-2 text-xs text-gray-500">
+                                                                <span>✓</span>
+                                                                <span>Reviewed: {new Date(req.reviewed_at).toLocaleDateString()}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
                                                 
-                                                <p className="text-xs text-gray-500 mt-1">{req.reason}</p>
-                                                <p className={`text-xs font-semibold mt-1 ${req.status === RequestStatus.APPROVED ? 'text-green-600' : req.status === RequestStatus.REJECTED ? 'text-red-600' : 'text-blue-600'}`}>
-                                                    Status: {req.status}
-                                                </p>
-                                            </div>
-                                            <div className="flex space-x-2 flex-shrink-0">
-                                                {currentUser.role === UserRole.ADMIN && req.status === RequestStatus.PENDING ? (
-                                                    <>
-                                                        <button title="Approve time adjustment" onClick={() => handleAction(req.id, 'approve', 'adjustment')} className="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200"><CheckIcon className="h-5 w-5"/></button>
-                                                        <button title="Reject time adjustment" onClick={() => handleAction(req.id, 'reject', 'adjustment')} className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200"><XIcon className="h-5 w-5"/></button>
-                                                    </>
-                                                ) : req.status === RequestStatus.PENDING && currentUser.role !== UserRole.ADMIN ? (
-                                                    <button title="Cancel time adjustment" onClick={() => handleAction(req.id, 'cancel', 'adjustment')} className="p-2 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200"><XIcon className="h-5 w-5"/></button>
-                                                ) : (
-                                                    <span className={`text-xs px-2 py-1 rounded ${req.status === RequestStatus.APPROVED ? 'bg-green-100 text-green-800' : req.status === RequestStatus.REJECTED ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
-                                                        {req.status}
-                                                    </span>
-                                                )}
+                                                <div className="flex space-x-2 flex-shrink-0 ml-4">
+                                                    {currentUser.role === UserRole.ADMIN && (req.status === 'Pending' || req.status === 'pending') ? (
+                                                        <>
+                                                            <button
+                                                                title="Approve profile update"
+                                                                onClick={() => handleAction(req.id, 'approve', 'profile')}
+                                                                className="p-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200 group-hover:animate-pulse"
+                                                            >
+                                                                <CheckIcon className="h-6 w-6"/>
+                                                            </button>
+                                                            <button
+                                                                title="Reject profile update"
+                                                                onClick={() => handleAction(req.id, 'reject', 'profile')}
+                                                                className="p-3 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200"
+                                                            >
+                                                                <XIcon className="h-6 w-6"/>
+                                                            </button>
+                                                        </>
+                                                    ) : (req.status === 'Pending' || req.status === 'pending') && currentUser.role !== UserRole.ADMIN ? (
+                                                        <button
+                                                            title="Cancel profile update"
+                                                            onClick={() => handleAction(req.id, 'cancel', 'profile')}
+                                                            className="p-3 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200"
+                                                        >
+                                                            <XIcon className="h-6 w-6"/>
+                                                        </button>
+                                                    ) : (
+                                                        <span className={`px-4 py-2 rounded-xl text-sm font-bold shadow-sm ${
+                                                            req.status === 'Approved' || req.status === 'approved' 
+                                                                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white' 
+                                                                : req.status === 'Rejected' || req.status === 'rejected' 
+                                                                ? 'bg-gradient-to-r from-red-500 to-rose-600 text-white' 
+                                                                : 'bg-gradient-to-r from-yellow-500 to-amber-600 text-white'
+                                                        }`}>
+                                                            {req.status}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-                                        <div className="mt-3 pt-3 border-t text-left"><button onClick={() => handleViewLog(req)} className="text-sm font-medium text-primary hover:underline">View Activity for this Day</button></div>
-                                    </div>
-                                );
-                            })}
-                            {adjustmentRequests.length === 0 && <p className="text-gray-500 text-center py-8">No time adjustment requests found.</p>}
-                        </div>
-                    )}
-                    {activeTab === 'expenses' && (
-                        <div className="space-y-4">
-                            {expenseRequests.map(req => (
-                                <div key={req.id} className="p-4 border rounded-lg flex justify-between items-center bg-slate-50">
-                                    <div>
-                                        <p className="font-semibold">{req.employee_name}</p>
-                                        <p className="text-sm text-gray-600">{req.description} - <span className="font-bold">{formatCurrency(req.amount)}</span></p>
-                                        <p className="text-xs text-gray-500 mt-1">{new Date(req.expense_date).toLocaleDateString('en-US')}</p>
-                                        {req.receipt_url && <a href={req.receipt_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">View Receipt</a>}
-                                    </div>
-                                    <div className="flex space-x-2">
-                                        {currentUser.role === UserRole.ADMIN && req.status === 'pending' ? (
-                                            <>
-                                                <button title="Approve expense claim" onClick={() => handleAction(req.id, 'approve', 'expense')} className="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200"><CheckIcon className="h-5 w-5"/></button>
-                                                <button title="Reject expense claim" onClick={() => handleAction(req.id, 'reject', 'expense')} className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200"><XIcon className="h-5 w-5"/></button>
-                                            </>
-                                        ) : req.status === 'pending' && currentUser.role !== UserRole.ADMIN ? (
-                                            <button title="Cancel expense claim" onClick={() => handleAction(req.id, 'cancel', 'expense')} className="p-2 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200"><XIcon className="h-5 w-5"/></button>
-                                        ) : (
-                                            <span className={`text-xs px-2 py-1 rounded ${req.status === 'approved' ? 'bg-green-100 text-green-800' : req.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
-                                                {req.status}
-                                            </span>
-                                        )}
-                                    </div>
+                                    ))}
                                 </div>
-                            ))}
-                            {expenseRequests.length === 0 && <p className="text-gray-500 text-center py-8">No pending expense claims.</p>}
-                        </div>
-                    )}
-                    {activeTab === 'profile' && (
-                        <div className="space-y-4">
-                            <div className="flex justify-start sm:justify-end">
-                                <select
-                                    title="Filter by status"
-                                    value={profileStatusFilter}
-                                    onChange={(e) => setProfileStatusFilter(e.target.value)}
-                                    className="w-full sm:w-auto block pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md border"
-                                >
-                                    <option value="All">All Statuses</option>
-                                    <option value="Pending">Pending</option>
-                                    <option value="Approved">Approved</option>
-                                    <option value="Rejected">Rejected</option>
-                                </select>
+                                
+                                {profileRequests.length === 0 && (
+                                    <div className="text-center py-16">
+                                        <div className="text-6xl mb-4">📭</div>
+                                        <p className="text-gray-500 text-lg font-medium">No profile update requests found</p>
+                                        <p className="text-gray-400 text-sm mt-2">All caught up!</p>
+                                    </div>
+                                )}
                             </div>
-                            {profileRequests.map(req => (
-                                <div key={req.id} className="p-4 border rounded-lg bg-slate-50">
-                                    <div className="flex justify-between items-start">
-                                        <div className="flex-1">
-                                            <p className="font-semibold">{req.employee_name}</p>
-                                            <div className="text-sm text-gray-600 mt-1">
-                                                <p><span className="font-medium">Field:</span> {req.field_name === 'mobile_money_number' ? 'Mobile Money Number' : req.field_name}</p>
-                                                <p><span className="font-medium">Current:</span> {req.current_value || 'Not set'}</p>
-                                                <p><span className="font-medium">Requested:</span> {req.requested_value}</p>
-                                            </div>
-                                            <p className="text-xs text-gray-500 mt-1">
-                                                Requested on {new Date(req.requested_at).toLocaleDateString()}
-                                            </p>
-                                            {req.reviewed_at && (
-                                                <p className="text-xs text-gray-500">
-                                                    Reviewed on {new Date(req.reviewed_at).toLocaleDateString()}
-                                                </p>
-                                            )}
-                                        </div>
-                                        <div className="flex space-x-2 flex-shrink-0">
-                                            {currentUser.role === UserRole.ADMIN && (req.status === 'Pending' || req.status === 'pending') ? (
-                                                <>
-                                                    <button
-                                                        title="Approve profile update"
-                                                        onClick={() => handleAction(req.id, 'approve', 'profile')}
-                                                        className="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200"
-                                                    >
-                                                        <CheckIcon className="h-5 w-5"/>
-                                                    </button>
-                                                    <button
-                                                        title="Reject profile update"
-                                                        onClick={() => handleAction(req.id, 'reject', 'profile')}
-                                                        className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200"
-                                                    >
-                                                        <XIcon className="h-5 w-5"/>
-                                                    </button>
-                                                </>
-                                            ) : (req.status === 'Pending' || req.status === 'pending') && currentUser.role !== UserRole.ADMIN ? (
-                                                <button
-                                                    title="Cancel profile update"
-                                                    onClick={() => handleAction(req.id, 'cancel', 'profile')}
-                                                    className="p-2 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200"
-                                                >
-                                                    <XIcon className="h-5 w-5"/>
-                                                </button>
-                                            ) : (
-                                                <span className={`text-xs px-2 py-1 rounded ${
-                                                    req.status === 'Approved' || req.status === 'approved' ? 'bg-green-100 text-green-800' :
-                                                    req.status === 'Rejected' || req.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                                    'bg-yellow-100 text-yellow-800'
-                                                }`}>
-                                                    {req.status}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                            {profileRequests.length === 0 && <p className="text-gray-500 text-center py-8">No profile update requests found.</p>}
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             </div>
             </div>

@@ -1268,35 +1268,58 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 
                 <div className="space-y-8">
                     {latestAnnouncement && (
-                        <div className="bg-primary-light border-l-4 border-primary text-primary-dark p-4 rounded-r-lg shadow-md" role="alert">
-                        <div className="flex items-start">
-                            <div className="py-1"><MegaphoneIcon className="h-6 w-6 text-primary" /></div>
-                            <div className="ml-3">
-                                <p className="font-bold">{latestAnnouncement.title}</p>
-                                <p className="text-sm">{latestAnnouncement.content}</p>
+                        <div className="relative overflow-hidden bg-white rounded-2xl shadow-xl border-2 border-gray-100 hover:border-primary/30 transition-all duration-300">
+                            <div className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-b from-primary to-purple-600"></div>
+                            <div className="p-5 pl-7">
+                                <div className="flex items-start">
+                                    <div className="flex-shrink-0">
+                                        <div className="w-10 h-10 bg-gradient-to-br from-primary to-purple-600 rounded-lg flex items-center justify-center shadow-md">
+                                            <MegaphoneIcon className="h-5 w-5 text-white" />
+                                        </div>
+                                    </div>
+                                    <div className="ml-4 flex-1">
+                                        <p className="font-bold text-gray-800 text-lg">{latestAnnouncement.title}</p>
+                                        <p className="text-gray-600 mt-1">{latestAnnouncement.content}</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-                    <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg w-full">
-                        <div className="flex flex-col md:flex-row justify-between items-center mb-6 border-b pb-4">
-                            <div className='text-center md:text-left'>
-                                <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Time Clock</h2>
-                                <p className="text-gray-500">Log your work hours for today</p>
+                    )}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 items-start">
+                    {/* Main Clock Card */}
+                    <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+                        <div className="bg-gradient-to-r from-primary to-indigo-600 p-6">
+                            <div className="flex items-center space-x-3 mb-4">
+                                <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                                    <span className="text-2xl">⏱️</span>
+                                </div>
+                                <h2 className="text-xl sm:text-2xl font-bold text-white">Time Clock</h2>
                             </div>
-                           
-                            <div className="text-center md:text-right mt-4 md:mt-0">
-                                <div className="text-4xl font-bold text-primary">{time.toLocaleTimeString()}</div>
-                                <div className="text-gray-500">{time.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
-                            </div>
+                            <p className="text-white/90 text-sm">Log your work hours for today</p>
                         </div>
-                        <div className="flex flex-col items-center justify-center bg-slate-50 p-6 rounded-lg">
-                            <div className={`flex items-center text-white px-4 py-2 rounded-full mb-4 text-sm font-medium ${currentStatus.color}`}>
-                                <span className={`w-2 h-2 rounded-full bg-white mr-2 ${isClockedIn ? 'animate-pulse' : ''}`}></span>
-                                {currentStatus.text}
+                        <div className="p-4 sm:p-6">
+                            {/* Live Clock */}
+                            <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-6 rounded-xl mb-6 border-2 border-gray-200">
+                                <div className="text-center">
+                                    <div className="text-5xl font-extrabold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent mb-2">
+                                        {time.toLocaleTimeString()}
+                                    </div>
+                                    <div className="text-gray-600 font-medium">
+                                        {time.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                                    </div>
+                                </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
+                            
+                            {/* Status Badge */}
+                            <div className="flex justify-center mb-6">
+                                <div className={`flex items-center text-white px-6 py-3 rounded-full text-sm font-bold shadow-lg ${currentStatus.color}`}>
+                                    <span className={`w-3 h-3 rounded-full bg-white mr-3 ${isClockedIn ? 'animate-pulse' : ''}`}></span>
+                                    {currentStatus.text}
+                                </div>
+                            </div>
+                            
+                            {/* Punch Buttons */}
+                            <div className="grid grid-cols-2 gap-4">
                                 <Button
                                     onClick={() => handleClockAction(TimeEntryType.CLOCK_IN)}
                                     disabled={isClockedIn || isProcessing}
@@ -1304,9 +1327,9 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                                     size="lg"
                                     fullWidth
                                     isLoading={isProcessing && !isClockedIn}
-                                    className="!bg-green-500 hover:!bg-green-600 disabled:!bg-gray-300"
+                                    className="!bg-gradient-to-r !from-green-500 !to-emerald-600 hover:!from-green-600 hover:!to-emerald-700 disabled:!from-gray-300 disabled:!to-gray-400 !shadow-lg hover:!shadow-xl !transform hover:!scale-105 !transition-all !duration-200 !py-4 !text-base !font-bold"
                                 >
-                                    Clock In
+                                    <span className="mr-2">⬇️</span> Clock In
                                 </Button>
                                 <Button
                                     onClick={() => handleClockAction(TimeEntryType.CLOCK_OUT)}
@@ -1315,49 +1338,104 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                                     size="lg"
                                     fullWidth
                                     isLoading={isProcessing && isClockedIn}
+                                    className="!bg-gradient-to-r !from-red-500 !to-rose-600 hover:!from-red-600 hover:!to-rose-700 !shadow-lg hover:!shadow-xl !transform hover:!scale-105 !transition-all !duration-200 !py-4 !text-base !font-bold"
                                 >
-                                    Clock Out
+                                    <span className="mr-2">⬆️</span> Clock Out
                                 </Button>
                             </div>
-                            {locationError && <p className="text-red-500 text-xs mt-2 text-center">{locationError}</p>}
+                            {locationError && (
+                                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                    <p className="text-red-700 text-xs font-medium flex items-start">
+                                        <span className="mr-2">⚠️</span>
+                                        <span>{locationError}</span>
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    <div className="bg-white p-6 rounded-xl shadow-lg w-full space-y-6">
-                        <h3 className="text-xl font-bold text-gray-800 border-b pb-3">Today's Summary</h3>
-                        <div className='text-center'>
-                            <p className="text-sm text-gray-500 uppercase tracking-wider">Worked Today</p>
-                            <p className={`text-4xl font-bold ${currentStatus.textColor}`}>{formatDuration(todaySummary.worked)}</p>
+                    {/* Today's Summary Card */}
+                    <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+                        <div className="bg-gradient-to-r from-blue-500 to-cyan-600 p-6">
+                            <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                                    <span className="text-2xl">📊</span>
+                                </div>
+                                <h3 className="text-xl font-bold text-white">Today's Summary</h3>
+                            </div>
                         </div>
-                        <div className='text-center'>
-                            <p className="text-sm text-gray-500 uppercase tracking-wider">Hour Bank</p>
-                            <p className={`text-4xl font-bold ${todaySummary.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                {formatDuration(todaySummary.balance, true)}
-                            </p>
-                        </div>
-                        <div className="pt-4">
-                            <p className="text-sm text-gray-500 mb-1">Progress to 8hr Goal</p>
-                            <div className="progress-bar-container">
-                                <div 
-                                    ref={progressBarRef}
-                                    className="progress-bar-fill"
-                                ></div>
+                        <div className="p-6 space-y-6">
+                            <div className="bg-gradient-to-br from-blue-50 to-cyan-50 p-5 rounded-xl border-2 border-blue-100">
+                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-2 flex items-center">
+                                    <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                                    Worked Today
+                                </p>
+                                <p className={`text-5xl font-extrabold ${currentStatus.textColor}`}>
+                                    {formatDuration(todaySummary.worked)}
+                                </p>
+                            </div>
+                            <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-5 rounded-xl border-2 border-purple-100">
+                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-2 flex items-center">
+                                    <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                                    Hour Bank
+                                </p>
+                                <p className={`text-5xl font-extrabold ${todaySummary.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    {formatDuration(todaySummary.balance, true)}
+                                </p>
+                            </div>
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <p className="text-sm font-bold text-gray-700">Progress to 8hr Goal</p>
+                                    <span className="text-xs font-bold text-primary">
+                                        {Math.min(100, Math.round((todaySummary.worked / (8 * 3600 * 1000)) * 100))}%
+                                    </span>
+                                </div>
+                                <div className="progress-bar-container">
+                                    <div 
+                                        ref={progressBarRef}
+                                        className="progress-bar-fill"
+                                    ></div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-white p-6 rounded-xl shadow-lg w-full space-y-6">
-                        <h3 className="text-xl font-bold text-gray-800 border-b pb-3">Monthly Summary</h3>
-                        <div className='text-center'>
-                            <p className="text-sm text-gray-500 uppercase tracking-wider">Total Hours This Month</p>
-                            <p className="text-4xl font-bold text-primary">{formatDuration(currentMonthTotal)}</p>
+                    {/* Monthly Summary Card */}
+                    <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+                        <div className="bg-gradient-to-r from-purple-500 to-pink-600 p-6">
+                            <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                                    <span className="text-2xl">📅</span>
+                                </div>
+                                <h3 className="text-xl font-bold text-white">Monthly Summary</h3>
+                            </div>
+                        </div>
+                        <div className="p-6">
+                            <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-6 rounded-xl border-2 border-purple-100">
+                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-3 flex items-center">
+                                    <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                                    Total Hours This Month
+                                </p>
+                                <p className="text-6xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                                    {formatDuration(currentMonthTotal)}
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-xl shadow-lg w-full">
-                    <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-3">Work History (This Month)</h3>
-                    <div className="space-y-8">
+                {/* Work History */}
+                <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+                    <div className="bg-gradient-to-r from-gray-50 to-white p-6 border-b border-gray-200">
+                        <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-md">
+                                <span className="text-2xl">📋</span>
+                            </div>
+                            <h3 className="text-2xl font-bold text-gray-800">Work History (This Month)</h3>
+                        </div>
+                    </div>
+                    <div className="p-6">
+                    <div className="space-y-6">
                         {dailyWorkHistory.filter(day => {
                             // Only show current month
                             const currentMonth = `${time.getFullYear()}-${(time.getMonth() + 1).toString().padStart(2, '0')}`;
@@ -1505,18 +1583,25 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                         )}
                     </div>
                 </div>
+            </div>
 
-                <div className="bg-white p-6 rounded-xl shadow-lg w-full">
+                {/* Punch History */}
+                <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
                     <button 
                         onClick={() => setIsPunchHistoryExpanded(!isPunchHistoryExpanded)} 
-                        className="w-full flex justify-between items-center mb-4"
+                        className="w-full flex justify-between items-center p-6 bg-gradient-to-r from-gray-50 to-white hover:from-gray-100 hover:to-gray-50 transition-all duration-300"
                     >
-                        <h3 className="text-xl font-bold text-gray-800">Punch History</h3>
+                        <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center shadow-md">
+                                <span className="text-xl">📋</span>
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-800">Punch History</h3>
+                        </div>
                         <ChevronDownIcon className={`h-6 w-6 text-gray-600 transition-transform duration-300 ${isPunchHistoryExpanded ? 'rotate-180' : ''}`} />
                     </button>
                     
                     {isPunchHistoryExpanded && (
-                        <div className="space-y-4 animate-fade-in-down">
+                        <div className="p-6 space-y-4 animate-fade-in-down">
                             {sortedPunchYears.length > 0 ? sortedPunchYears.map(year => {
                                 const isYearExpanded = expandedYears.has(year);
                                 const yearMonths = punchHistoryByYear[year];

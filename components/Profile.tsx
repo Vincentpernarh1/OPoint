@@ -8,6 +8,7 @@ import { pushService } from '../services/pushService';
 import { sanitizePhone, isValidGhanaPhone } from '../utils/validators';
 import Notification from './Notification';
 import './Avatar.css';
+import './Profile.css';
 
 interface ProfileProps {
     currentUser: User;
@@ -143,43 +144,99 @@ const EditProfileModal = ({ user, onClose, onSubmit, onSuccess, onRefresh }: Edi
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md relative">
-                <h3 className="text-xl font-semibold mb-4">Edit Profile</h3>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label htmlFor="momo" className="block text-sm font-medium text-gray-700">Mobile Money Number</label>
-                        <input
-                            type="text"
-                            id="momo"
-                            value={mobileMoney}
-                            onChange={e => handlePhoneChange(e.target.value)}
-                            className={`mt-1 block w-full px-3 py-2 border rounded-md ${
-                                phoneError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary'
-                            }`}
-                            placeholder="e.g., 0241234567 or +233241234567"
-                        />
-                        {phoneError && (
-                            <p className="mt-1 text-sm text-red-600">{phoneError}</p>
-                        )}
-                        {!phoneError && mobileMoney && mobileMoney !== user.mobileMoneyNumber && (
-                            <p className="mt-1 text-sm text-green-600">✓ Valid phone number format</p>
-                        )}
-                    </div>
-                    <div className="flex justify-end space-x-3 pt-2">
-                        <button type="button" onClick={onClose} className="py-2 px-4 bg-gray-200 rounded-lg" disabled={isSubmitting}>Cancel</button>
-                        <button 
-                            type="submit" 
-                            className="py-2 px-4 bg-primary text-white rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed" 
-                            disabled={isSubmitting || !!phoneError || !mobileMoney.trim()}
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md relative overflow-hidden animate-scale-in">
+                {/* Gradient Header */}
+                <div className="bg-gradient-to-r from-primary to-purple-600 p-6">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                                <span className="text-2xl">✏️</span>
+                            </div>
+                            <h3 className="text-2xl font-bold text-white">Edit Profile</h3>
+                        </div>
+                        <button
+                            onClick={onClose}
+                            className="text-white/80 hover:text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
                         >
-                            {isSubmitting ? 'Submitting Request...' : 'Request Update'}
+                            <span className="text-2xl">×</span>
                         </button>
                     </div>
-                    <p className="text-sm text-gray-600 mt-2">
-                        Mobile money number updates require approval from an administrator.
-                    </p>
+                    <p className="text-white/90 text-sm mt-2">Request changes to your profile information</p>
+                </div>
+                
+                {/* Form Content */}
+                <div className="p-6">
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    <div>
+                        <label htmlFor="momo" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                            <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                            Mobile Money Number
+                        </label>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                id="momo"
+                                value={mobileMoney}
+                                onChange={e => handlePhoneChange(e.target.value)}
+                                className={`w-full px-4 py-3 pl-12 border-2 rounded-xl transition-all duration-200 ${
+                                    phoneError 
+                                        ? 'border-red-300 focus:ring-2 focus:ring-red-500/50 focus:border-red-500' 
+                                        : 'border-gray-200 focus:ring-2 focus:ring-primary/50 focus:border-primary'
+                                } font-medium`}
+                                placeholder="0241234567 or +233241234567"
+                            />
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-xl">📱</div>
+                        </div>
+                        {phoneError && (
+                            <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-2">
+                                <span className="text-red-500 text-lg">⚠️</span>
+                                <p className="text-sm text-red-600 font-medium">{phoneError}</p>
+                            </div>
+                        )}
+                        {!phoneError && mobileMoney && mobileMoney !== user.mobileMoneyNumber && (
+                            <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg flex items-start space-x-2">
+                                <span className="text-green-500 text-lg">✅</span>
+                                <p className="text-sm text-green-600 font-medium">Valid phone number format</p>
+                            </div>
+                        )}
+                    </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                        <p className="text-sm text-blue-700 font-medium flex items-start space-x-2">
+                            <span className="text-lg">ℹ️</span>
+                            <span>Mobile money number updates require administrator approval.</span>
+                        </p>
+                    </div>
+                    
+                    <div className="flex justify-end space-x-3 pt-2">
+                        <button 
+                            type="button" 
+                            onClick={onClose} 
+                            className="py-3 px-6 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-all duration-200 transform hover:scale-105" 
+                            disabled={isSubmitting}
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            type="submit" 
+                            className="py-3 px-6 bg-gradient-to-r from-primary to-purple-600 hover:from-primary-dark hover:to-purple-700 text-white font-bold rounded-xl transition-all duration-200 transform hover:scale-105 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center space-x-2" 
+                            disabled={isSubmitting || !!phoneError || !mobileMoney.trim()}
+                        >
+                            {isSubmitting ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                    <span>Processing...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span>Request Update</span>
+                                    <span>→</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
                 </form>
+                </div>
             </div>
         </div>
     );
@@ -372,44 +429,104 @@ const Profile = ({ currentUser }: ProfileProps) => {
         <>
             {notification && <Notification message={notification} type="success" onClose={() => setNotification(null)} />}
             {isModalOpen && <EditProfileModal user={currentUser} onClose={() => setIsModalOpen(false)} onSuccess={setNotification} onRefresh={refreshPendingRequests} />}
-            <div className="bg-white p-6 rounded-xl shadow-lg max-w-4xl mx-auto">
-                <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6 border-b pb-6 mb-6">
-                    <Avatar user={currentUser} />
-                    <div>
-                        <h2 className="text-3xl font-bold text-gray-800">{currentUser.name}</h2>
-                        <p className="text-gray-500">{currentUser.team} - {currentUser.role}</p>
-                    </div>
-                </div>
-                
-                <h3 className="text-xl font-bold text-gray-800 mb-4">My Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-sm">
-                    {profileItems.map(item => (
-                        <div key={item.label} className="py-2 border-b">
-                            <p className="font-semibold text-gray-600">{item.label}</p>
-                            <p className="text-gray-800">{item.value}</p>
+            
+            <div className="space-y-6 max-w-5xl mx-auto">
+                {/* Modern Gradient Header */}
+                <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-2xl p-6 sm:p-8 shadow-2xl">
+                    <div className="relative z-10">
+                        <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
+                            <div className="relative group">
+                                <div className="absolute -inset-1 bg-white/30 rounded-full blur-md group-hover:bg-white/50 transition-all"></div>
+                                <div className="relative">
+                                    <Avatar user={currentUser} />
+                                </div>
+                            </div>
+                            <div className="text-center sm:text-left flex-1">
+                                <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-2">{currentUser.name}</h1>
+                                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                                    <span className="px-4 py-1.5 bg-white/20 backdrop-blur-sm text-white font-semibold rounded-full text-sm">
+                                        {currentUser.team}
+                                    </span>
+                                    <span className="px-4 py-1.5 bg-white/20 backdrop-blur-sm text-white font-semibold rounded-full text-sm">
+                                        {currentUser.role}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                    ))}
+                    </div>
+                    {/* Decorative elements */}
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-32 -mt-32"></div>
+                    <div className="absolute bottom-0 left-0 w-40 h-40 bg-white opacity-5 rounded-full -ml-20 -mb-20"></div>
                 </div>
 
-                <div className="mt-8 text-right">
-                    <button onClick={() => {
-                        console.log('Edit Profile button clicked, user:', currentUser);
-                        setIsModalOpen(true);
-                    }} className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                        <PencilIcon className="h-4 w-4" />
-                        Edit Profile
-                    </button>
+                {/* Profile Information Card */}
+                <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+                    <div className="bg-gradient-to-r from-gray-50 to-white p-6 border-b border-gray-200">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-primary to-purple-600 rounded-lg flex items-center justify-center shadow-md">
+                                    <span className="text-2xl">📄</span>
+                                </div>
+                                <h3 className="text-2xl font-bold text-gray-800">Personal Information</h3>
+                            </div>
+                            <button 
+                                onClick={() => {
+                                    console.log('Edit Profile button clicked, user:', currentUser);
+                                    setIsModalOpen(true);
+                                }} 
+                                className="flex items-center gap-2 bg-gradient-to-r from-primary to-purple-600 hover:from-primary-dark hover:to-purple-700 text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                            >
+                                <PencilIcon className="h-4 w-4" />
+                                <span>Edit Profile</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {profileItems.map((item, index) => (
+                                <div key={item.label} className="profile-item group p-4 rounded-xl border-2 border-gray-100 hover:border-primary/30 hover:bg-gradient-to-r hover:from-primary/5 hover:to-purple-50 transition-all duration-200 animate-fade-in" data-delay={index}>
+                                    <div className="flex items-start space-x-3">
+                                        <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-primary/20 to-purple-200 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                                            <span className="text-lg">
+                                                {item.label === 'Full Name' && '👤'}
+                                                {item.label === 'Email Address' && '✉️'}
+                                                {item.label === 'Team' && '🎯'}
+                                                {item.label === 'Role' && '🎭'}
+                                                {item.label === 'Hire Date' && '📅'}
+                                                {item.label === 'Mobile Money Number' && '📱'}
+                                            </span>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">{item.label}</p>
+                                            <p className="text-base font-semibold text-gray-800 break-words">{item.value}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Push Notifications Section */}
                 {pushSupported && (
-                    <div className="mt-8">
-                        <h3 className="text-xl font-bold text-gray-800 mb-4">Push Notifications</h3>
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="font-semibold text-gray-800">Enable Push Notifications</p>
-                                    <p className="text-sm text-gray-600">
+                    <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 animate-fade-in">
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 border-b border-blue-100">
+                            <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-md">
+                                    <span className="text-2xl">🔔</span>
+                                </div>
+                                <h3 className="text-2xl font-bold text-gray-800">Push Notifications</h3>
+                            </div>
+                        </div>
+                        <div className="p-6">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 bg-gradient-to-r from-gray-50 to-white rounded-xl border-2 border-gray-100">
+                                <div className="flex-1">
+                                    <div className="flex items-center space-x-2 mb-2">
+                                        <span className="text-xl">🚀</span>
+                                        <p className="font-bold text-gray-800 text-lg">Enable Push Notifications</p>
+                                    </div>
+                                    <p className="text-sm text-gray-600 leading-relaxed">
                                         Receive instant notifications for announcements, approvals, and important updates directly on your device.
                                     </p>
                                 </div>
@@ -417,20 +534,20 @@ const Profile = ({ currentUser }: ProfileProps) => {
                                     <button
                                         onClick={handleTestNotification}
                                         disabled={!pushEnabled}
-                                        className="px-3 py-1 text-sm bg-blue-100 text-blue-600 rounded hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="px-4 py-2.5 text-sm bg-blue-100 text-blue-600 font-semibold rounded-lg hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
                                         title="Send a test notification"
                                     >
-                                        Test
+                                        🧪 Test
                                     </button>
                                     <button
                                         onClick={handlePushToggle}
-                                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                        className={`px-6 py-2.5 rounded-lg font-bold transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg ${
                                             pushEnabled
-                                                ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                                                : 'bg-green-100 text-green-600 hover:bg-green-200'
+                                                ? 'bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700'
+                                                : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700'
                                         }`}
                                     >
-                                        {pushEnabled ? 'Disable' : 'Enable'}
+                                        {pushEnabled ? '❌ Disable' : '✅ Enable'}
                                     </button>
                                 </div>
                             </div>
@@ -440,35 +557,54 @@ const Profile = ({ currentUser }: ProfileProps) => {
 
                 {/* Pending Update Requests Section */}
                 {pendingRequests.length > 0 && (
-                    <div className="mt-8">
-                        <h3 className="text-xl font-bold text-gray-800 mb-4">Pending Update Requests</h3>
-                        <div className="space-y-3">
-                            {pendingRequests.map((request) => (
-                                <div key={request.id} className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <p className="font-semibold text-gray-800">
-                                                {request.field_name === 'mobile_money_number' ? 'Mobile Money Number' : request.field_name}
-                                            </p>
-                                            <p className="text-sm text-gray-600">
-                                                Requested: {request.requested_value}
-                                                {request.current_value && ` (Current: ${request.current_value})`}
-                                            </p>
-                                            <p className="text-xs text-gray-500 mt-1">
-                                                Requested on {new Date(request.requested_at).toLocaleDateString()}
-                                            </p>
+                    <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 animate-fade-in">
+                        <div className="bg-gradient-to-r from-amber-50 to-yellow-50 p-6 border-b border-amber-100">
+                            <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-yellow-600 rounded-lg flex items-center justify-center shadow-md">
+                                    <span className="text-2xl">⏳</span>
+                                </div>
+                                <h3 className="text-2xl font-bold text-gray-800">Pending Update Requests</h3>
+                            </div>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            {pendingRequests.map((request, index) => (
+                                <div key={request.id} className="pending-request group p-5 bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-200 rounded-xl hover:border-yellow-300 hover:shadow-md transition-all duration-200 animate-fade-in" data-delay={index}>
+                                    <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                                        <div className="flex-1">
+                                            <div className="flex items-center space-x-2 mb-2">
+                                                <span className="text-lg">📝</span>
+                                                <p className="font-bold text-gray-800 text-lg">
+                                                    {request.field_name === 'mobile_money_number' ? 'Mobile Money Number' : request.field_name}
+                                                </p>
+                                            </div>
+                                            <div className="space-y-2 ml-7">
+                                                <div className="flex items-start space-x-2">
+                                                    <span className="text-sm text-gray-500 font-medium min-w-[80px]">Requested:</span>
+                                                    <span className="text-sm font-semibold text-gray-800">{request.requested_value}</span>
+                                                </div>
+                                                {request.current_value && (
+                                                    <div className="flex items-start space-x-2">
+                                                        <span className="text-sm text-gray-500 font-medium min-w-[80px]">Current:</span>
+                                                        <span className="text-sm text-gray-600">{request.current_value}</span>
+                                                    </div>
+                                                )}
+                                                <div className="flex items-center space-x-2 text-xs text-gray-500">
+                                                    <span>📅</span>
+                                                    <span>Requested on {new Date(request.requested_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center space-x-2">
+                                        <div className="flex items-center space-x-3">
                                             {request.status === 'Pending' && (
                                                 <button
                                                     onClick={() => handleCancelRequest(request.id)}
-                                                    className="px-3 py-1 text-xs bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors"
+                                                    className="px-4 py-2 bg-red-100 text-red-600 font-semibold rounded-lg hover:bg-red-200 transition-all duration-200 transform hover:scale-105 text-sm"
                                                     title="Cancel this request"
                                                 >
-                                                    Cancel
+                                                    ❌ Cancel
                                                 </button>
                                             )}
-                                            <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                                            <span className="bg-yellow-100 text-yellow-800 text-xs font-bold px-4 py-2 rounded-lg border border-yellow-200 shadow-sm">
                                                 {request.status}
                                             </span>
                                         </div>
