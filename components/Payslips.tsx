@@ -335,12 +335,15 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
             </div>}
 
             {!isLoading && !error && payslipData && (
-                <div className="bg-white p-6 md:p-8 rounded-xl shadow-xl animate-fade-in">
+                <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100 animate-fade-in">
                     {/* Header */}
                     <div className="flex flex-col md:flex-row justify-between items-start border-b pb-6 mb-6">
                         <div className='mb-4 md:mb-0'>
-                            <h1 className="text-3xl font-bold text-gray-900">Payslip</h1>
-                            <p className="text-gray-500">{employee.name}</p>
+                            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center">
+                                <span className="mr-3 text-3xl">📄</span>
+                                Payslip
+                            </h1>
+                            <p className="text-gray-500 ml-12">{employee.name}</p>
                         </div>
                         <div className="text-left md:text-right w-full md:w-auto">
                              <div className="flex items-center md:justify-end space-x-2">
@@ -353,17 +356,38 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                     </div>
 
                     {/* Summary Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 text-center">
-                        <div className="bg-green-50 p-4 rounded-lg"><p className="text-sm font-medium text-green-700 uppercase">Gross Pay</p><p className="text-3xl font-bold text-green-600">{formatCurrency(payslipData.grossPay)}</p></div>
-                        <div className="bg-red-50 p-4 rounded-lg"><p className="text-sm font-medium text-red-700 uppercase">Total Deductions</p><p className="text-3xl font-bold text-red-600">{formatCurrency(payslipData.totalDeductions)}</p></div>
-                        <div className="bg-primary-light p-4 rounded-lg border-2 border-primary"><p className="text-sm font-medium text-primary uppercase">Net Pay</p><p className="text-3xl font-bold text-primary">{formatCurrency(payslipData.netPay)}</p></div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-8">
+                        <div className="group bg-gradient-to-br from-green-50 to-emerald-50/50 p-5 rounded-2xl border border-green-200 hover:shadow-lg transition-all">
+                            <p className="text-xs sm:text-sm font-semibold text-green-700 uppercase mb-2 flex items-center">
+                                <span className="mr-2">💰</span>
+                                Gross Pay
+                            </p>
+                            <p className="text-2xl sm:text-3xl font-bold text-green-600">{formatCurrency(payslipData.grossPay)}</p>
+                        </div>
+                        <div className="group bg-gradient-to-br from-red-50 to-rose-50/50 p-5 rounded-2xl border border-red-200 hover:shadow-lg transition-all">
+                            <p className="text-xs sm:text-sm font-semibold text-red-700 uppercase mb-2 flex items-center">
+                                <span className="mr-2">📉</span>
+                                Total Deductions
+                            </p>
+                            <p className="text-2xl sm:text-3xl font-bold text-red-600">{formatCurrency(payslipData.totalDeductions)}</p>
+                        </div>
+                        <div className="group bg-gradient-to-br from-blue-50 to-indigo-50/50 p-5 rounded-2xl border-2 border-primary shadow-md hover:shadow-xl transition-all">
+                            <p className="text-xs sm:text-sm font-semibold text-primary uppercase mb-2 flex items-center">
+                                <span className="mr-2">✅</span>
+                                Net Pay
+                            </p>
+                            <p className="text-2xl sm:text-3xl font-bold text-primary">{formatCurrency(payslipData.netPay)}</p>
+                        </div>
                     </div>
                     
                     {/* Details */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         <div className="space-y-6">
                             <div>
-                                <h3 className="text-xl font-semibold text-gray-800 mb-3 border-b pb-2">Earnings</h3>
+                                <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-gray-200 flex items-center">
+                                    <span className="w-1 h-6 bg-gradient-to-b from-green-500 to-emerald-600 rounded-full mr-3"></span>
+                                    Earnings
+                                </h3>
                                 <div className="flex justify-between items-center text-sm p-2"><p className="text-gray-600">Basic Salary</p><p className="font-medium text-gray-800">{formatCurrency(payslipData.basicSalary)}</p></div>
                                 {payslipData.hoursDeduction && (
                                     <div className="flex justify-between items-center text-sm p-2 bg-orange-50 border border-orange-200 rounded-md mt-2">
@@ -377,7 +401,10 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                                 <div className="flex justify-between items-center text-sm p-2 mt-2 border-t-2 font-bold"><p className="text-gray-800">Total Earnings (Gross Pay)</p><p className="text-gray-900">{formatCurrency(payslipData.grossPay)}</p></div>
                             </div>
                             <div>
-                                <h3 className="text-xl font-semibold text-gray-800 mb-3 border-b pb-2">Deductions</h3>
+                                <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-gray-200 flex items-center">
+                                    <span className="w-1 h-6 bg-gradient-to-b from-red-500 to-rose-600 rounded-full mr-3"></span>
+                                    Deductions
+                                </h3>
                                 <div className="space-y-2 text-sm">
                                     <div className="flex justify-between items-center p-2 rounded-md hover:bg-gray-50"><p className="text-gray-600">SSNIT Employee Contribution (5.5%)</p><p className="font-medium text-gray-800">{formatCurrency(payslipData.ssnitEmployee)}</p></div>
                                     <div className="flex justify-between items-center p-2 rounded-md hover:bg-gray-50"><p className="text-gray-600">P.A.Y.E Tax</p><p className="font-medium text-gray-800">{formatCurrency(payslipData.paye)}</p></div>
@@ -387,8 +414,11 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                             </div>
                         </div>
 
-                        <div className="bg-slate-50 p-6 rounded-lg">
-                             <h3 className="text-xl font-semibold text-gray-800 mb-3 border-b pb-2">Employer Contributions</h3>
+                        <div className="bg-gradient-to-br from-slate-50 to-gray-50/50 p-6 rounded-2xl border border-gray-200">
+                             <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-gray-200 flex items-center">
+                                <span className="w-1 h-6 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full mr-3"></span>
+                                Employer Contributions
+                            </h3>
                              <p className="text-xs text-gray-500 mb-3">This is the cost to the company and is not deducted from your salary.</p>
                              <div className="space-y-2 text-sm">
                                 <div className="flex justify-between items-center p-2 rounded-md"><p className="text-gray-600">SSNIT Employer Contribution (13%)</p><p className="font-medium text-gray-800">{formatCurrency(payslipData.ssnitEmployer)}</p></div>
@@ -402,11 +432,12 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                     </div>
                     {/* Actions */}
                     <div className="mt-8 border-t pt-6 flex flex-col sm:flex-row justify-end items-center gap-4">
-                        <button onClick={handleDownloadCSV} className="w-full sm:w-auto text-sm bg-slate-100 text-slate-800 font-semibold py-2 px-4 rounded-lg hover:bg-slate-200 transition-colors">
-                            Download Payslip (CSV)
+                        <button onClick={handleDownloadCSV} className="w-full sm:w-auto text-sm bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-800 font-semibold py-3 px-6 rounded-xl transition-all duration-200 hover:shadow-md flex items-center justify-center space-x-2">
+                            <span>📄</span>
+                            <span>Download Payslip (CSV)</span>
                         </button>
                         {isManager && (
-                            <button onClick={() => onViewChange('payroll')} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                            <button onClick={() => onViewChange('payroll')} className="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-600 hover:shadow-lg hover:scale-105 text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2">
                                 <SmartphoneIcon className="h-5 w-5" />
                                 <span>Pay with Mobile Money</span>
                             </button>
@@ -415,9 +446,12 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                 </div>
             )}
             
-            <div className="mt-8 bg-white rounded-xl shadow-lg">
-                <button onClick={() => setIsHistoryExpanded(!isHistoryExpanded)} className="w-full flex justify-between items-center text-left p-6">
-                    <h2 className="text-xl font-bold text-gray-800">Pay History</h2>
+            <div className="mt-8 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+                <button onClick={() => setIsHistoryExpanded(!isHistoryExpanded)} className="w-full flex justify-between items-center text-left p-6 hover:bg-gray-50 transition-colors">
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-800 flex items-center">
+                        <span className="mr-3 text-2xl">📅</span>
+                        Pay History
+                    </h2>
                     <ChevronDownIcon className={`h-6 w-6 text-gray-600 transition-transform duration-300 ${isHistoryExpanded ? 'rotate-180' : ''}`} />
                 </button>
                 {isHistoryExpanded && (
@@ -441,7 +475,7 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                                             }
                                             setExpandedYears(newExpanded);
                                         }}
-                                        className="w-full flex justify-between items-center p-3 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors"
+                                        className="w-full flex justify-between items-center p-3 bg-gradient-to-r from-gray-50 to-gray-100/50 hover:from-gray-100 hover:to-gray-200/50 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md"
                                     >
                                         <h3 className="font-bold text-lg text-gray-800">📁 {year}</h3>
                                         <ChevronDownIcon className={`h-5 w-5 text-gray-600 transition-transform duration-300 ${isYearExpanded ? 'rotate-180' : ''}`} />
@@ -466,7 +500,7 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                                                                 }
                                                                 setExpandedMonths(newExpanded);
                                                             }}
-                                                            className="w-full flex justify-between items-center p-2 bg-white hover:bg-gray-50 rounded-md transition-colors border"
+                                                            className="w-full flex justify-between items-center p-2 bg-white hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100/50 rounded-xl transition-all border border-gray-200"
                                                         >
                                                             <span className="font-semibold text-gray-700">📅 {month} ({payslips.length})</span>
                                                             <ChevronDownIcon className={`h-4 w-4 text-gray-600 transition-transform duration-300 ${isMonthExpanded ? 'rotate-180' : ''}`} />
@@ -481,10 +515,10 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                                                                             setSelectedPayslipId(p); 
                                                                             setIsHistoryExpanded(false); 
                                                                         }}
-                                                                        className={`w-full text-left p-3 rounded-md transition-colors text-sm ${
+                                                                        className={`w-full text-left p-3 rounded-xl transition-all duration-200 text-sm ${
                                                                             selectedPayslipId?.id === p.id 
-                                                                                ? 'bg-primary text-white font-semibold shadow' 
-                                                                                : 'bg-gray-100 hover:bg-primary-light hover:text-primary text-gray-700'
+                                                                                ? 'bg-gradient-to-r from-primary to-purple-600 text-white font-semibold shadow-lg' 
+                                                                                : 'bg-gray-100 hover:bg-gradient-to-r hover:from-gray-200 hover:to-gray-300 hover:shadow-md text-gray-700'
                                                                         }`}
                                                                     >
                                                                         <p>{formatDate(p.payDate!)}</p>
@@ -583,33 +617,58 @@ const Payslips = ({ currentUser, onViewChange }: PayslipsProps) => {
         }
 
         return (
-            <div className="bg-white p-6 rounded-xl shadow-lg">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800">Select Employee to View Payslips</h2>
-                    <div className="relative flex-shrink-0 sm:w-80">
-                        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search by name, email, team, or role..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                        />
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-primary to-purple-600 rounded-2xl shadow-xl overflow-hidden mb-8">
+                    <div className="px-6 py-8 sm:px-8">
+                        <div className="flex items-center space-x-3">
+                            <div className="bg-white/20 backdrop-blur-sm p-3 rounded-xl">
+                                <div className="text-3xl">💵</div>
+                            </div>
+                            <div>
+                                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">Payslips</h1>
+                                <p className="text-white/90 text-xs sm:text-sm mt-1">Select Employee to View Payslips</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+                {/* Search Section */}
+                <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden mb-6">
+                    <div className="bg-gradient-to-r from-gray-50 to-gray-100/50 px-6 py-4 border-b border-gray-200">
+                        <h2 className="text-base sm:text-lg font-bold text-gray-800 flex items-center space-x-2">
+                            <span className="text-xl">🔍</span>
+                            <span>Search Employees</span>
+                        </h2>
+                    </div>
+                    <div className="p-6">
+                        <div className="relative">
+                            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Search by name, email, team, or role..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Employee Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {filteredEmployees.length > 0 ? (
                         filteredEmployees.map(user => (
-                            <button key={user.id} onClick={() => setSelectedEmployee(user)} className="p-4 border rounded-lg text-center hover:shadow-lg hover:border-primary transition-all duration-200">
+                            <button key={user.id} onClick={() => setSelectedEmployee(user)} className="group bg-white p-6 border border-gray-200 rounded-2xl text-center hover:shadow-xl hover:border-primary/50 transition-all duration-300 transform hover:-translate-y-1">
                                 {user.avatarUrl ? (
-                                    <img src={user.avatarUrl} alt={user.name} className="w-16 h-16 rounded-full mx-auto mb-3" />
+                                    <img src={user.avatarUrl} alt={user.name} className="w-16 h-16 rounded-full mx-auto mb-3 ring-2 ring-gray-200 group-hover:ring-primary transition-all" />
                                 ) : (
-                                    <div className="w-16 h-16 rounded-full mx-auto mb-3 bg-primary text-white flex items-center justify-center text-lg font-bold">
+                                    <div className="w-16 h-16 rounded-full mx-auto mb-3 bg-gradient-to-r from-primary to-purple-600 text-white flex items-center justify-center text-lg font-bold shadow-md group-hover:shadow-lg transition-all">
                                         {getUserInitials(user.name)}
                                     </div>
                                 )}
-                                <p className="font-semibold text-gray-800">{user.name}</p>
-                                <p className="text-sm text-gray-500">{user.team}</p>
+                                <p className="font-semibold text-gray-800 group-hover:text-primary transition-colors">{user.name}</p>
+                                <p className="text-sm text-gray-500 mt-1">{user.team}</p>
                             </button>
                         ))
                     ) : (
