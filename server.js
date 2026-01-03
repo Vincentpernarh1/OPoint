@@ -351,6 +351,39 @@ class MomoService {
 
 const momoService = new MomoService();
 
+// --- PAYSLIP CACHE ---
+// In-memory cache for payslip calculations (reduces database load)
+const payslipCache = new Map();
+const CACHE_DURATION_MS = 2 * 60 * 60 * 1000; // 2 hours
+
+function getCachedPayslip(userId, date) {
+    const cacheKey = `${userId}_${date}`;
+    const cached = payslipCache.get(cacheKey);
+    
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION_MS) {
+        return cached.data;
+    }
+    
+    return null;
+}
+
+function setCachedPayslip(userId, date, payslipData) {
+    const cacheKey = `${userId}_${date}`;
+    payslipCache.set(cacheKey, {
+        data: payslipData,
+        timestamp: Date.now()
+    });
+}
+
+function clearPayslipCache(userId) {
+    // Clear all cache entries for a specific user
+    for (const key of payslipCache.keys()) {
+        if (key.startsWith(`${userId}_`)) {
+            payslipCache.delete(key);
+        }
+    }
+}
+
 // --- UTILITY FUNCTIONS ---
 async function getUsers() {
     const { data, error } = await db.getUsers();
@@ -426,9 +459,22 @@ function calculateNetPay(basicSalary, userId, payDate, workingHoursPerDay = 8.00
 
     // If we have actual hours worked, calculate pay based on hours
     if (actualHoursWorked !== null && actualHoursWorked >= 0) {
-        // Calculate expected hours for the month (approximate)
-        const daysInMonth = new Date(payDate.getFullYear(), payDate.getMonth() + 1, 0).getDate();
-        expectedHoursThisMonth = workingHoursPerDay * daysInMonth;
+        // Calculate expected hours for the month (counting only working days - Mon-Fri)
+        const year = payDate.getFullYear();
+        const month = payDate.getMonth();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        
+        let workingDays = 0;
+        for (let day = 1; day <= daysInMonth; day++) {
+            const date = new Date(year, month, day);
+            const dayOfWeek = date.getDay();
+            // Count Monday (1) to Friday (5) only
+            if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                workingDays++;
+            }
+        }
+        
+        expectedHoursThisMonth = workingHoursPerDay * workingDays;
 
         // Calculate hourly rate: basic salary / expected monthly hours
         hourlyRate = basicSalary / expectedHoursThisMonth;
@@ -525,22 +571,40 @@ async function calculateHoursWorked(userId, tenantId, payDate) {
         const { data: clockLogs, error } = await db.getClockLogs(userId);
 
         if (error || !clockLogs || clockLogs.length === 0) {
-            console.log(`No clock logs found for user ${userId}, using default hours`);
+            console.log(`⚠️ No clock logs found for user ${userId}, month: ${currentMonth + 1}/${currentYear}`);
             return null; // Return null to use default salary calculation
         }
+        
+        console.log(`📋 Found ${clockLogs.length} total clock logs for user ${userId}, filtering for month: ${currentMonth + 1}/${currentYear}`);
 
         let totalHoursWorked = 0;
+        let skippedNoClockOut = 0;
+        let skippedWrongMonth = 0;
 
         // Group entries by date and calculate hours
         // Note: Approved adjustments already have clock_in/clock_out updated in the database
         const entriesByDate = {};
+        const now = new Date();
+        
         clockLogs.forEach(entry => {
-            // Skip entries without both clock_in and clock_out
-            if (!entry.clock_in || !entry.clock_out) return;
+            // Skip entries without clock_in
+            if (!entry.clock_in) {
+                skippedNoClockOut++;
+                return;
+            }
             
             const clockInDate = new Date(entry.clock_in);
             // Filter for current month
-            if (clockInDate.getMonth() !== currentMonth || clockInDate.getFullYear() !== currentYear) return;
+            if (clockInDate.getMonth() !== currentMonth || clockInDate.getFullYear() !== currentYear) {
+                skippedWrongMonth++;
+                return;
+            }
+            
+            // For incomplete entries (no clock_out), use current time as temporary clock_out
+            // This allows calculating hours for ongoing work sessions
+            if (!entry.clock_out) {
+                entry = { ...entry, clock_out: now.toISOString(), isIncomplete: true };
+            }
             
             const dateKey = clockInDate.toDateString();
             if (!entriesByDate[dateKey]) {
@@ -548,6 +612,9 @@ async function calculateHoursWorked(userId, tenantId, payDate) {
             }
             entriesByDate[dateKey].push(entry);
         });
+        
+        const validEntries = Object.keys(entriesByDate).length;
+        console.log(`⏱️ Filtered results: ${validEntries} days with entries, skipped ${skippedNoClockOut} incomplete, ${skippedWrongMonth} wrong month`);
 
         // Calculate hours for each day
         Object.keys(entriesByDate).forEach(dateKey => {
@@ -2275,15 +2342,30 @@ app.get('/api/payroll/history', async (req, res) => {
 app.get('/api/payslips/:userId/:date', async (req, res) => {
     try {
         const { userId, date } = req.params;
+        const { forceRefresh } = req.query; // Allow manual cache bypass
         const tenantId = req.headers['x-tenant-id'];
 
-        // console.log('Payslip request:', { userId, date, tenantId });
+        // console.log('Payslip request:', { userId, date, tenantId, forceRefresh });
 
         if (!tenantId) {
             return res.status(400).json({
                 success: false,
                 error: 'Tenant ID required'
             });
+        }
+
+        // Check cache first (unless force refresh requested)
+        if (!forceRefresh) {
+            const cached = getCachedPayslip(userId, date);
+            if (cached) {
+                return res.json({
+                    success: true,
+                    data: cached.payslip,
+                    cached: true,
+                    cachedAt: new Date(cached.calculatedAt).toISOString(),
+                    cacheExpiresIn: Math.max(0, CACHE_DURATION_MS - (Date.now() - cached.calculatedAt))
+                });
+            }
         }
 
         // Parse the date (expected format: ISO string)
@@ -2345,6 +2427,7 @@ app.get('/api/payslips/:userId/:date', async (req, res) => {
 
         // Calculate actual hours worked for this user (includes approved adjustments)
         const actualHoursWorked = await calculateHoursWorked(userId, tenantId, payDate);
+        console.log(`📊 Payslip calculation for user ${userId}, payDate: ${payDate.toISOString()}, actualHoursWorked: ${actualHoursWorked}`);
 
         // Use calculateNetPay function which handles hours-based calculation
         const payCalculation = calculateNetPay(
@@ -2414,9 +2497,20 @@ app.get('/api/payslips/:userId/:date', async (req, res) => {
             ssnitTier2: ssnitTier2
         };
 
+        // Cache the calculated payslip for 2 hours
+        const calculatedAt = Date.now();
+        const cacheData = {
+            payslip,
+            calculatedAt
+        };
+        setCachedPayslip(userId, date, cacheData);
+
         res.json({
             success: true,
-            data: payslip
+            data: payslip,
+            cached: false,
+            calculatedAt: new Date(calculatedAt).toISOString(),
+            cacheExpiresIn: CACHE_DURATION_MS
         });
 
     } catch (error) {
