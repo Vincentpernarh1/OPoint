@@ -30,7 +30,7 @@ const app = express();
 
 // --- MIDDLEWARE ---
 app.use(cors({
-    origin: ['http://192.168.0.93:5173', 'http://192.168.0.93:5174', 'http://localhost:5173', 'http://localhost:5174'],
+    origin: ['http://192.168.0.93:5173', 'http://192.168.0.93:5174', 'http://localhost:5173', 'http://localhost:5174','https://opoint.vpenagroup.com','https://opoint-production.up.railway.app','https://www.opoint.vpenagroup.com'],
     credentials: true
 }));
 app.use(cookieParser()); // Parse cookies
