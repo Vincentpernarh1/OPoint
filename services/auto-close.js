@@ -52,8 +52,8 @@ export async function autoCloseOpenShifts() {
             
             const lastPunch = punches[punches.length - 1];
             
-            // If last punch is "in", auto-close it
-            if (lastPunch.type === 'in') {
+            // Only auto-close if last punch is "in" AND still_working is true
+            if (lastPunch.type === 'in' && log.still_working === true) {
                 const autoPunch = {
                     type: 'out',
                     time: closeTime.toISOString(),
@@ -68,7 +68,8 @@ export async function autoCloseOpenShifts() {
                     .from('opoint_clock_logs')
                     .update({
                         punches: updatedPunches,
-                        clock_out: closeTime.toISOString() // Update legacy column
+                        clock_out: closeTime.toISOString(), // Update legacy column
+                        still_working: false // Mark as clocked out
                     })
                     .eq('id', log.id);
                 
@@ -139,7 +140,8 @@ export async function forceAutoClose() {
             
             const lastPunch = punches[punches.length - 1];
             
-            if (lastPunch.type === 'in') {
+            // Only auto-close if last punch is "in" AND still_working is true
+            if (lastPunch.type === 'in' && log.still_working === true) {
                 const autoPunch = {
                     type: 'out',
                     time: closeTime.toISOString(),
@@ -154,7 +156,8 @@ export async function forceAutoClose() {
                     .from('opoint_clock_logs')
                     .update({
                         punches: updatedPunches,
-                        clock_out: closeTime.toISOString()
+                        clock_out: closeTime.toISOString(),
+                        still_working: false // Mark as clocked out
                     })
                     .eq('id', log.id);
                 
