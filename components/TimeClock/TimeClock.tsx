@@ -648,8 +648,8 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 }
                 
                 // Apply automatic break deduction for single-session days (no adjustment, single clock-in/out)
-                // Only deduct break if worked time is >= 4 hours (prevents negative time for short sessions)
-                const minimumHoursForBreak = 4 * 60 * 60 * 1000; // 4 hours in ms
+                // Only deduct break if worked time is >= 7 hours (prevents break deduction on partial days)
+                const minimumHoursForBreak = 7 * 60 * 60 * 1000; // 7 hours in ms
                 if (isSingleSession && breakDurationMinutes > 0 && !approvedAdjustment && totalWorkedMs >= minimumHoursForBreak) {
                     const breakMs = breakDurationMinutes * 60 * 1000;
                     totalWorkedMs = Math.max(0, totalWorkedMs - breakMs);

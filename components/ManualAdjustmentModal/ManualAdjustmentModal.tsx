@@ -16,7 +16,7 @@ const ManualAdjustmentModal = ({ onClose, onSubmit, date, existingClockIn, exist
     const [requestedClockOut, setRequestedClockOut] = useState(existingClockOut ? existingClockOut.toTimeString().slice(0, 5) : '');
     const [requestedClockIn2, setRequestedClockIn2] = useState('');
     const [requestedClockOut2, setRequestedClockOut2] = useState('');
-    const [hasBreak, setHasBreak] = useState(false);
+    const [hasBreak, setHasBreak] = useState(true);
     const [reason, setReason] = useState('');
     const [error, setError] = useState('');
 

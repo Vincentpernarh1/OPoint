@@ -587,9 +587,9 @@ async function calculateHoursWorked(userId, tenantId, payDate) {
                 });
 
                 // Apply automatic break deduction for single-session days (consistent with frontend)
-                // Only deduct break if worked time >= 4 hours AND it's a single session day
+                // Only deduct break if worked time >= 7 hours AND it's a single session day
                 const isSingleSession = dayEntries.length === 1;
-                const minimumHoursForBreak = 4 * 60 * 60 * 1000; // 4 hours in milliseconds
+                const minimumHoursForBreak = 7 * 60 * 60 * 1000; // 7 hours in milliseconds
                 
                 if (isSingleSession && breakDurationMinutes > 0 && dayTotalMs >= minimumHoursForBreak) {
                     const breakMs = breakDurationMinutes * 60 * 1000;
@@ -3830,7 +3830,7 @@ app.get('/api/reports', async (req, res) => {
 
                                 // Apply break deduction (consistent with frontend and backend calculations)
                                 const isSingleSession = dayEntries.length === 1;
-                                const minimumHoursForBreak = 4 * 60 * 60 * 1000; // 4 hours
+                                const minimumHoursForBreak = 7 * 60 * 60 * 1000; // 7 hours
                                 
                                 if (isSingleSession && breakDurationMinutes > 0 && dayTotalMs >= minimumHoursForBreak) {
                                     const breakMs = breakDurationMinutes * 60 * 1000;
