@@ -280,38 +280,32 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
                     <div className="relative overflow-hidden bg-white rounded-2xl shadow-xl border-2 border-gray-100 hover:border-primary/30 transition-all duration-300">
                         <div className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-b from-primary to-purple-600"></div>
                         <div className="p-6 pl-8">
-                            <div className="flex items-start">
+                            <div className="flex items-start gap-4 mb-3">
                                 <div className="flex-shrink-0">
                                     <div className="w-12 h-12 bg-gradient-to-br from-primary to-purple-600 rounded-xl flex items-center justify-center shadow-md">
                                         <MegaphoneIcon className="h-6 w-6 text-white" />
                                     </div>
                                 </div>
-                                <div className="ml-5 flex-1">
-                                    <div className="flex justify-between items-start gap-4">
-                                        <div className="flex-1">
-                                            <h3 className="text-xl font-bold text-gray-800 mb-2">{latestAnnouncement.title}</h3>
-                                            <p className="text-gray-600 leading-relaxed">{latestAnnouncement.content}</p>
-                                            <p className="text-sm text-gray-400 mt-3">
-                                                {new Date(latestAnnouncement.created_at).toLocaleDateString('en-US', { 
-                                                    month: 'long', 
-                                                    day: 'numeric', 
-                                                    year: 'numeric',
-                                                    hour: '2-digit',
-                                                    minute: '2-digit'
-                                                })}
-                                            </p>
-                                        </div>
-                                        <Button 
-                                            variant="ghost" 
-                                            size="sm" 
-                                            onClick={() => onViewChange('announcements')}
-                                            className="bg-primary/10 hover:bg-primary hover:text-white text-primary font-semibold px-4 py-2 rounded-lg transition-all duration-200 transform hover:scale-105 whitespace-nowrap"
-                                        >
-                                            View All →
-                                        </Button>
-                                    </div>
-                                </div>
+                                <h3 className="text-xl font-bold text-gray-800 flex-1">{latestAnnouncement.title}</h3>
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => onViewChange('announcements')}
+                                    className="bg-primary/10 hover:bg-primary hover:text-white text-primary font-semibold px-4 py-2 rounded-lg transition-all duration-200 transform hover:scale-105 whitespace-nowrap flex-shrink-0"
+                                >
+                                    View All →
+                                </Button>
                             </div>
+                            <p className="text-gray-600 leading-relaxed mb-3">{latestAnnouncement.content}</p>
+                            <p className="text-sm text-gray-400 bg-gray-50 inline-block align-middle px-3 py-1 rounded-full">
+                                {new Date(latestAnnouncement.created_at).toLocaleDateString('en-US', { 
+                                    month: 'long', 
+                                    day: 'numeric', 
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}
+                            </p>
                         </div>
                     </div>
                 </div>
