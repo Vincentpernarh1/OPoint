@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { vi } from 'vitest';
-import MobileBottomNav from '../MobileBottomNav';
+import MobileBottomNav from '../MobileBottomNav/MobileBottomNav';
 
 describe('MobileBottomNav', () => {
   it('renders all navigation items', () => {

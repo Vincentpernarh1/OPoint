@@ -1,5 +1,5 @@
 import React, { InputHTMLAttributes, forwardRef, useState } from 'react';
-import { EyeIcon, EyeOffIcon } from '../Icons';
+import { EyeIcon, EyeOffIcon } from '../Icons/Icons';
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;

@@ -5,24 +5,24 @@ import {ANNOUNCEMENTS } from './constants';
 import { SkeletonDashboard } from './components/ui';
 
 // Import Components with lazy loading
-const Login = lazy(() => import('./components/Login'));
-const InitialLogin = lazy(() => import('./components/InitialLogin'));
-const TimeClock = lazy(() => import('./components/TimeClock'));
-const LeaveManagement = lazy(() => import('./components/LeaveManagement'));
-const Payslips = lazy(() => import('./components/Payslips'));
-const Announcements = lazy(() => import('./components/Announcements'));
-const EmployeeManagement = lazy(() => import('./components/EmployeeManagement'));
-const Reports = lazy(() => import('./components/Reports'));
-const Expenses = lazy(() => import('./components/Expenses'));
-const Profile = lazy(() => import('./components/Profile'));
-const Approvals = lazy(() => import('./components/Approvals'));
-const MobileMoneyPayroll = lazy(() => import('./components/MobileMoneyPayroll'));
-const Settings = lazy(() => import('./components/Settings'));
-import ManagerDashboard from './components/ManagerDashboard';
-import ProtectedRoute from './components/ProtectedRoute';
-import NotificationBell from './components/NotificationBell';
-import MobileBottomNav from './components/MobileBottomNav';
-import IOSInstallPrompt from './components/IOSInstallPrompt';
+const Login = lazy(() => import('./components/Login/Login'));
+const InitialLogin = lazy(() => import('./components/InitialLogin/InitialLogin'));
+const TimeClock = lazy(() => import('./components/TimeClock/TimeClock'));
+const LeaveManagement = lazy(() => import('./components/LeaveManagement/LeaveManagement'));
+const Payslips = lazy(() => import('./components/Payslips/Payslips'));
+const Announcements = lazy(() => import('./components/Announcements/Announcements'));
+const EmployeeManagement = lazy(() => import('./components/EmployeeManagement/EmployeeManagement'));
+const Reports = lazy(() => import('./components/Reports/Reports'));
+const Expenses = lazy(() => import('./components/Expenses/Expenses'));
+const Profile = lazy(() => import('./components/Profile/Profile'));
+const Approvals = lazy(() => import('./components/Approvals/Approvals'));
+const MobileMoneyPayroll = lazy(() => import('./components/MobileMoneyPayroll/MobileMoneyPayroll'));
+const Settings = lazy(() => import('./components/Settings/Settings'));
+import ManagerDashboard from './components/ManagerDashboard/ManagerDashboard';
+import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
+import NotificationBell from './components/NotificationBell/NotificationBell';
+import MobileBottomNav from './components/MobileBottomNav/MobileBottomNav';
+import IOSInstallPrompt from './components/IOSInstallPrompt/IOSInstallPrompt';
 
 // Import Services
 import { authService } from './services/authService';
@@ -31,7 +31,7 @@ import db from './services/database';
 import { api } from './services/api';
 import { offlineStorage } from './services/offlineStorage';
 
-import { LogoIcon, LogOutIcon, LayoutDashboardIcon, BriefcaseIcon, CheckSquareIcon, UsersIcon, DollarSignIcon, MenuIcon, XIcon, FileTextIcon, MegaphoneIcon, ReceiptIcon, UserCircleIcon, SmartphoneIcon, CogIcon, ChevronLeftIcon, ChevronRightIcon, BellIcon } from './components/Icons';
+import { LogoIcon, LogOutIcon, LayoutDashboardIcon, BriefcaseIcon, CheckSquareIcon, UsersIcon, DollarSignIcon, MenuIcon, XIcon, FileTextIcon, MegaphoneIcon, ReceiptIcon, UserCircleIcon, SmartphoneIcon, CogIcon, ChevronLeftIcon, ChevronRightIcon, BellIcon } from './components/Icons/Icons';
 
 const PERMISSIONS: Record<string, UserRole[]> = {
     '/dashboard': [UserRole.EMPLOYEE, UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS, UserRole.PAYMENTS],
