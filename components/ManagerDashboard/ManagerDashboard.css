@@ -1,0 +1,5 @@
+/* ManagerDashboard component styles */
+.manager-dashboard-container {
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+}

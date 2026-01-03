@@ -35,7 +35,7 @@ export async function generateMissingDayEntries() {
         // Get all active users (employees)
         const { data: users, error: usersError } = await supabase
             .from('opoint_users')
-            .select('id, name, email, role, company_id')
+            .select('id, name, email, role, tenant_id')
             .neq('role', 'SuperAdmin'); // Skip super admins
         
         if (usersError) {
@@ -53,6 +53,12 @@ export async function generateMissingDayEntries() {
         
         for (const user of users) {
             try {
+                // Skip users without a valid tenant_id
+                if (!user.tenant_id || user.tenant_id === 'null' || user.tenant_id === null) {
+                    skippedCount++;
+                    continue;
+                }
+
                 // Check if user has any punches for yesterday
                 const { data: existingLog, error: logError } = await supabase
                     .from('opoint_clock_logs')
@@ -82,7 +88,7 @@ export async function generateMissingDayEntries() {
                 const { data: company, error: companyError } = await supabase
                     .from('opoint_companies')
                     .select('id, name')
-                    .eq('id', user.company_id)
+                    .eq('id', user.tenant_id)
                     .single();
                 
                 if (companyError || !company) {
@@ -102,9 +108,8 @@ export async function generateMissingDayEntries() {
                         punches: [], // Empty array - no punches recorded
                         clock_in: null,
                         clock_out: null,
-                        location: 'No punch recorded',
-                        photo_url: null,
-                        still_working: false
+                        location: null,
+                        photo_url: null
                     });
                 
                 if (insertError) {

@@ -1731,7 +1731,11 @@ export const db = {
                 const punches = log.punches || [];
                 if (punches.length === 0) {
                     // Fallback to old clock_in/clock_out if no punches
-                    flattenedData.push(log);
+                    // Only include if there's actual punch data
+                    if (log.clock_in || log.clock_out) {
+                        flattenedData.push(log);
+                    }
+                    // Skip empty placeholders - they have no display value
                 } else {
                     // Create an entry for each punch
                     punches.forEach((punch, index) => {
