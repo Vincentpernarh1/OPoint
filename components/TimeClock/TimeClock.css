@@ -13,11 +13,3 @@
     border-radius: 0; /* No rounding to prevent visual distortion */
     transition: width 1s ease-linear;
 }
-
-/* Mobile adjustment: Scale down visual width on smaller screens */
-@media (max-width: 768px) {
-    .progress-bar-fill {
-        transform-origin: left;
-        transform: scaleX(0.5);
-    }
-}

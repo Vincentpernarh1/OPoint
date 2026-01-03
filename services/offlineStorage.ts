@@ -268,7 +268,7 @@ class OfflineStorageService {
     async saveTimePunch(punch: OfflineDB['timePunches']['value']) {
         const db = await this.init();
         await db.put('timePunches', punch); // Use put to allow updates
-        console.log('💾 Time punch saved:', punch.id, 'synced:', punch.synced);
+        // console.log('💾 Time punch saved:', punch.id, 'synced:', punch.synced);
     }
 
     // ===== SYNC QUEUE =====

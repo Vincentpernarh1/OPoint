@@ -895,14 +895,14 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
         }
 
         try {
-            // Create a timeout promise
+            // Create a timeout promise (15 seconds to allow geolocation API enough time)
             const timeoutPromise = new Promise<never>((_, reject) => 
-                setTimeout(() => reject(new Error("Timeout")), 5000)
+                setTimeout(() => reject(new Error("Timeout")), 15000)
             );
 
             // Race between geolocation and timeout
             const position = await Promise.race([
-                getCurrentPosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }),
+                getCurrentPosition({ enableHighAccuracy: true, timeout: 12000, maximumAge: 300000 }),
                 timeoutPromise
             ]) as GeolocationPosition;
 
