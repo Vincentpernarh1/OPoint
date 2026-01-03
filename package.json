@@ -23,6 +23,7 @@
     "express": "^4.19.2",
     "idb": "^8.0.3",
     "js-cookie": "^3.0.5",
+    "node-cron": "^3.0.3",
     "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.12",
     "react": "^19.2.0",

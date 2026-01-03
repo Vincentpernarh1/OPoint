@@ -453,7 +453,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                 <div className="bg-white shadow-xl rounded-2xl border border-gray-100 overflow-hidden">
                     {/* Modern Tabs */}
                     <div className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-200">
-                        <nav className="flex space-x-2 px-6 py-4 overflow-x-auto scrollbar-hide" aria-label="Tabs">
+                        <nav className="grid grid-cols-2 lg:flex lg:space-x-2 gap-2 lg:gap-0 px-6 py-4" aria-label="Tabs">
                             {tabs.map(tab => (
                                 <button 
                                     key={tab.id} 
@@ -536,7 +536,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                                             : 'bg-gradient-to-br from-white to-blue-50/30 border-blue-100'
                                                     }`}
                                                 >
-                                                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                                                    <div className="flex flex-col sm:flex-row sm:justify-between gap-3">
                                                         <div className="flex-1 space-y-2">
                                                             <div className="flex items-center space-x-2 sm:space-x-3">
                                                                 <div className="bg-white rounded-full p-1.5 sm:p-2 shadow-sm flex-shrink-0">
@@ -570,7 +570,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                                             </div>
                                                         </div>
                                                         
-                                                        <div className="flex space-x-1.5 sm:space-x-2 flex-shrink-0 self-start">
+                                                        <div className="flex justify-between sm:justify-start sm:space-x-1.5 lg:space-x-2 sm:flex-shrink-0 sm:self-start">
                                                             {currentUser.role === UserRole.ADMIN && req.status === RequestStatus.PENDING ? (
                                                                 <>
                                                                     <button 
@@ -592,7 +592,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                                                 <button 
                                                                     title="Cancel leave request"
                                                                     onClick={() => handleAction(req.id, 'cancel')} 
-                                                                    className="p-2 sm:p-2.5 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-lg sm:rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200"
+                                                                    className="p-2 sm:p-2.5 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-lg sm:rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200 ml-auto"
                                                                 >
                                                                     <XIcon className="h-4 w-4 sm:h-5 sm:w-5"/>
                                                                 </button>
@@ -707,7 +707,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                                         </div>
                                                     </div>
                                                     
-                                                    <div className="flex space-x-1.5 sm:space-x-2 flex-shrink-0 self-start">
+                                                    <div className="flex justify-between items-start w-full lg:w-auto gap-2 mt-3 lg:mt-0">
                                                         {currentUser.role === UserRole.ADMIN && req.status === RequestStatus.PENDING ? (
                                                             <>
                                                                 <button 
@@ -729,7 +729,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                                             <button 
                                                                 title="Cancel time adjustment" 
                                                                 onClick={() => handleAction(req.id, 'cancel', 'adjustment')} 
-                                                                className="p-2 sm:p-2.5 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-lg sm:rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200"
+                                                                className="p-2 sm:p-2.5 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-lg sm:rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200 ml-auto"
                                                             >
                                                                 <XIcon className="h-4 w-4 sm:h-5 sm:w-5"/>
                                                             </button>
@@ -811,7 +811,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                                     </div>
                                                 </div>
                                                 
-                                                <div className="flex space-x-2 flex-shrink-0 ml-4">
+                                                <div className="flex justify-between items-start w-full lg:w-auto gap-2 mt-3 lg:mt-0 lg:ml-4">
                                                     {currentUser.role === UserRole.ADMIN && req.status === 'pending' ? (
                                                         <>
                                                             <button 
@@ -833,7 +833,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                                         <button 
                                                             title="Cancel expense claim" 
                                                             onClick={() => handleAction(req.id, 'cancel', 'expense')} 
-                                                            className="p-3 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200"
+                                                            className="p-3 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200 ml-auto"
                                                         >
                                                             <XIcon className="h-6 w-6"/>
                                                         </button>
@@ -928,7 +928,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                                     </div>
                                                 </div>
                                                 
-                                                <div className="flex space-x-2 flex-shrink-0 ml-4">
+                                                <div className="flex justify-between items-start w-full lg:w-auto gap-2 mt-3 lg:mt-0 lg:ml-4">
                                                     {currentUser.role === UserRole.ADMIN && (req.status === 'Pending' || req.status === 'pending') ? (
                                                         <>
                                                             <button
@@ -950,7 +950,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                                         <button
                                                             title="Cancel profile update"
                                                             onClick={() => handleAction(req.id, 'cancel', 'profile')}
-                                                            className="p-3 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200"
+                                                            className="p-3 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-xl hover:shadow-lg hover:scale-110 transition-all duration-200 ml-auto"
                                                         >
                                                             <XIcon className="h-6 w-6"/>
                                                         </button>

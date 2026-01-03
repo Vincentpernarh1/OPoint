@@ -24,6 +24,7 @@ import webPush from 'web-push';
 import db, { getSupabaseClient, getSupabaseAdminClient, setTenantContext, getCurrentTenantId } from './services/database.js';
 import { validatePasswordStrength } from './utils/passwordValidator.js';
 import { scheduleAutoClose, forceAutoClose } from './services/auto-close.js';
+import { scheduleMissingDaysGenerator, forceGenerateMissingDays } from './services/missing-days-generator.js';
 
 const app = express();
 
@@ -704,6 +705,22 @@ app.post('/api/admin/force-auto-close', async (req, res) => {
     try {
         const result = await forceAutoClose();
         res.json(result);
+    } catch (error) {
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
+// Force missing days generation endpoint (for testing)
+app.post('/api/admin/force-missing-days', async (req, res) => {
+    try {
+        await forceGenerateMissingDays();
+        res.json({ 
+            success: true, 
+            message: 'Missing days generation completed' 
+        });
     } catch (error) {
         res.status(500).json({ 
             success: false, 
@@ -4237,6 +4254,10 @@ app.listen(PORT, () => {
         // Start auto-close scheduler
         scheduleAutoClose();
         console.log(`⏰ Auto-close:  Enabled (10 PM daily)`);
+        
+        // Start missing days generator
+        scheduleMissingDaysGenerator();
+        console.log(`⏰ Missing Days: Enabled (midnight daily)`);
     } else {
         console.log(`⚠️  Database:    Fallback Mode (Mock Data)`);
         console.log(`   💡 Add SUPABASE_URL and SUPABASE_ANON_KEY to .env`);
