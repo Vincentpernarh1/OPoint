@@ -18,6 +18,7 @@ const EmployeeManagement = ({ currentUser }: EmployeeManagementProps) => {
     const [viewingUserLog, setViewingUserLog] = useState<User | null>(null);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     
     const canEditUsers = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.HR;
 
@@ -120,6 +121,18 @@ const EmployeeManagement = ({ currentUser }: EmployeeManagementProps) => {
         }
     };
 
+    // Filter users based on search query
+    const filteredUsers = users.filter(user => {
+        if (!searchQuery) return true;
+        const query = searchQuery.toLowerCase();
+        return (
+            user.name?.toLowerCase().includes(query) ||
+            user.email?.toLowerCase().includes(query) ||
+            user.role?.toLowerCase().includes(query) ||
+            user.team?.toLowerCase().includes(query)
+        );
+    });
+
     return (
         <>
             {viewingUserLog && <EmployeeLogModal user={viewingUserLog} onClose={() => setViewingUserLog(null)} />}
@@ -131,6 +144,17 @@ const EmployeeManagement = ({ currentUser }: EmployeeManagementProps) => {
                     {canEditUsers && (
                         <button onClick={() => setIsAddModalOpen(true)} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg transition-colors">Add Employee</button>
                     )}
+                </div>
+                
+                {/* Search Input */}
+                <div className="mb-4">
+                    <input
+                        type="text"
+                        placeholder="Search by name, email, role, or team..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
                 </div>
                 
                 {error && (
@@ -159,14 +183,14 @@ const EmployeeManagement = ({ currentUser }: EmployeeManagementProps) => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {users.length === 0 ? (
+                                    {filteredUsers.length === 0 ? (
                                         <tr>
                                             <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                                                No employees found
+                                                {searchQuery ? 'No employees match your search' : 'No employees found'}
                                             </td>
                                         </tr>
                                     ) : (
-                                        users.map(user => (
+                                        filteredUsers.map(user => (
                                             <tr key={user.id} className="bg-white border-b hover:bg-slate-50">
                                                 <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap flex items-center">
                                                     <img src={user.avatarUrl || `https://picsum.photos/seed/${user.name.split(' ')[0]}/100/100`} alt={user.name} className="w-8 h-8 rounded-full mr-3 object-cover" />
@@ -207,12 +231,12 @@ const EmployeeManagement = ({ currentUser }: EmployeeManagementProps) => {
 
                         {/* Mobile Card View */}
                         <div className="md:hidden space-y-3">
-                            {users.length === 0 ? (
+                            {filteredUsers.length === 0 ? (
                                 <div className="py-8 text-center text-gray-500">
-                                    No employees found
+                                    {searchQuery ? 'No employees match your search' : 'No employees found'}
                                 </div>
                             ) : (
-                                users.map(user => (
+                                filteredUsers.map(user => (
                                     <div key={user.id} className="bg-slate-50 border rounded-lg p-4 hover:shadow-md transition-shadow">
                                         <div className="flex items-center mb-3">
                                             <img src={user.avatarUrl || `https://picsum.photos/seed/${user.name.split(' ')[0]}/100/100`} alt={user.name} className="w-12 h-12 rounded-full mr-3 object-cover" />

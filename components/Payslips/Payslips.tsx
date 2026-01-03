@@ -596,11 +596,12 @@ const Payslips = ({ currentUser, onViewChange }: PayslipsProps) => {
         
         // Then filter by search query
         if (!debouncedSearchQuery.trim()) return companyEmployees;
+        const query = debouncedSearchQuery.toLowerCase();
         return companyEmployees.filter(user => 
-            user.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-            user.email.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-            user.team.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-            user.role.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+            user.name?.toLowerCase().includes(query) ||
+            user.email?.toLowerCase().includes(query) ||
+            user.team?.toLowerCase().includes(query) ||
+            user.role?.toLowerCase().includes(query)
         );
     }, [debouncedSearchQuery, employees]);
 

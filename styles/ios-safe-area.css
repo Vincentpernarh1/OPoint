@@ -17,6 +17,13 @@ body {
   overflow: hidden;
 }
 
+/* Scale down to 90% only when running in browser (not installed PWA) */
+@media (display-mode: browser) {
+  html {
+    font-size: 90%;
+  }
+}
+
 #root {
   height: 100%;
   padding-top: 0;
