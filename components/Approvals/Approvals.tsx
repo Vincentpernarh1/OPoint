@@ -793,10 +793,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                                         <div className="flex items-center space-x-1.5 text-base sm:text-lg">
                                                             <span className="font-bold text-green-600">{formatCurrency(req.amount)}</span>
                                                         </div>
-                                                        <div className="flex items-center space-x-1.5 text-xs sm:text-sm text-gray-600">
-                                                            <span className="font-semibold">📅</span>
-                                                            <span>{new Date(req.expense_date).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}</span>
-                                                        </div>
+                                                        
                                                         {req.receipt_url && (
                                                             <a 
                                                                 href={req.receipt_url} 
@@ -821,6 +818,13 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                                                             >
                                                                 <CheckIcon className="h-6 w-6"/>
                                                             </button>
+
+                                                            <div className="flex items-center text-gray-600">
+                                                            <span className="font-semibold">📅</span>
+                                                            <span>{new Date(req.expense_date).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}</span>
+                                                            </div>
+
+
                                                             <button 
                                                                 title="Reject expense claim" 
                                                                 onClick={() => handleAction(req.id, 'reject', 'expense')} 

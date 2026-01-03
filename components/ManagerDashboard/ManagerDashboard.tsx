@@ -287,6 +287,18 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
                                     </div>
                                 </div>
                                 <h3 className="text-xl font-bold text-gray-800 flex-1">{latestAnnouncement.title}</h3>
+                                
+                            </div>
+                            <p className="text-gray-600 leading-relaxed mb-3">{latestAnnouncement.content}</p>
+                            <p className="text-xs text-gray-400 bg-gray-50 inline-flex items-center px-2 sm:px-3 py-1 gap-3">
+                                {new Date(latestAnnouncement.created_at).toLocaleDateString('en-US', { 
+                                    month: 'long', 
+                                    day: 'numeric', 
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}
+
                                 <Button 
                                     variant="ghost" 
                                     size="sm" 
@@ -295,17 +307,8 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
                                 >
                                     View All →
                                 </Button>
-                            </div>
-                            <p className="text-gray-600 leading-relaxed mb-3">{latestAnnouncement.content}</p>
-                            <p className="text-sm text-gray-400 bg-gray-50 inline-block align-middle px-3 py-1 rounded-full">
-                                {new Date(latestAnnouncement.created_at).toLocaleDateString('en-US', { 
-                                    month: 'long', 
-                                    day: 'numeric', 
-                                    year: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                })}
                             </p>
+                            
                         </div>
                     </div>
                 </div>
