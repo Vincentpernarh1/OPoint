@@ -126,6 +126,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     const [isPunchHistoryExpanded, setIsPunchHistoryExpanded] = useState(false);
     const [expandedYears, setExpandedYears] = useState<Set<string>>(new Set());
     const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
+    const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
     
     const progressBarRef = useRef<HTMLDivElement>(null);
     const lastActionTimeRef = useRef<number>(0);
@@ -673,7 +674,12 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     }, [dailyWorkHistory, time]);
 
     const monthlyWorkHistory = useMemo(() => {
-        const months = dailyWorkHistory.reduce((acc, day) => {
+        // Filter out today's date - Punch History should only show previous days
+        const historicalDays = dailyWorkHistory.filter(day => 
+            day.date.toDateString() !== time.toDateString()
+        );
+
+        const months = historicalDays.reduce((acc, day) => {
             const monthKey = `${day.date.getFullYear()}-${(day.date.getMonth() + 1).toString().padStart(2, '0')}`;
             if (!acc[monthKey]) {
                 acc[monthKey] = { totalWorked: 0, days: [] };
@@ -690,9 +696,9 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 days: months[monthKey].days
             }))
             .sort((a, b) => b.month.localeCompare(a.month)); // Sort by month descending
-    }, [dailyWorkHistory]);
+    }, [dailyWorkHistory, time]);
 
-    // Group monthly history by year for collapsible structure
+    // Group monthly history by year for collapsible structure (excludes today)
     const punchHistoryByYear = useMemo(() => {
         const yearGroups: Record<string, typeof monthlyWorkHistory> = {};
         monthlyWorkHistory.forEach(month => {
@@ -711,11 +717,13 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
 
     const currentMonthTotal = useMemo(() => {
         const currentMonth = `${time.getFullYear()}-${(time.getMonth() + 1).toString().padStart(2, '0')}`;
-        const monthData = monthlyWorkHistory.find(m => m.month === currentMonth);
-        // The monthlyWorkHistory already includes ongoing time from dailyWorkHistory
-        // so we don't need to add it again here
-        return monthData ? monthData.totalWorked : 0;
-    }, [monthlyWorkHistory, time]);
+        // Get all days in current month including today
+        const currentMonthDays = dailyWorkHistory.filter(day => {
+            const dayMonth = `${day.date.getFullYear()}-${(day.date.getMonth() + 1).toString().padStart(2, '0')}`;
+            return dayMonth === currentMonth;
+        });
+        return currentMonthDays.reduce((total, day) => total + day.summary.worked, 0);
+    }, [dailyWorkHistory, time]);
 
     useEffect(() => {
         const loadTimeEntries = async () => {
@@ -1628,7 +1636,9 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                                                 {yearMonths.map(monthData => {
                                                     const monthKey = monthData.month;
                                                     const isMonthExpanded = expandedMonths.has(monthKey);
-                                                    const monthName = new Date(monthKey + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+                                                    // Parse month key (YYYY-MM) to get correct month name in local timezone
+                                                    const [year, month] = monthKey.split('-').map(Number);
+                                                    const monthName = new Date(year, month - 1, 1).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
                                                     
                                                     return (
                                                         <div key={monthKey}>
@@ -1657,36 +1667,56 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                                                                         const adjustmentRequest = adjustmentRequests.find(req => req.date === canonicalDate(day.date));
                                                                         const needed = adjustmentRequest === undefined && (day.entries.length === 0 || day.entries.length % 2 !== 0);
                                                                         const reason = needed ? (day.entries.length === 0 ? 'Missing time entries' : 'Incomplete clock log') : '';
+                                                                        const dayKey = day.date.toISOString();
+                                                                        const isDayExpanded = expandedDays.has(dayKey);
                                                                         
                                                                         return (
-                                                                            <div key={day.date.toISOString()} className="border rounded-lg p-3 bg-gray-50">
-                                                                                <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-2">
-                                                                                    <h5 className="font-semibold text-gray-700">
-                                                                                        {day.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                                                                                    </h5>
-                                                                                    <div className="text-sm mt-1 sm:mt-0">
-                                                                                        <span className="font-medium text-gray-600">Worked: </span>
-                                                                                        <span className="font-bold text-gray-800">{formatDuration(day.summary.worked)}</span>
-                                                                                        <span className={`ml-2 font-medium ${day.summary.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                                                            ({formatDuration(day.summary.balance, true)})
-                                                                                        </span>
-                                                                                    </div>
-                                                                                </div>
-                                                                                
-                                                                                {day.entries.length > 0 && (
-                                                                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 text-xs">
-                                                                                        {day.entries.map(entry => (
-                                                                                            <div key={entry.id} className={`p-2 rounded ${
-                                                                                                entry.type === TimeEntryType.CLOCK_IN ? 'bg-green-100' : 'bg-red-100'
-                                                                                            }`}>
-                                                                                                <div className="font-medium">
-                                                                                                    {entry.type === TimeEntryType.CLOCK_IN ? '⬇️ In' : '⬆️ Out'}
-                                                                                                </div>
-                                                                                                <div className="text-gray-700">
-                                                                                                    {new Date(entry.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                                                                                </div>
+                                                                            <div key={dayKey} className="border rounded-lg bg-gray-50 overflow-hidden">
+                                                                                <button
+                                                                                    onClick={() => {
+                                                                                        const newExpanded = new Set(expandedDays);
+                                                                                        if (isDayExpanded) {
+                                                                                            newExpanded.delete(dayKey);
+                                                                                        } else {
+                                                                                            newExpanded.add(dayKey);
+                                                                                        }
+                                                                                        setExpandedDays(newExpanded);
+                                                                                    }}
+                                                                                    className="w-full flex flex-col sm:flex-row justify-between sm:items-center p-3 hover:bg-gray-100 transition-colors"
+                                                                                >
+                                                                                    <div className="flex items-center justify-between w-full">
+                                                                                        <h5 className="font-semibold text-gray-700">
+                                                                                            {day.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                                                                        </h5>
+                                                                                        <div className="flex items-center gap-3">
+                                                                                            <div className="text-sm">
+                                                                                                <span className="font-medium text-gray-600">Worked: </span>
+                                                                                                <span className="font-bold text-gray-800">{formatDuration(day.summary.worked)}</span>
+                                                                                                <span className={`ml-2 font-medium ${day.summary.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                                                                    ({formatDuration(day.summary.balance, true)})
+                                                                                                </span>
                                                                                             </div>
-                                                                                        ))}
+                                                                                            <ChevronDownIcon className={`h-4 w-4 text-gray-600 transition-transform duration-300 ${isDayExpanded ? 'rotate-180' : ''}`} />
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </button>
+                                                                                
+                                                                                {isDayExpanded && day.entries.length > 0 && (
+                                                                                    <div className="px-3 pb-3 animate-fade-in-down">
+                                                                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 text-xs">
+                                                                                            {day.entries.map(entry => (
+                                                                                                <div key={entry.id} className={`p-2 rounded ${
+                                                                                                    entry.type === TimeEntryType.CLOCK_IN ? 'bg-green-100' : 'bg-red-100'
+                                                                                                }`}>
+                                                                                                    <div className="font-medium">
+                                                                                                        {entry.type === TimeEntryType.CLOCK_IN ? '⬇️ In' : '⬆️ Out'}
+                                                                                                    </div>
+                                                                                                    <div className="text-gray-700">
+                                                                                                        {new Date(entry.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            ))}
+                                                                                        </div>
                                                                                     </div>
                                                                                 )}
                                                                             </div>
