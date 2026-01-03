@@ -2825,7 +2825,7 @@ app.post('/api/expenses', async (req, res) => {
         const { employee_id, employee_name, description, amount, expense_date, receipt_url } = req.body;
         const tenantId = req.headers['x-tenant-id'];
 
-        console.log('Creating expense claim:', { employee_id, description, amount, tenantId });
+        // console.log('Creating expense claim:', { employee_id, description, amount, tenantId });
 
         const { data, error } = await db.createExpenseClaim({
             employee_id,
@@ -2849,7 +2849,7 @@ app.post('/api/expenses', async (req, res) => {
             data
         });
     } catch (error) {
-        console.error('Error creating expense claim:', error);
+        // console.error('Error creating expense claim:', error);
         res.status(500).json({
             success: false,
             error: 'Failed to create expense claim'

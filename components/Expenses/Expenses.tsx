@@ -3,7 +3,8 @@ import { User, ExpenseRequest, RequestStatus } from '../../types';
 import { api } from '../../services/api';
 import { offlineStorage } from '../../services/offlineStorage';
 import { ReceiptIcon, CheckCircleIcon, ClockIcon, XIcon } from "../Icons/Icons";
-import Notification from "../Notification/Notification";
+import MessageOverlay from "../MessageOverlay/MessageOverlay";
+import ConfirmationDialog from "../ConfirmationDialog/ConfirmationDialog";
 
 interface ExpensesProps {
     currentUser: User;
@@ -25,10 +26,15 @@ const Expenses = ({ currentUser }: ExpensesProps) => {
     const [amount, setAmount] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [receipt, setReceipt] = useState<File | null>(null);
-    const [notification, setNotification] = useState<string | null>(null);
+    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
     const [expandedYears, setExpandedYears] = useState<Set<string>>(new Set());
     const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
+    const [confirmationDialog, setConfirmationDialog] = useState<{ isVisible: boolean; message: string; onConfirm: () => void }>({ 
+        isVisible: false, 
+        message: '', 
+        onConfirm: () => {} 
+    });
 
     // Group requests by year and month
     const requestsByYearAndMonth = React.useMemo(() => {
@@ -75,13 +81,13 @@ const Expenses = ({ currentUser }: ExpensesProps) => {
                             status: exp.synced ? exp.status : 'Pending Sync',
                             receipt_url: exp.receiptUrl
                         })));
-                        setNotification('📴 Offline - Showing local expense data');
+                        setMessage({ type: 'success', text: '📴 Offline - Showing local expense data' });
                     } else {
-                        setNotification('Failed to load expense claims');
+                        setMessage({ type: 'error', text: 'Failed to load expense claims' });
                     }
                 } catch (offlineError) {
                     console.error('Failed to load from offline storage:', offlineError);
-                    setNotification('Failed to load expense claims. Please check your connection.');
+                    setMessage({ type: 'error', text: 'Failed to load expense claims. Please check your connection.' });
                 }
             } finally {
                 setLoading(false);
@@ -106,7 +112,7 @@ const Expenses = ({ currentUser }: ExpensesProps) => {
             try {
                 const newClaim = await api.createExpenseClaim(currentUser.tenantId!, expenseData);
                 setRequests(prev => [newClaim, ...prev]);
-                setNotification('✅ Expense claim submitted successfully!');
+                setMessage({ type: 'success', text: 'Expense claim submitted successfully!' });
             } catch (apiError) {
                 console.warn('API submission failed, saving offline:', apiError);
                 
@@ -142,7 +148,7 @@ const Expenses = ({ currentUser }: ExpensesProps) => {
                     receipt_url: offlineExpense.receiptUrl
                 }, ...prev]);
                 
-                setNotification('📴 Offline - Expense saved locally. Will sync when online.');
+                setMessage({ type: 'success', text: '📴 Offline - Expense saved locally. Will sync when online.' });
             }
 
             // Reset form
@@ -152,13 +158,48 @@ const Expenses = ({ currentUser }: ExpensesProps) => {
             setReceipt(null);
         } catch (error) {
             console.error('Failed to submit expense claim:', error);
-            setNotification('Failed to submit expense claim');
+            setMessage({ type: 'error', text: 'Failed to submit expense claim' });
         }
+    };
+
+    const handleCancelExpense = async (expenseId: string) => {
+        const performCancel = async () => {
+            setConfirmationDialog({ isVisible: false, message: '', onConfirm: () => {} });
+
+            try {
+                await api.updateExpenseClaim(currentUser.tenantId!, expenseId, {
+                    status: 'cancelled',
+                    reviewed_by: currentUser.id
+                });
+
+                // Update local state
+                setRequests(prev => prev.map(req => 
+                    req.id === expenseId ? { ...req, status: 'cancelled' } : req
+                ));
+
+                setMessage({ type: 'success', text: 'Expense claim cancelled successfully!' });
+            } catch (error) {
+                console.error('Failed to cancel expense claim:', error);
+                setMessage({ type: 'error', text: 'Failed to cancel expense claim. Please try again.' });
+            }
+        };
+
+        setConfirmationDialog({
+            isVisible: true,
+            message: 'Are you sure you want to cancel this expense claim?',
+            onConfirm: performCancel
+        });
     };
 
     return (
         <>
-            {notification && <Notification message={notification} type="success" onClose={() => setNotification(null)} />}
+            {message && <MessageOverlay message={message} onClose={() => setMessage(null)} />}
+            <ConfirmationDialog
+                isVisible={confirmationDialog.isVisible}
+                message={confirmationDialog.message}
+                onConfirm={confirmationDialog.onConfirm}
+                onCancel={() => setConfirmationDialog({ isVisible: false, message: '', onConfirm: () => {} })}
+            />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-1 bg-white p-4 sm:p-6 rounded-2xl shadow-xl">
                     <div className="flex items-center gap-3 mb-6">
@@ -267,7 +308,7 @@ const Expenses = ({ currentUser }: ExpensesProps) => {
                                                                 <div className="mt-2 ml-6 space-y-2 animate-fade-in-down">
                                                                     {expenses.map(req => {
                                                                         const StatusIcon = statusInfo[req.status].icon;
-                                                                        const statusGradients = {
+                                                                        const statusGradients: Record<string, string> = {
                                                                             'pending': 'from-yellow-50 to-yellow-100/50',
                                                                             'approved': 'from-green-50 to-green-100/50',
                                                                             'rejected': 'from-red-50 to-red-100/50',
@@ -275,22 +316,36 @@ const Expenses = ({ currentUser }: ExpensesProps) => {
                                                                             'Pending Sync': 'from-blue-50 to-blue-100/50'
                                                                         };
                                                                         return (
-                                                                            <div key={req.id} className={`p-4 border border-gray-200 rounded-xl flex items-start space-x-3 bg-gradient-to-br ${statusGradients[req.status] || 'from-white to-gray-50'} shadow-sm hover:shadow-md transition-all`}>
-                                                                                <div className={`p-3 rounded-xl shadow-md backdrop-blur-sm bg-white/50 ${statusInfo[req.status].color}`}>
-                                                                                    <StatusIcon className="h-5 w-5" />
-                                                                                </div>
-                                                                                <div className="flex-1">
-                                                                                    <div className="flex justify-between items-center">
-                                                                                        <p className="font-bold text-gray-800">{req.description}</p>
-                                                                                        <p className={`font-bold text-lg ${statusInfo[req.status].color}`}>{formatCurrency(req.amount)}</p>
+                                                                            <div key={req.id} className={`p-4 border border-gray-200 rounded-xl bg-gradient-to-br ${statusGradients[req.status] || 'from-white to-gray-50'} shadow-sm hover:shadow-md transition-all`}>
+                                                                                <div className="flex items-start space-x-3">
+                                                                                    <div className={`p-3 rounded-xl shadow-md backdrop-blur-sm bg-white/50 ${statusInfo[req.status].color}`}>
+                                                                                        <StatusIcon className="h-5 w-5" />
                                                                                     </div>
-                                                                                    <div className="flex justify-between items-center text-sm mt-2">
-                                                                                        <p className="text-gray-600 flex items-center gap-1"><span>📅</span> {new Date(req.expense_date).toLocaleDateString()}</p>
-                                                                                        <span className={`px-3 py-1 text-xs font-semibold rounded-full bg-white/80 shadow-sm ${statusInfo[req.status].color}`}>
-                                                                                            {req.status}
-                                                                                        </span>
+                                                                                    <div className="flex-1">
+                                                                                        <div className="flex justify-between items-center">
+                                                                                            <p className="font-bold text-gray-800">{req.description}</p>
+                                                                                            <p className={`font-bold text-lg ${statusInfo[req.status].color}`}>{formatCurrency(req.amount)}</p>
+                                                                                        </div>
+                                                                                        <div className="flex justify-between items-center text-sm mt-2">
+                                                                                            <p className="text-gray-600 flex items-center gap-1"><span>📅</span> {new Date(req.expense_date).toLocaleDateString()}</p>
+                                                                                            <span className={`px-3 py-1 text-xs font-semibold rounded-full bg-white/80 shadow-sm ${statusInfo[req.status].color}`}>
+                                                                                                {req.status}
+                                                                                            </span>
+                                                                                        </div>
                                                                                     </div>
                                                                                 </div>
+                                                                                {req.status === 'pending' && (
+                                                                                    <div className="mt-3 flex justify-end">
+                                                                                        <button
+                                                                                            onClick={() => handleCancelExpense(req.id)}
+                                                                                            className="px-4 py-2 bg-gradient-to-r from-gray-400 to-gray-500 text-white text-xs font-semibold rounded-lg hover:shadow-lg hover:scale-105 transition-all duration-200 flex items-center gap-1.5"
+                                                                                            title="Cancel expense claim"
+                                                                                        >
+                                                                                            <XIcon className="h-3.5 w-3.5" />
+                                                                                            Cancel Request
+                                                                                        </button>
+                                                                                    </div>
+                                                                                )}
                                                                             </div>
                                                                         );
                                                                     })}
