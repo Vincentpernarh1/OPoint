@@ -351,7 +351,7 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
                                  <span className="text-lg font-bold text-gray-700">Opoint</span>
                             </div>
                             <p className="text-sm text-gray-500 mt-1">Pay Date: <span className="font-medium text-gray-700">{formatDate(payslipData.payDate)}</span></p>
-                            <p className="text-sm text-gray-500">Pay Period: <span className="font-medium text-gray-700">{formatDate(payslipData.payPeriodStart)} - {formatDate(payslipData.payPeriodEnd)}</span></p>
+                            <p className="text-sm text-gray-500">Month: <span className="font-medium text-gray-700">{new Date(payslipData.payPeriodStart).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span></p>
                         </div>
                     </div>
 

@@ -1442,7 +1442,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                                     <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
                                     Total Hours This Month
                                 </p>
-                                <p className="text-6xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                                <p className="text-5xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                                     {formatDuration(currentMonthTotal)}
                                 </p>
                             </div>
