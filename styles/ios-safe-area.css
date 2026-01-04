@@ -17,10 +17,28 @@ body {
   overflow: hidden;
 }
 
-/* Scale down to 90% only when running in browser (not installed PWA) */
-@media (display-mode: browser) {
+/* Default browser font scaling */
+html {
+  font-size: 75%;
+}
+
+/* More aggressive scaling for desktop screens */
+@media (min-width: 1024px) {
   html {
-    font-size: 90%;
+    font-size: 65%;
+  }
+}
+
+@media (min-width: 1440px) {
+  html {
+    font-size: 70%;
+  }
+}
+
+/* Reset to normal size for installed PWA apps */
+@media (display-mode: standalone) {
+  html {
+    font-size: 100% !important;
   }
 }
 

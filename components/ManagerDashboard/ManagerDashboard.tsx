@@ -170,12 +170,12 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
         return (
             <button 
                 onClick={() => onViewChange(linkTo)} 
-                className="group relative overflow-hidden bg-white p-3 sm:p-4 rounded-2xl shadow-lg hover:shadow-2xl border-2 border-transparent hover:border-primary/20 transition-all duration-300 transform hover:scale-105 text-left"
+                className="group relative overflow-hidden bg-white p-3 sm:p-4 lg:p-4 rounded-2xl shadow-lg hover:shadow-2xl border-2 border-transparent hover:border-primary/20 transition-all duration-300 transform hover:scale-105 text-left"
             >
                 <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-300`}></div>
                 <div className="relative z-10 flex flex-col h-full">
                     {/* Top row: Left icon, Title, Right icon */}
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-3 lg:mb-3">
                         <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br ${gradient} rounded-xl flex items-center justify-center shadow-md transform group-hover:rotate-6 group-hover:scale-110 transition-all duration-300`}>
                             <span className="text-xl sm:text-2xl">{emoji}</span>
                         </div>
@@ -190,12 +190,12 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
                         {isLoading ? (
                             <Skeleton className="h-12 sm:h-16 w-32 sm:w-40" />
                         ) : (
-                            <p className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-800 group-hover:text-primary transition-colors">{value}</p>
+                            <p className="text-4xl sm:text-5xl lg:text-3xl xl:text-4xl font-extrabold text-gray-800 group-hover:text-primary transition-colors">{value}</p>
                         )}
                     </div>
                     
                     {/* Bottom: View details link */}
-                    <div className="flex items-center justify-center text-xs sm:text-sm text-gray-500 group-hover:text-primary transition-colors mt-4">
+                    <div className="flex items-center justify-center text-xs sm:text-sm text-gray-500 group-hover:text-primary transition-colors mt-3 lg:mt-3">
                         <span className="font-medium">View details</span>
                         <svg className="w-3 h-3 sm:w-4 sm:h-4 ml-1 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -219,16 +219,16 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
                 />
             )}
             
-            <div className="space-y-8">
+            <div className="space-y-6">
                 {/* Modern Gradient Header */}
-                <div className="relative overflow-hidden bg-gradient-to-br from-primary via-indigo-600 to-purple-700 rounded-2xl p-6 sm:p-8 shadow-2xl">
+                <div className="relative overflow-hidden bg-gradient-to-br from-primary via-indigo-600 to-purple-700 rounded-2xl p-4 sm:p-5 lg:p-4 shadow-2xl">
                     <div className="relative z-10">
-                        <div className="flex items-center space-x-3 mb-3">
+                        <div className="flex items-center space-x-3 mb-2">
                             <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
                                 <span className="text-3xl">👋</span>
                             </div>
                             <div>
-                                <h1 className="text-2xl sm:text-4xl font-extrabold text-white">Welcome back, {currentUser.name.split(' ')[0]}!</h1>
+                                <h1 className="text-2xl sm:text-4xl lg:text-3xl font-extrabold text-white">Welcome back, {currentUser.name.split(' ')[0]}!</h1>
                                 <p className="text-white/90 text-sm sm:text-base mt-1">Here's your company overview at a glance</p>
                             </div>
                         </div>
