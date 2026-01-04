@@ -788,13 +788,6 @@ export const db = {
             .eq('tenant_id', tenantId)
             .not('adjustment_status', 'is', null);
 
-        console.log('Database query for existing adjustments:', {
-            userId: adjustmentData.userId,
-            tenantId,
-            date: adjustmentData.date,
-            existingAdjustments,
-            adjError
-        });
 
         if (adjError) {
             console.log('Database error:', adjError);
@@ -808,7 +801,6 @@ export const db = {
             return logDate === adjustmentData.date;
         });
 
-        console.log('Final existing adjustment check:', { existingAdjustment });
 
         if (existingAdjustment) {
             // Only block if status is Pending or Approved
@@ -903,7 +895,6 @@ export const db = {
                 insertData.requested_clock_out_2 = adjustmentData.requestedClockOut2;
             }
             
-            console.log('📝 Inserting new time adjustment record:', JSON.stringify(insertData, null, 2));
             
             const { data, error } = await client
                 .from('opoint_clock_logs')
@@ -914,7 +905,8 @@ export const db = {
             if (error) {
                 console.error('❌ Time adjustment insert failed:', error);
             } else {
-                console.log('✅ Time adjustment inserted successfully:', data);
+                pass;
+                // console.log('✅ Time adjustment inserted successfully:', data);
             }
 
             return { data, error };

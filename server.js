@@ -3174,8 +3174,6 @@ app.post('/api/time-adjustments', async (req, res) => {
         const adjustmentData = req.body;
         const tenantId = req.headers['x-tenant-id'];
 
-        console.log('📥 Time adjustment request received:', JSON.stringify(adjustmentData, null, 2));
-
         // Set tenant context
         if (tenantId) {
             setTenantContext(tenantId);
@@ -3190,14 +3188,7 @@ app.post('/api/time-adjustments', async (req, res) => {
             });
         }
 
-        console.log('✅ Validation passed, calling db.createTimeAdjustmentRequest');
         const { data, error } = await db.createTimeAdjustmentRequest(adjustmentData);
-
-        console.log('Database response:', { 
-            success: !!data, 
-            hasError: !!error,
-            errorMessage: error?.message || error
-        });
 
         if (error) {
             console.error('❌ Failed to create time adjustment:', error);
