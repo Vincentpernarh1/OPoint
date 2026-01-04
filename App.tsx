@@ -617,7 +617,7 @@ const CompanyLayout = ({
                             <item.icon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
                             {!isCollapsed && item.name}
                         </div>
-                        {!isCollapsed && item.badge && item.badge > 0 && <span className="bg-primary text-white text-xs font-bold rounded-full h-5 w-5">{item.badge}</span>}
+                        {!isCollapsed && item.badge && item.badge > 0 && <span className="bg-primary text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{item.badge}</span>}
                     </Link>
                 ))}
             </nav>
