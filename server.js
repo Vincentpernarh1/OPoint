@@ -843,9 +843,6 @@ async function calculateHoursWorked(userId, tenantId, payDate) {
                 }
             });
             
-            if (uniqueEntries.length < dayEntries.length) {
-                console.log(`🔍 Removed ${dayEntries.length - uniqueEntries.length} duplicate entries for ${dateKey}`);
-            }
             
             // Process each unique entry
             uniqueEntries.forEach(entry => {
@@ -953,7 +950,6 @@ async function calculateHoursWorked(userId, tenantId, payDate) {
             });
         });
 
-        console.log(`📊 Total hours counted for ${currentMonth + 1}/${currentYear}: ${totalHoursWorked.toFixed(2)}`);
         return totalHoursWorked;
 
     } catch (error) {
@@ -2730,7 +2726,6 @@ app.get('/api/payslips/:userId/:date', async (req, res) => {
 
         // Calculate actual hours worked for this user (includes approved adjustments)
         const actualHoursWorked = await calculateHoursWorked(userId, tenantId, payDate);
-        console.log(`📊 Payslip calculation for user ${userId}, payDate: ${payDate.toISOString()}, actualHoursWorked: ${actualHoursWorked}`);
 
         // Use calculateNetPay function which handles hours-based calculation
         const payCalculation = calculateNetPay(

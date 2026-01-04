@@ -169,7 +169,7 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
 
     useEffect(() => {
         fetchPayslipHistory();
-    }, [employee.id, employee.tenantId, employee.basicSalary]);
+    }, [employee.id, employee.tenantId]); // Removed basicSalary to prevent double-loading
 
     useEffect(() => {
         if (!selectedPayslipId) return;
