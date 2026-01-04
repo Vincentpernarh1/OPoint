@@ -381,10 +381,16 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                         })(),
                         originalClockIn: item.clock_in ? new Date(item.clock_in) : undefined,
                         originalClockOut: item.clock_out ? new Date(item.clock_out) : undefined,
-                        // For approved adjustments, use clock_in/clock_out (which are the approved times)
-                        // For pending/rejected, use requested_clock_in/requested_clock_out
-                        requestedClockIn: new Date(item.adjustment_status === 'Approved' && item.clock_in ? item.clock_in : item.requested_clock_in),
-                        requestedClockOut: new Date(item.adjustment_status === 'Approved' && item.clock_out ? item.clock_out : item.requested_clock_out),
+                        // Actual clock times (populated after approval)
+                        clockIn: item.clock_in ? new Date(item.clock_in) : undefined,
+                        clockOut: item.clock_out ? new Date(item.clock_out) : undefined,
+                        clockIn2: item.clock_in_2 ? new Date(item.clock_in_2) : undefined,
+                        clockOut2: item.clock_out_2 ? new Date(item.clock_out_2) : undefined,
+                        // Requested times (used for pending adjustments)
+                        requestedClockIn: new Date(item.requested_clock_in),
+                        requestedClockOut: new Date(item.requested_clock_out),
+                        requestedClockIn2: item.requested_clock_in_2 ? new Date(item.requested_clock_in_2) : undefined,
+                        requestedClockOut2: item.requested_clock_out_2 ? new Date(item.requested_clock_out_2) : undefined,
                         reason: item.adjustment_reason,
                         status: item.adjustment_status as RequestStatus,
                         reviewedBy: item.adjustment_reviewed_by,
@@ -485,8 +491,16 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                         })(),
                         originalClockIn: item.clock_in ? new Date(item.clock_in) : undefined,
                         originalClockOut: item.clock_out ? new Date(item.clock_out) : undefined,
+                        // Actual clock times (populated after approval)
+                        clockIn: item.clock_in ? new Date(item.clock_in) : undefined,
+                        clockOut: item.clock_out ? new Date(item.clock_out) : undefined,
+                        clockIn2: item.clock_in_2 ? new Date(item.clock_in_2) : undefined,
+                        clockOut2: item.clock_out_2 ? new Date(item.clock_out_2) : undefined,
+                        // Requested times (used for pending adjustments)
                         requestedClockIn: new Date(item.requested_clock_in),
                         requestedClockOut: new Date(item.requested_clock_out),
+                        requestedClockIn2: item.requested_clock_in_2 ? new Date(item.requested_clock_in_2) : undefined,
+                        requestedClockOut2: item.requested_clock_out_2 ? new Date(item.requested_clock_out_2) : undefined,
                         reason: item.adjustment_reason,
                         status: item.adjustment_status as RequestStatus,
                         reviewedBy: item.adjustment_reviewed_by,
@@ -604,11 +618,16 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 let isSingleSession = false;
                 
                 if (approvedAdjustment) {
-                    // Adjustment: use requested times (can have 2 sessions for break tracking)
-                    const session1In = approvedAdjustment.requestedClockIn ? new Date(approvedAdjustment.requestedClockIn) : null;
-                    const session1Out = approvedAdjustment.requestedClockOut ? new Date(approvedAdjustment.requestedClockOut) : null;
-                    const session2In = approvedAdjustment.requestedClockIn2 ? new Date(approvedAdjustment.requestedClockIn2) : null;
-                    const session2Out = approvedAdjustment.requestedClockOut2 ? new Date(approvedAdjustment.requestedClockOut2) : null;
+                    // Adjustment: use actual clock times if approved (requested times are cleared after approval)
+                    // Fall back to requested times if actual times are not set (for pending adjustments)
+                    const session1In = approvedAdjustment.clockIn ? new Date(approvedAdjustment.clockIn) : 
+                                      (approvedAdjustment.requestedClockIn ? new Date(approvedAdjustment.requestedClockIn) : null);
+                    const session1Out = approvedAdjustment.clockOut ? new Date(approvedAdjustment.clockOut) : 
+                                       (approvedAdjustment.requestedClockOut ? new Date(approvedAdjustment.requestedClockOut) : null);
+                    const session2In = approvedAdjustment.clockIn2 ? new Date(approvedAdjustment.clockIn2) : 
+                                      (approvedAdjustment.requestedClockIn2 ? new Date(approvedAdjustment.requestedClockIn2) : null);
+                    const session2Out = approvedAdjustment.clockOut2 ? new Date(approvedAdjustment.clockOut2) : 
+                                       (approvedAdjustment.requestedClockOut2 ? new Date(approvedAdjustment.requestedClockOut2) : null);
                     
                     // Calculate first session
                     if (session1In && session1Out) {

@@ -95,6 +95,12 @@ export interface AdjustmentRequest {
   date: string;
   originalClockIn?: Date;
   originalClockOut?: Date;
+  // Actual clock times (populated after approval)
+  clockIn?: Date;
+  clockOut?: Date;
+  clockIn2?: Date; // Second clock-in (return from break)
+  clockOut2?: Date; // Second clock-out (end of day)
+  // Requested times (used for pending adjustments)
   requestedClockIn: Date;
   requestedClockOut: Date;
   requestedClockIn2?: Date; // Second clock-in (return from break)

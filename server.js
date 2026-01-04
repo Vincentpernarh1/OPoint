@@ -1,5 +1,143 @@
 
 // Check for Node version compatibility (fetch API)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Check for Node version compatibility (fetch API)
 if (!global.fetch) {
     console.warn("WARNING: Your Node.js version is too old to support 'fetch'. Please use Node 18+.");
     console.warn("The server may crash when attempting to call MTN APIs.");
@@ -583,9 +721,13 @@ async function calculateHoursWorked(userId, tenantId, payDate) {
         let skippedWrongMonth = 0;
 
         // Group entries by date and calculate hours
-        // Note: Approved adjustments already have clock_in/clock_out updated in the database
+        // Business logic: Count entries that are either:
+        // 1. "OK" entries - normal clock ins that match ~8 hours (within 10 min tolerance)
+        // 2. Approved adjustments (adjustment_applied = true)
         const entriesByDate = {};
         const now = new Date();
+        const TOLERANCE_MINUTES = 10;
+        const EXPECTED_DAILY_HOURS = 8;
         
         clockLogs.forEach(entry => {
             // Skip entries without clock_in
@@ -601,10 +743,10 @@ async function calculateHoursWorked(userId, tenantId, payDate) {
                 return;
             }
             
-            // For incomplete entries (no clock_out), use current time as temporary clock_out
-            // This allows calculating hours for ongoing work sessions
+            // Skip if no clock_out and not ongoing
             if (!entry.clock_out) {
-                entry = { ...entry, clock_out: now.toISOString(), isIncomplete: true };
+                skippedNoClockOut++;
+                return;
             }
             
             const dateKey = clockInDate.toDateString();
@@ -620,56 +762,106 @@ async function calculateHoursWorked(userId, tenantId, payDate) {
         // Calculate hours for each day
         Object.keys(entriesByDate).forEach(dateKey => {
             const dayEntries = entriesByDate[dateKey];
-            let dayTotalMs = 0;
             
-            // Check if any entry has multi-session fields (clock_in_2, clock_out_2)
-            const hasMultiSession = dayEntries.some(entry => entry.clock_in_2 || entry.clock_out_2);
+            // Remove duplicate entries (same clock_in and clock_out times on same day)
+            const uniqueEntries = [];
+            const seenEntries = new Set();
             
-            if (hasMultiSession) {
-                // Handle multi-session day (break tracking with 2 separate sessions)
-                dayEntries.forEach(entry => {
+            dayEntries.forEach(entry => {
+                const key = `${entry.clock_in}-${entry.clock_out}`;
+                if (!seenEntries.has(key)) {
+                    seenEntries.add(key);
+                    uniqueEntries.push(entry);
+                }
+            });
+            
+            if (uniqueEntries.length < dayEntries.length) {
+                console.log(`🔍 Removed ${dayEntries.length - uniqueEntries.length} duplicate entries for ${dateKey}`);
+            }
+            
+            // Process each unique entry
+            uniqueEntries.forEach(entry => {
+                let dayTotalMs = 0;
+                let shouldCountThisEntry = false;
+                
+                // Check if it's an approved adjustment
+                const isApprovedAdjustment = entry.adjustment_applied === true;
+                
+                // Calculate total hours for this entry
+                // Check both clock_in_2 and requested_clock_in_2 for multi-session support
+                const hasMultiSession = entry.clock_in_2 || entry.clock_out_2 || 
+                                       entry.requested_clock_in_2 || entry.requested_clock_out_2;
+                
+                if (hasMultiSession) {
+                    // Handle multi-session day (break is already accounted for with 2 sessions)
                     // Session 1
                     if (entry.clock_in && entry.clock_out) {
                         const clockIn = new Date(entry.clock_in);
                         const clockOut = new Date(entry.clock_out);
-                        const sessionMs = clockOut.getTime() - clockIn.getTime();
-                        dayTotalMs += sessionMs;
+                        dayTotalMs += clockOut.getTime() - clockIn.getTime();
                     }
                     
-                    // Session 2 (if exists)
-                    if (entry.clock_in_2 && entry.clock_out_2) {
-                        const clockIn2 = new Date(entry.clock_in_2);
-                        const clockOut2 = new Date(entry.clock_out_2);
-                        const session2Ms = clockOut2.getTime() - clockIn2.getTime();
-                        dayTotalMs += session2Ms;
+                    // Session 2 - check both clock_in_2 and requested_clock_in_2
+                    const clockIn2Time = entry.clock_in_2 || entry.requested_clock_in_2;
+                    const clockOut2Time = entry.clock_out_2 || entry.requested_clock_out_2;
+                    
+                    if (clockIn2Time && clockOut2Time) {
+                        const clockIn2 = new Date(clockIn2Time);
+                        const clockOut2 = new Date(clockOut2Time);
+                        dayTotalMs += clockOut2.getTime() - clockIn2.getTime();
                     }
-                });
-                // Multi-session days don't get automatic break deduction (break already tracked)
-            } else {
-                // Single or multiple entries without multi-session fields
-                dayEntries.forEach(entry => {
+                } else {
+                    // Single session
                     const clockIn = new Date(entry.clock_in);
                     const clockOut = new Date(entry.clock_out);
-                    const sessionMs = clockOut.getTime() - clockIn.getTime();
-                    dayTotalMs += sessionMs;
-                });
-
-                // Apply automatic break deduction for single-session days (consistent with frontend)
-                // Only deduct break if worked time >= 7 hours AND it's a single session day
-                const isSingleSession = dayEntries.length === 1;
-                const minimumHoursForBreak = 7 * 60 * 60 * 1000; // 7 hours in milliseconds
-                
-                if (isSingleSession && breakDurationMinutes > 0 && dayTotalMs >= minimumHoursForBreak) {
-                    const breakMs = breakDurationMinutes * 60 * 1000;
-                    dayTotalMs = Math.max(0, dayTotalMs - breakMs);
+                    dayTotalMs = clockOut.getTime() - clockIn.getTime();
+                    
+                    // Apply break deduction for single-session days >= 7 hours
+                    const minimumHoursForBreak = 7 * 60 * 60 * 1000;
+                    if (dayTotalMs >= minimumHoursForBreak && breakDurationMinutes > 0) {
+                        const breakMs = breakDurationMinutes * 60 * 1000;
+                        dayTotalMs = Math.max(0, dayTotalMs - breakMs);
+                    }
                 }
-            }
-
-            // Convert to hours and add to total
-            const dayHours = dayTotalMs / (1000 * 60 * 60);
-            totalHoursWorked += dayHours;
+                
+                const dayHours = dayTotalMs / (1000 * 60 * 60);
+                
+                // Determine if this entry should be counted
+                if (isApprovedAdjustment) {
+                    // Always count approved adjustments
+                    shouldCountThisEntry = true;
+                } else {
+                    // Check if it's an "OK" entry (within tolerance of 8 hours)
+                    const toleranceHours = TOLERANCE_MINUTES / 60;
+                    const lowerBound = EXPECTED_DAILY_HOURS - toleranceHours;
+                    const upperBound = EXPECTED_DAILY_HOURS + toleranceHours;
+                    
+                    const isOKEntry = dayHours >= lowerBound && dayHours <= upperBound;
+                    
+                    // Don't count pending or cancelled entries unless they're OK
+                    const isPending = entry.adjustment_status === 'Pending';
+                    const isCancelled = entry.adjustment_status === 'Cancelled';
+                    
+                    if (isPending || isCancelled) {
+                        shouldCountThisEntry = false; // Don't count pending/cancelled
+                    } else {
+                        shouldCountThisEntry = isOKEntry; // Count if it's OK
+                    }
+                }
+                
+                if (shouldCountThisEntry) {
+                    totalHoursWorked += dayHours;
+                    console.log(`✅ Counted: ${dateKey} - ${dayHours.toFixed(2)} hours (${isApprovedAdjustment ? 'Approved adjustment' : 'OK entry'})`);
+                } else {
+                    const reason = entry.adjustment_status === 'Pending' ? 'Pending' : 
+                                   entry.adjustment_status === 'Cancelled' ? 'Cancelled' : 
+                                   'Outside tolerance (not ~8 hours)';
+                    console.log(`❌ Skipped: ${dateKey} - ${dayHours.toFixed(2)} hours (${reason})`);
+                }
+            });
         });
 
+        console.log(`📊 Total hours counted for ${currentMonth + 1}/${currentYear}: ${totalHoursWorked.toFixed(2)}`);
         return totalHoursWorked;
 
     } catch (error) {

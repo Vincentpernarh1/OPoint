@@ -956,6 +956,22 @@ export const db = {
 
         const tenantId = tenantIdOverride || getCurrentTenantId();
 
+        // If approving, first fetch the current record to get the requested times
+        let existingRecord = null;
+        if (updates.status === 'Approved') {
+            const { data: existing, error: fetchError } = await client
+                .from('opoint_clock_logs')
+                .select('*')
+                .eq('id', logId)
+                .eq('tenant_id', tenantId)
+                .single();
+            
+            if (fetchError) {
+                return { data: null, error: fetchError };
+            }
+            existingRecord = existing;
+        }
+
         const updateData = {
             adjustment_status: updates.status,
             adjustment_reviewed_by: updates.reviewed_by,
@@ -963,16 +979,16 @@ export const db = {
         };
 
         // If approved, update the actual clock times and clear requested times, and mark as applied
-        if (updates.status === 'Approved') {
-            updateData.clock_in = updates.requested_clock_in;
-            updateData.clock_out = updates.requested_clock_out;
+        if (updates.status === 'Approved' && existingRecord) {
+            updateData.clock_in = existingRecord.requested_clock_in;
+            updateData.clock_out = existingRecord.requested_clock_out;
             
             // Support multi-session adjustments (break tracking with 2 sessions)
-            if (updates.requested_clock_in_2) {
-                updateData.clock_in_2 = updates.requested_clock_in_2;
+            if (existingRecord.requested_clock_in_2) {
+                updateData.clock_in_2 = existingRecord.requested_clock_in_2;
             }
-            if (updates.requested_clock_out_2) {
-                updateData.clock_out_2 = updates.requested_clock_out_2;
+            if (existingRecord.requested_clock_out_2) {
+                updateData.clock_out_2 = existingRecord.requested_clock_out_2;
             }
             
             // Clear requested fields after applying
