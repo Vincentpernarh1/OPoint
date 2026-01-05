@@ -15,13 +15,21 @@ export async function autoCloseOpenShifts() {
     try {
         const now = new Date();
         const currentHour = now.getHours();
+        const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
         
-        // Only run at 10 PM local time (22:00)
-        if (currentHour !== 22) {
+        // Only run at or after 10 PM local time (22:00)
+        if (currentHour < 22) {
             return;
         }
         
-        const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
+        // Prevent running multiple times on the same day
+        if (!global.lastAutoCloseDate) {
+            global.lastAutoCloseDate = {};
+        }
+        if (global.lastAutoCloseDate[today]) {
+            return; // Already ran today
+        }
+        global.lastAutoCloseDate[today] = true;
         const closeTime = new Date();
         closeTime.setHours(22, 0, 0, 0); // Set to 10 PM
         
@@ -52,8 +60,8 @@ export async function autoCloseOpenShifts() {
             
             const lastPunch = punches[punches.length - 1];
             
-            // Only auto-close if last punch is "in" AND still_working is true
-            if (lastPunch.type === 'in' && log.still_working === true) {
+            // Only auto-close if last punch is "in" (no clock out)
+            if (lastPunch.type === 'in') {
                 const autoPunch = {
                     type: 'out',
                     time: closeTime.toISOString(),
@@ -140,8 +148,8 @@ export async function forceAutoClose() {
             
             const lastPunch = punches[punches.length - 1];
             
-            // Only auto-close if last punch is "in" AND still_working is true
-            if (lastPunch.type === 'in' && log.still_working === true) {
+            // Only auto-close if last punch is "in" (no clock out)
+            if (lastPunch.type === 'in') {
                 const autoPunch = {
                     type: 'out',
                     time: closeTime.toISOString(),
