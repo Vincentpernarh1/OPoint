@@ -4384,6 +4384,51 @@ app.post('/api/push/subscribe', async (req, res) => {
     }
 });
 
+// Subscribe to native mobile push (FCM/APNs)
+app.post('/api/push/subscribe/native', async (req, res) => {
+    try {
+        const { userId, token, platform } = req.body;
+        const tenantId = getCurrentTenantId();
+
+        if (!userId || !token || !platform) {
+            return res.status(400).json({ error: 'userId, token, and platform required' });
+        }
+
+        const supabase = getSupabaseAdminClient();
+        if (supabase) {
+            // Delete old tokens for this user/platform to avoid duplicates
+            await supabase
+                .from('mobile_push_tokens')
+                .delete()
+                .eq('user_id', userId)
+                .eq('tenant_id', tenantId)
+                .eq('platform', platform);
+
+            // Insert new token
+            const { error } = await supabase
+                .from('mobile_push_tokens')
+                .insert({
+                    user_id: userId,
+                    tenant_id: tenantId,
+                    token,
+                    platform
+                });
+
+            if (error) {
+                console.error('Error storing mobile push token:', error);
+                return res.status(500).json({ error: 'Failed to store token' });
+            }
+
+            console.log(`✅ Stored mobile push token for user ${userId} (${platform})`);
+        }
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Mobile push subscribe error:', error);
+        res.status(500).json({ error: 'Subscription failed' });
+    }
+});
+
 // Unsubscribe from push notifications
 app.post('/api/push/unsubscribe', async (req, res) => {
     try {
