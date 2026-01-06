@@ -4345,9 +4345,23 @@ app.post('/api/push/subscribe', async (req, res) => {
         // Store subscription in database using admin client to bypass RLS
         const supabase = getSupabaseAdminClient();
         if (supabase) {
+            // First, delete ALL existing subscriptions for this user to avoid duplicates
+            const { error: deleteError } = await supabase
+                .from('push_subscriptions')
+                .delete()
+                .eq('user_id', userId)
+                .eq('tenant_id', tenantId);
+
+            if (deleteError) {
+                console.error('Error deleting old subscriptions:', deleteError);
+            } else {
+                console.log(`🧹 Removed old subscriptions for user ${userId}`);
+            }
+
+            // Now insert the new subscription
             const { error } = await supabase
                 .from('push_subscriptions')
-                .upsert({
+                .insert({
                     user_id: userId,
                     tenant_id: tenantId,
                     endpoint: subscription.endpoint,
@@ -4359,6 +4373,8 @@ app.post('/api/push/subscribe', async (req, res) => {
                 console.error('Error storing push subscription:', error);
                 return res.status(500).json({ error: 'Failed to store subscription' });
             }
+            
+            console.log(`✅ Stored new push subscription for user ${userId}`);
         }
 
         res.json({ success: true });
