@@ -1,20 +1,32 @@
-// Custom service worker for push notifications
-import { precacheAndRoute } from 'workbox-precaching';
-import { registerRoute } from 'workbox-routing';
-import { NetworkFirst } from 'workbox-strategies';
+// Service worker for push notifications
+// IMPORTANT: This file must be plain JavaScript (no imports) because it runs in a Service Worker context
 
-// Precache assets
-precacheAndRoute(self.__WB_MANIFEST);
+const CACHE_NAME = 'onpoint-v1';
 
-// Network first for API calls
-registerRoute(
-  ({ url }) => url.pathname.startsWith('/api/'),
-  new NetworkFirst()
-);
+// Install event - cache basic assets
+self.addEventListener('install', event => {
+  console.log('⚙️ Service Worker installing...');
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.addAll([
+        '/',
+        '/index.html',
+        '/favicon.svg'
+      ]);
+    })
+  );
+  self.skipWaiting();
+});
 
-// Push event handler
+// Activate event
+self.addEventListener('activate', event => {
+  console.log('✅ Service Worker activated');
+  event.waitUntil(clients.claim());
+});
+
+// Push event handler - THIS IS THE KEY PART FOR NOTIFICATIONS
 self.addEventListener('push', event => {
-  console.log('🔔 Push event received:', event);
+  console.log('🔔 Push event received in service worker');
   
   if (!event.data) {
     console.log('❌ No data in push event');
@@ -23,28 +35,34 @@ self.addEventListener('push', event => {
 
   try {
     const data = event.data.json();
-    console.log('📨 Push data:', data);
+    console.log('📨 Push notification data:', data);
     
+    const title = data.title || 'OPoint Notification';
     const options = {
-      body: data.body,
+      body: data.body || 'You have a new notification',
       icon: data.icon || '/favicon.svg',
       badge: data.badge || '/favicon.svg',
       data: data.data || {},
-      requireInteraction: false, // Changed to false for mobile
+      requireInteraction: false,
       silent: false,
-      vibrate: [200, 100, 200], // Add vibration
-      tag: 'announcement', // Group notifications
+      vibrate: [200, 100, 200],
+      tag: data.tag || 'notification',
+      renotify: true
     };
 
-    console.log('📢 Showing notification:', data.title, options);
+    console.log('📢 Calling showNotification with:', title, options);
     
     event.waitUntil(
-      self.registration.showNotification(data.title, options)
-        .then(() => console.log('✅ Notification shown successfully'))
-        .catch(err => console.error('❌ Error showing notification:', err))
+      self.registration.showNotification(title, options)
+        .then(() => {
+          console.log('✅ Notification displayed successfully!');
+        })
+        .catch(err => {
+          console.error('❌ Error displaying notification:', err);
+        })
     );
   } catch (error) {
-    console.error('❌ Error parsing push data:', error);
+    console.error('❌ Error in push event handler:', error);
   }
 });
 
