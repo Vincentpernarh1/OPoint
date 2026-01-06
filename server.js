@@ -4464,7 +4464,10 @@ async function sendPushNotification(userId, notificationData) {
         const tenantId = getCurrentTenantId();
         const supabase = getSupabaseAdminClient(); // Use admin client to bypass RLS
 
-        if (!supabase) return;
+        if (!supabase) {
+            console.log(`⚠️  No supabase client for push notification to user ${userId}`);
+            return;
+        }
 
         const { data: subscriptions, error } = await supabase
             .from('push_subscriptions')
@@ -4472,7 +4475,17 @@ async function sendPushNotification(userId, notificationData) {
             .eq('user_id', userId)
             .eq('tenant_id', tenantId);
 
-        if (error || !subscriptions || subscriptions.length === 0) return;
+        if (error) {
+            console.error(`❌ Error fetching subscriptions for user ${userId}:`, error);
+            return;
+        }
+
+        if (!subscriptions || subscriptions.length === 0) {
+            console.log(`ℹ️  No push subscriptions found for user ${userId}`);
+            return;
+        }
+
+        console.log(`📤 Sending push to user ${userId} (${subscriptions.length} subscription(s))`);
 
         const payload = JSON.stringify(notificationData);
 
@@ -4485,8 +4498,9 @@ async function sendPushNotification(userId, notificationData) {
                         auth: sub.auth
                     }
                 }, payload);
+                console.log(`✅ Push sent successfully to user ${userId}`);
             } catch (pushError) {
-                console.error(`Push send error for user ${userId}:`, pushError);
+                console.error(`❌ Push send error for user ${userId}:`, pushError);
             }
         }
     } catch (error) {
