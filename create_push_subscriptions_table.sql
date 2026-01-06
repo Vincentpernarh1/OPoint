@@ -20,10 +20,18 @@ CREATE INDEX IF NOT EXISTS idx_push_subscriptions_endpoint ON push_subscriptions
 -- Add Row Level Security (RLS)
 ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
 
--- Policy: Users can only manage their own subscriptions
-CREATE POLICY "Users can manage their own push subscriptions"
+-- Policy: Allow service role to manage all subscriptions (for server-side operations)
+CREATE POLICY "Allow service role full access"
     ON push_subscriptions
     FOR ALL
-    USING (user_id = auth.uid() OR tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
+
+-- Policy: Users can view their own subscriptions (for client-side)
+CREATE POLICY "Users can view own subscriptions"
+    ON push_subscriptions
+    FOR SELECT
+    USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 COMMENT ON TABLE push_subscriptions IS 'Stores push notification subscriptions for users';
