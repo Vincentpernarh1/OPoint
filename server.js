@@ -4010,10 +4010,10 @@ async function createNotificationsForAnnouncement(announcement) {
         for (const employee of employees.filter(e => e.role !== 'SuperAdmin' && e.id !== announcement.author_id)) {
             try {
                 await sendPushNotification(employee.id, {
-                    title: `📢 ${announcement.title}`,
+                    title: announcement.title,
                     body: `${announcement.author_name}: ${announcement.content?.substring(0, 120) || 'New announcement posted'}${announcement.content?.length > 120 ? '...' : ''}`,
-                    icon: 'https://opoint.vpenagroup.com/apple-touch-icon-180x180.png',
-                    badge: 'https://opoint.vpenagroup.com/favicon.svg',
+                    icon: '/apple-touch-icon-180x180.png',
+                    badge: '/apple-touch-icon-180x180.png',
                     data: { 
                         url: '/announcements', 
                         announcementId: announcement.id 
