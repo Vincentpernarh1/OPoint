@@ -3,6 +3,9 @@
 
 const CACHE_NAME = 'onpoint-v1';
 
+// VitePWA will inject the precache manifest here
+self.__WB_MANIFEST;
+
 // Install event - cache basic assets
 self.addEventListener('install', event => {
   console.log('⚙️ Service Worker installing...');
@@ -12,7 +15,7 @@ self.addEventListener('install', event => {
         '/',
         '/index.html',
         '/favicon.svg'
-      ]);
+      ]).catch(err => console.log('Cache add failed:', err));
     })
   );
   self.skipWaiting();

@@ -2,6 +2,7 @@ import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import pushNotificationPlugin from './sw-push-plugin.js';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
@@ -20,12 +21,15 @@ export default defineConfig(({ mode }) => {
         react(),
         VitePWA({
           registerType: 'autoUpdate',
-          injectRegister: 'auto',
-          strategies: 'injectManifest',
-          srcDir: 'public',
-          filename: 'sw.js',
+          injectRegister: false,
           devOptions: {
             enabled: false
+          },
+          workbox: {
+            additionalManifestEntries: [],
+            runtimeCaching: [],
+            skipWaiting: true,
+            clientsClaim: true
           },
           manifest: {
             name: 'Opoint',
@@ -38,7 +42,8 @@ export default defineConfig(({ mode }) => {
             start_url: '/',
             orientation: 'portrait'
           }
-        })
+        }),
+        pushNotificationPlugin()
       ],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
