@@ -4010,10 +4010,18 @@ async function createNotificationsForAnnouncement(announcement) {
         for (const employee of employees.filter(e => e.role !== 'SuperAdmin' && e.id !== announcement.author_id)) {
             try {
                 await sendPushNotification(employee.id, {
-                    title: `New Announcement: ${announcement.title}`,
-                    body: `A new announcement has been posted by ${announcement.author_name}`,
-                    icon: '/favicon.svg',
-                    data: { url: '/announcements', announcementId: announcement.id }
+                    title: `📢 ${announcement.title}`,
+                    body: `${announcement.author_name}: ${announcement.content?.substring(0, 120) || 'New announcement posted'}${announcement.content?.length > 120 ? '...' : ''}`,
+                    icon: 'https://opoint.vpenagroup.com/apple-touch-icon-180x180.png',
+                    badge: 'https://opoint.vpenagroup.com/favicon.svg',
+                    image: announcement.image_url || undefined,
+                    data: { 
+                        url: '/announcements', 
+                        announcementId: announcement.id 
+                    },
+                    tag: `announcement-${announcement.id}`,
+                    requireInteraction: false,
+                    vibrate: [200, 100, 200]
                 });
             } catch (pushError) {
                 console.error(`Failed to send push to user ${employee.id}:`, pushError);
