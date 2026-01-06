@@ -30,6 +30,7 @@ import { getCurrentTenantId, setTenantContext } from './services/database';
 import db from './services/database';
 import { api } from './services/api';
 import { offlineStorage } from './services/offlineStorage';
+import { pushService } from './services/pushService';
 
 import { LogoIcon, LogOutIcon, LayoutDashboardIcon, BriefcaseIcon, CheckSquareIcon, UsersIcon, DollarSignIcon, MenuIcon, XIcon, FileTextIcon, MegaphoneIcon, ReceiptIcon, UserCircleIcon, SmartphoneIcon, CogIcon, ChevronLeftIcon, ChevronRightIcon, BellIcon } from './components/Icons/Icons';
 
@@ -161,6 +162,30 @@ const App = () => {
                         mobileMoneyNumber: userFromCookie?.mobile_money_number || userFromCookie?.mobileMoneyNumber,
                     };
                     // console.log('[useEffect] Mapped appUser:', appUser);
+
+                    // Auto-subscribe to push notifications if supported
+                    if (pushService.isSupported() && appUser.id) {
+                        try {
+                            const permission = Notification.permission;
+                            if (permission === 'default') {
+                                // Show a subtle prompt after 3 seconds
+                                setTimeout(async () => {
+                                    const granted = await pushService.requestPermission();
+                                    if (granted === 'granted') {
+                                        await pushService.subscribe(appUser.id);
+                                        console.log('✅ Push notifications enabled');
+                                    }
+                                }, 3000);
+                            } else if (permission === 'granted') {
+                                // Silently subscribe if already granted
+                                pushService.subscribe(appUser.id).catch(err => 
+                                    console.log('Could not subscribe to push:', err)
+                                );
+                            }
+                        } catch (error) {
+                            console.log('Push notification setup skipped:', error);
+                        }
+                    }
 
                     if (isSuperAdmin) {
                         setCurrentUser(appUser);
