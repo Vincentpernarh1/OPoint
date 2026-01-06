@@ -14,21 +14,38 @@ registerRoute(
 
 // Push event handler
 self.addEventListener('push', event => {
-  if (!event.data) return;
+  console.log('🔔 Push event received:', event);
+  
+  if (!event.data) {
+    console.log('❌ No data in push event');
+    return;
+  }
 
-  const data = event.data.json();
-  const options = {
-    body: data.body,
-    icon: data.icon || '/favicon.svg',
-    badge: data.badge || '/favicon.svg',
-    data: data.data || {},
-    requireInteraction: true,
-    silent: false
-  };
+  try {
+    const data = event.data.json();
+    console.log('📨 Push data:', data);
+    
+    const options = {
+      body: data.body,
+      icon: data.icon || '/favicon.svg',
+      badge: data.badge || '/favicon.svg',
+      data: data.data || {},
+      requireInteraction: false, // Changed to false for mobile
+      silent: false,
+      vibrate: [200, 100, 200], // Add vibration
+      tag: 'announcement', // Group notifications
+    };
 
-  event.waitUntil(
-    self.registration.showNotification(data.title, options)
-  );
+    console.log('📢 Showing notification:', data.title, options);
+    
+    event.waitUntil(
+      self.registration.showNotification(data.title, options)
+        .then(() => console.log('✅ Notification shown successfully'))
+        .catch(err => console.error('❌ Error showing notification:', err))
+    );
+  } catch (error) {
+    console.error('❌ Error parsing push data:', error);
+  }
 });
 
 // Notification click handler
