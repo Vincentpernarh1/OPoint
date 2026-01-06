@@ -21,29 +21,12 @@ export default defineConfig(({ mode }) => {
         VitePWA({
           registerType: 'autoUpdate',
           injectRegister: 'auto',
+          strategies: 'injectManifest',
+          srcDir: 'public',
+          filename: 'sw.js',
           devOptions: {
             enabled: false
           },
-          workbox: {
-            globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
-            runtimeCaching: [
-              {
-                urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-                handler: 'CacheFirst',
-                options: {
-                  cacheName: 'google-fonts-cache',
-                  expiration: {
-                    maxEntries: 10,
-                    maxAgeSeconds: 60 * 60 * 24 * 365
-                  },
-                  cacheableResponse: {
-                    statuses: [0, 200]
-                  }
-                }
-              }
-            ]
-          },
-          includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'apple-touch-icon-*.png', 'apple-splash-*.png'],
           manifest: {
             name: 'Opoint',
             short_name: 'Opoint',
@@ -53,21 +36,7 @@ export default defineConfig(({ mode }) => {
             display: 'standalone',
             scope: '/',
             start_url: '/',
-            orientation: 'portrait',
-            icons: [
-              {
-                src: '/apple-touch-icon-180x180.png',
-                sizes: '180x180',
-                type: 'image/png',
-                purpose: 'any'
-              },
-              {
-                src: '/apple-touch-icon-180x180.png',
-                sizes: '180x180',
-                type: 'image/png',
-                purpose: 'maskable'
-              }
-            ]
+            orientation: 'portrait'
           }
         })
       ],
