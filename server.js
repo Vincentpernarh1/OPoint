@@ -4332,8 +4332,8 @@ app.post('/api/push/subscribe', async (req, res) => {
             return res.status(400).json({ error: 'Subscription and userId required' });
         }
 
-        // Store subscription in database
-        const supabase = getSupabaseClient();
+        // Store subscription in database using admin client to bypass RLS
+        const supabase = getSupabaseAdminClient();
         if (supabase) {
             const { error } = await supabase
                 .from('push_subscriptions')
@@ -4367,8 +4367,8 @@ app.post('/api/push/unsubscribe', async (req, res) => {
             return res.status(400).json({ error: 'Endpoint and userId required' });
         }
 
-        // Remove subscription from database
-        const supabase = getSupabaseClient();
+        // Remove subscription from database using admin client to bypass RLS
+        const supabase = getSupabaseAdminClient();
         if (supabase) {
             const { error } = await supabase
                 .from('push_subscriptions')
@@ -4399,8 +4399,8 @@ app.post('/api/push/send', async (req, res) => {
             return res.status(400).json({ error: 'userId, title, and body required' });
         }
 
-        // Get user's push subscriptions
-        const supabase = getSupabaseClient();
+        // Get user's push subscriptions using admin client to bypass RLS
+        const supabase = getSupabaseAdminClient();
         if (!supabase) {
             return res.status(500).json({ error: 'Database not available' });
         }
@@ -4462,7 +4462,7 @@ app.get('/api/push/vapid-public-key', (req, res) => {
 async function sendPushNotification(userId, notificationData) {
     try {
         const tenantId = getCurrentTenantId();
-        const supabase = getSupabaseClient();
+        const supabase = getSupabaseAdminClient(); // Use admin client to bypass RLS
 
         if (!supabase) return;
 
