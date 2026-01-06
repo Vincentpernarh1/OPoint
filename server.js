@@ -4014,7 +4014,6 @@ async function createNotificationsForAnnouncement(announcement) {
                     body: `${announcement.author_name}: ${announcement.content?.substring(0, 120) || 'New announcement posted'}${announcement.content?.length > 120 ? '...' : ''}`,
                     icon: 'https://opoint.vpenagroup.com/apple-touch-icon-180x180.png',
                     badge: 'https://opoint.vpenagroup.com/favicon.svg',
-                    image: announcement.image_url || undefined,
                     data: { 
                         url: '/announcements', 
                         announcementId: announcement.id 
