@@ -3977,9 +3977,12 @@ async function createNotificationsForAnnouncement(announcement) {
             return;
         }
 
-        // Create notifications for each employee
+        // Create notifications for each employee EXCEPT the author
         const notifications = employees
-            .filter(employee => employee.role !== 'SuperAdmin') // Don't notify super admins
+            .filter(employee => 
+                employee.role !== 'SuperAdmin' && 
+                employee.id !== announcement.author_id // Don't notify the person who posted
+            )
             .map(employee => ({
                 user_id: employee.id,
                 announcement_id: announcement.id,
@@ -3994,10 +3997,17 @@ async function createNotificationsForAnnouncement(announcement) {
             await db.createNotification(notification);
         }
 
-        console.log(`Created ${notifications.length} notifications for announcement`);
+        console.log(`Created ${notifications.length} notifications for announcement (excluding author)`);
 
-        // Send push notifications
-        for (const employee of employees.filter(employee => employee.role !== 'SuperAdmin')) {
+        // Send push notifications to employees (excluding author)
+        const recipientCount = employees.filter(e => 
+            e.role !== 'SuperAdmin' && 
+            e.id !== announcement.author_id
+        ).length;
+        
+        console.log(`📤 Sending push notifications to ${recipientCount} employees...`);
+        
+        for (const employee of employees.filter(e => e.role !== 'SuperAdmin' && e.id !== announcement.author_id)) {
             try {
                 await sendPushNotification(employee.id, {
                     title: `New Announcement: ${announcement.title}`,
