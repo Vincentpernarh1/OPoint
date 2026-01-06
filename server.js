@@ -4501,6 +4501,15 @@ async function sendPushNotification(userId, notificationData) {
                 console.log(`✅ Push sent successfully to user ${userId}`);
             } catch (pushError) {
                 console.error(`❌ Push send error for user ${userId}:`, pushError);
+                
+                // Clean up expired or invalid subscriptions (410 Gone, 404 Not Found)
+                if (pushError.statusCode === 410 || pushError.statusCode === 404) {
+                    console.log(`🧹 Removing expired subscription for user ${userId}`);
+                    await supabase
+                        .from('push_subscriptions')
+                        .delete()
+                        .eq('id', sub.id);
+                }
             }
         }
     } catch (error) {
