@@ -100,8 +100,16 @@ export const api = {
   },
 
   // Announcements API
-  getAnnouncements: async (tenantId: string, userId: string): Promise<Announcement[]> => {
-    const response = await fetch(`${API_BASE}/api/announcements?userId=${userId}`, {
+  getAnnouncements: async (tenantId: string, userId: string, limit?: number, offset?: number): Promise<{ data: Announcement[], totalCount: number }> => {
+    let url = `${API_BASE}/api/announcements?userId=${userId}`;
+    if (limit !== undefined) {
+      url += `&limit=${limit}`;
+    }
+    if (offset !== undefined) {
+      url += `&offset=${offset}`;
+    }
+    
+    const response = await fetch(url, {
       headers: getHeaders(tenantId),
       cache: 'no-cache',
     });
@@ -112,7 +120,7 @@ export const api = {
     if (!result.success) {
       throw new Error(result.error || 'Failed to fetch announcements');
     }
-    return result.data || [];
+    return { data: result.data || [], totalCount: result.totalCount || 0 };
   },
 
   markAnnouncementsAsRead: async (tenantId: string, userId: string): Promise<void> => {

@@ -1232,7 +1232,7 @@ export const db = {
     },
 
     // --- ANNOUNCEMENTS ---
-    async getAnnouncements(userId) {
+    async getAnnouncements(userId, limit = null, offset = 0) {
         const client = getSupabaseClient();
         if (!client) return { data: [], error: 'Database not configured' };
 
@@ -1240,12 +1240,25 @@ export const db = {
         if (!tenantId) return { data: [], error: 'No tenant context set' };
 
         try {
-            // Get all announcements for this tenant
-            const { data: announcements, error: announcementsError } = await client
+            // Get total count first
+            const { count: totalCount } = await client
+                .from('opoint_announcements')
+                .select('*', { count: 'exact', head: true })
+                .eq('tenant_id', tenantId);
+
+            // Get announcements for this tenant with pagination
+            let query = client
                 .from('opoint_announcements')
                 .select('*')
                 .eq('tenant_id', tenantId)
                 .order('created_at', { ascending: false });
+            
+            // Apply pagination if limit is specified
+            if (limit !== null) {
+                query = query.range(offset, offset + limit - 1);
+            }
+            
+            const { data: announcements, error: announcementsError } = await query;
 
             if (announcementsError) return { data: [], error: announcementsError };
 
@@ -1279,7 +1292,7 @@ export const db = {
                 readBy: readAnnouncementIds.has(ann.id) ? [userId] : []
             }));
 
-            return { data: formattedData, error: null };
+            return { data: formattedData, error: null, totalCount: totalCount || 0 };
 
         } catch (error) {
             // Fallback: return announcements without read status

@@ -54,41 +54,70 @@ const App = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
+    const [announcementsTotal, setAnnouncementsTotal] = useState(0);
+    const [isLoadingMoreAnnouncements, setIsLoadingMoreAnnouncements] = useState(false);
 
-    const fetchAnnouncements = useCallback(async () => {
+    const fetchAnnouncements = useCallback(async (limit: number = 4, offset: number = 0, append: boolean = false) => {
         if (!currentUser?.tenantId || !currentUser?.id) return;
         try {
-            const data = await api.getAnnouncements(currentUser.tenantId, currentUser.id);
+            if (append) {
+                setIsLoadingMoreAnnouncements(true);
+            }
+            
+            const { data, totalCount } = await api.getAnnouncements(currentUser.tenantId, currentUser.id, limit, offset);
+            
             if (data && data.length > 0) {
-                setAnnouncements(data);
+                if (append) {
+                    setAnnouncements(prev => [...prev, ...data]);
+                } else {
+                    setAnnouncements(data);
+                }
+                setAnnouncementsTotal(totalCount);
+                
                 // Cache the announcements for offline use
-                await offlineStorage.cacheAnnouncements(data, currentUser.tenantId);
-            } else {
+                if (!append) {
+                    await offlineStorage.cacheAnnouncements(data, currentUser.tenantId);
+                }
+            } else if (!append) {
                 // Fall back to constants for development
                 const mockData = ANNOUNCEMENTS.filter(ann => ann.tenant_id === currentUser.tenantId);
                 setAnnouncements(mockData);
+                setAnnouncementsTotal(mockData.length);
             }
         } catch (error) {
             console.error('Error fetching announcements:', error);
-            // OFFLINE FALLBACK: Try to load from cache
-            try {
-                const cachedAnnouncements = await offlineStorage.getCachedAnnouncements(currentUser.tenantId);
-                if (cachedAnnouncements.length > 0) {
-                    setAnnouncements(cachedAnnouncements);
-                    console.log('📴 Loaded cached announcements');
-                } else {
-                    // Fall back to constants on error if no cache
+            // OFFLINE FALLBACK: Try to load from cache (only for initial load)
+            if (!append) {
+                try {
+                    const cachedAnnouncements = await offlineStorage.getCachedAnnouncements(currentUser.tenantId);
+                    if (cachedAnnouncements.length > 0) {
+                        setAnnouncements(cachedAnnouncements);
+                        setAnnouncementsTotal(cachedAnnouncements.length);
+                        console.log('📴 Loaded cached announcements');
+                    } else {
+                        // Fall back to constants on error if no cache
+                        const mockData = ANNOUNCEMENTS.filter(ann => ann.tenant_id === currentUser.tenantId);
+                        setAnnouncements(mockData);
+                        setAnnouncementsTotal(mockData.length);
+                    }
+                } catch (cacheError) {
+                    console.error('Failed to load cached announcements:', cacheError);
+                    // Fall back to constants on error
                     const mockData = ANNOUNCEMENTS.filter(ann => ann.tenant_id === currentUser.tenantId);
                     setAnnouncements(mockData);
+                    setAnnouncementsTotal(mockData.length);
                 }
-            } catch (cacheError) {
-                console.error('Failed to load cached announcements:', cacheError);
-                // Fall back to constants on error
-                const mockData = ANNOUNCEMENTS.filter(ann => ann.tenant_id === currentUser.tenantId);
-                setAnnouncements(mockData);
+            }
+        } finally {
+            if (append) {
+                setIsLoadingMoreAnnouncements(false);
             }
         }
     }, [currentUser?.tenantId, currentUser?.id]);
+
+    const loadMoreAnnouncements = useCallback(async (limit: number, offset: number) => {
+        await fetchAnnouncements(limit, offset, true);
+    }, [fetchAnnouncements]);
 
     const fetchPendingApprovalsCount = useCallback(async () => {
         if (!currentUser?.tenantId || !PERMISSIONS['/approvals']?.includes(currentUser.role)) return;
@@ -513,7 +542,7 @@ const App = () => {
                     <Route path="payslips" element={<Payslips currentUser={currentUser!} onViewChange={handleViewChange} />} />
                     <Route path="expenses" element={<Expenses currentUser={currentUser!} />} />
                     <Route path="profile" element={<Profile currentUser={currentUser!} />} />
-                    <Route path="announcements" element={<Announcements currentUser={currentUser!} announcements={announcements} onPost={handlePostAnnouncement} onDelete={() => {}} onMarkAsRead={handleMarkAnnouncementsAsRead} />} />
+                    <Route path="announcements" element={<Announcements currentUser={currentUser!} announcements={announcements} onPost={handlePostAnnouncement} onDelete={() => {}} onMarkAsRead={handleMarkAnnouncementsAsRead} onLoadMore={loadMoreAnnouncements} hasMore={announcements.length < announcementsTotal} isLoadingMore={isLoadingMoreAnnouncements} />} />
                     <Route path="approvals" element={<ProtectedRoute currentUser={currentUser} allowedRoles={PERMISSIONS['/approvals']}><Approvals currentUser={currentUser!} /></ProtectedRoute>} />
                     <Route path="employees" element={<EmployeeManagement currentUser={currentUser!} />} />
                     <Route path="payroll" element={<MobileMoneyPayroll currentUser={currentUser!} />} />

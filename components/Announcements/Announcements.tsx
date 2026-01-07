@@ -12,6 +12,9 @@ interface AnnouncementsProps {
     onPost: (newAnnouncement: Announcement) => void;
     onDelete?: (announcementId: string) => void;
     onMarkAsRead?: () => void;
+    onLoadMore?: (limit: number, offset: number) => Promise<void>;
+    hasMore?: boolean;
+    isLoadingMore?: boolean;
 }
 
 const AnnouncementForm = memo(({ currentUser, onPost }: { currentUser: User, onPost: (announcement: Announcement) => void }) => {
@@ -157,17 +160,21 @@ const AnnouncementForm = memo(({ currentUser, onPost }: { currentUser: User, onP
     );
 });
 
-const AnnouncementList = memo(({ announcements, currentUser, onDelete, onShowConfirmation, onCloseConfirmation }: { 
+const AnnouncementList = memo(({ announcements, currentUser, onDelete, onShowConfirmation, onCloseConfirmation, onLoadMore, hasMore, isLoadingMore }: { 
     announcements: Announcement[], 
     currentUser: User, 
     onDelete?: (id: string) => void,
     onShowConfirmation: (dialog: { isVisible: boolean; message: string; onConfirm: () => void }) => void,
-    onCloseConfirmation: () => void
+    onCloseConfirmation: () => void,
+    onLoadMore?: (limit: number, offset: number) => Promise<void>,
+    hasMore?: boolean,
+    isLoadingMore?: boolean
 }) => {
     const isUnread = useCallback((announcement: Announcement) => {
         return !announcement.readBy || !announcement.readBy.includes(currentUser.id);
     }, [currentUser.id]);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const loadMoreRef = useRef<HTMLDivElement>(null);
 
     const handleDeleteAnnouncement = useCallback(async (announcementId: string) => {
         const performDelete = async () => {
@@ -193,6 +200,30 @@ const AnnouncementList = memo(({ announcements, currentUser, onDelete, onShowCon
             onConfirm: performDelete
         });
     }, [currentUser.tenantId, onDelete, onShowConfirmation, onCloseConfirmation]);
+
+    // Infinite scroll observer
+    useEffect(() => {
+        if (!hasMore || !onLoadMore || isLoadingMore) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    onLoadMore(4, announcements.length);
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (loadMoreRef.current) {
+            observer.observe(loadMoreRef.current);
+        }
+
+        return () => {
+            if (loadMoreRef.current) {
+                observer.unobserve(loadMoreRef.current);
+            }
+        };
+    }, [hasMore, onLoadMore, isLoadingMore, announcements.length]);
 
     return (
         <>
@@ -269,6 +300,20 @@ const AnnouncementList = memo(({ announcements, currentUser, onDelete, onShowCon
                     {announcements.length === 0 && (
                         <p className="text-center text-gray-500 py-8">No announcements yet.</p>
                     )}
+                    
+                    {/* Loading more indicator */}
+                    {hasMore && (
+                        <div ref={loadMoreRef} className="text-center py-4">
+                            {isLoadingMore ? (
+                                <div className="flex items-center justify-center gap-2">
+                                    <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                    <span className="text-gray-500">Loading more announcements...</span>
+                                </div>
+                            ) : (
+                                <span className="text-gray-400 text-sm">Scroll to load more</span>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
             <MessageOverlay message={message} onClose={() => setMessage(null)} />
@@ -286,11 +331,13 @@ const AnnouncementList = memo(({ announcements, currentUser, onDelete, onShowCon
         }) &&
         prevProps.currentUser.id === nextProps.currentUser.id &&
         prevProps.onDelete === nextProps.onDelete &&
-        prevProps.onCloseConfirmation === nextProps.onCloseConfirmation
+        prevProps.onCloseConfirmation === nextProps.onCloseConfirmation &&
+        prevProps.hasMore === nextProps.hasMore &&
+        prevProps.isLoadingMore === nextProps.isLoadingMore
     );
 });
 
-const Announcements = memo(({ currentUser, announcements, onPost, onDelete, onMarkAsRead }: AnnouncementsProps) => {
+const Announcements = memo(({ currentUser, announcements, onPost, onDelete, onMarkAsRead, onLoadMore, hasMore, isLoadingMore }: AnnouncementsProps) => {
     const [isLoading, setIsLoading] = useState(false);
     const [confirmationDialog, setConfirmationDialog] = useState<{
         isVisible: boolean;
@@ -325,6 +372,9 @@ const Announcements = memo(({ currentUser, announcements, onPost, onDelete, onMa
                         onDelete={onDelete}
                         onShowConfirmation={setConfirmationDialog}
                         onCloseConfirmation={() => setConfirmationDialog({ isVisible: false, message: '', onConfirm: () => {} })}
+                        onLoadMore={onLoadMore}
+                        hasMore={hasMore}
+                        isLoadingMore={isLoadingMore}
                     />
                 </div>
             </div>
@@ -344,7 +394,9 @@ const Announcements = memo(({ currentUser, announcements, onPost, onDelete, onMa
         prevProps.currentUser.tenantId === nextProps.currentUser.tenantId &&
         prevProps.onPost === nextProps.onPost &&
         prevProps.onDelete === nextProps.onDelete &&
-        prevProps.onMarkAsRead === nextProps.onMarkAsRead
+        prevProps.onMarkAsRead === nextProps.onMarkAsRead &&
+        prevProps.hasMore === nextProps.hasMore &&
+        prevProps.isLoadingMore === nextProps.isLoadingMore
     );
 });
 

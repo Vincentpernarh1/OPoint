@@ -3488,7 +3488,7 @@ app.post('/api/companies', async (req, res) => {
 // --- ANNOUNCEMENTS ENDPOINTS ---
 app.get('/api/announcements', async (req, res) => {
     try {
-        const { userId } = req.query;
+        const { userId, limit, offset } = req.query;
 
         if (!userId) {
             return res.status(400).json({
@@ -3497,7 +3497,10 @@ app.get('/api/announcements', async (req, res) => {
             });
         }
 
-        const { data, error } = await db.getAnnouncements(userId);
+        const parsedLimit = limit ? parseInt(limit) : null;
+        const parsedOffset = offset ? parseInt(offset) : 0;
+
+        const { data, error, totalCount } = await db.getAnnouncements(userId, parsedLimit, parsedOffset);
 
         if (error) {
             return res.status(500).json({
@@ -3515,7 +3518,7 @@ app.get('/api/announcements', async (req, res) => {
             }));
         }
 
-        res.json({ success: true, data: announcementsData });
+        res.json({ success: true, data: announcementsData, totalCount: totalCount || announcementsData.length });
 
     } catch (error) {
         console.error('Error fetching announcements:', error);
