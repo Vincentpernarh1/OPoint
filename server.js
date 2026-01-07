@@ -3551,6 +3551,8 @@ app.post('/api/announcements', async (req, res) => {
             created_at: new Date().toISOString()
         };
 
+        console.log('📢 Creating announcement with data:', JSON.stringify(announcementData, null, 2));
+        
         const { data, error } = await db.createAnnouncement(announcementData);
 
         if (error) {
@@ -3559,6 +3561,8 @@ app.post('/api/announcements', async (req, res) => {
                 error: error.message 
             });
         }
+
+        console.log('✅ Announcement created:', JSON.stringify(data, null, 2));
 
         // Create notifications for all employees
         await createNotificationsForAnnouncement(data);
@@ -4015,20 +4019,30 @@ async function createNotificationsForAnnouncement(announcement) {
                 const notificationPayload = {
                     title: announcement.title,
                     body: `${announcement.content?.substring(0, 120)}${announcement.content?.length > 120 ? '...' : ''}`,
-                    icon: '/Announcement.png',
                     icon: '/Icon.png',
+                    badge: '/Announcement.png',
                     data: { 
                         url: '/announcements', 
                         announcementId: announcement.id 
                     },
                     tag: `announcement-${announcement.id}`,
                     requireInteraction: false,
-                    vibrate: [250, 100, 250]
+                    vibrate: [250, 100, 250],
+                    actions: [],
+                    // Add notification styling for Android
+                    android: {
+                        channelId: 'announcements',
+                        color: '#FFA500', // Orange color for the badge
+                        priority: 'high'
+                    }
                 };
 
-                // Only add image if it exists and is a full URL
-                if (announcement.image_url && announcement.image_url.startsWith('http')) {
+                // Add image if it exists
+                if (announcement.image_url) {
                     notificationPayload.image = announcement.image_url;
+                    console.log(`🖼️ Image URL added to notification: ${announcement.image_url}`);
+                } else {
+                    console.log('ℹ️ No image URL in announcement');
                 }
 
                 await sendPushNotification(employee.id, notificationPayload);
