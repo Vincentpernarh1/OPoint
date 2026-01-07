@@ -4012,7 +4012,7 @@ async function createNotificationsForAnnouncement(announcement) {
                 await sendPushNotification(employee.id, {
                     title: announcement.title,
                     body: `${announcement.author_name}: ${announcement.content?.substring(0, 120) || 'New announcement posted'}${announcement.content?.length > 120 ? '...' : ''}`,
-                    icon: '/apple-touch-icon-180x180.png',
+                    icon: '/Icon.png',
                     badge: '/apple-touch-icon-180x180.png',
                     data: { 
                         url: '/announcements', 
@@ -4020,7 +4020,7 @@ async function createNotificationsForAnnouncement(announcement) {
                     },
                     tag: `announcement-${announcement.id}`,
                     requireInteraction: false,
-                    vibrate: [200, 100, 200]
+                    vibrate: [250, 100, 250]
                 });
             } catch (pushError) {
                 console.error(`Failed to send push to user ${employee.id}:`, pushError);

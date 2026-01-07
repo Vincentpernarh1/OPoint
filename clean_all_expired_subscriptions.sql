@@ -9,6 +9,8 @@ WHERE id NOT IN (
   ORDER BY user_id, tenant_id, created_at DESC
 );
 
+
+delete from push_subscriptions;
 -- Step 2: Show what's left
 SELECT 
   user_id,
@@ -23,3 +25,5 @@ SELECT
   COUNT(*) as total_subscriptions,
   COUNT(DISTINCT user_id) as unique_users
 FROM push_subscriptions;
+
+commit;
