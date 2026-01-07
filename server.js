@@ -4011,9 +4011,9 @@ async function createNotificationsForAnnouncement(announcement) {
             try {
                 await sendPushNotification(employee.id, {
                     title: announcement.title,
-                    body: `${announcement.author_name}: ${announcement.content?.substring(0, 120) || 'New announcement posted'}${announcement.content?.length > 120 ? '...' : ''}`,
+                    body: `${announcement.author_name}: ${announcement.content?.substring(0, 120)}${announcement.content?.length > 120 ? '...' : ''}`,
                     icon: '/Icon.png',
-                    badge: '/apple-touch-icon-180x180.png',
+                    badge: '/Announcement.png',
                     data: { 
                         url: '/announcements', 
                         announcementId: announcement.id 
