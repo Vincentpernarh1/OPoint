@@ -4061,9 +4061,21 @@ async function createNotificationsForAnnouncement(announcement) {
                     vibrate: [250, 100, 250]
                 };
 
-                // Add image only if it's a valid HTTP/HTTPS URL (not base64)
-                if (announcement.image_url && (announcement.image_url.startsWith('http://') || announcement.image_url.startsWith('https://') || announcement.image_url.startsWith('/'))) {
-                    notificationPayload.image = announcement.image_url;
+                // Add image only if it exists - convert relative URLs to absolute
+                if (announcement.image_url) {
+                    let imageUrl = announcement.image_url;
+                    
+                    // Convert relative path to absolute URL
+                    if (imageUrl.startsWith('/')) {
+                        const baseUrl = process.env.BASE_URL || 'https://vpena-onpoint.onrender.com';
+                        imageUrl = baseUrl + imageUrl;
+                    }
+                    
+                    // Only add if it's a valid URL (not base64)
+                    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+                        notificationPayload.image = imageUrl;
+                        notificationPayload.badge = `${process.env.BASE_URL || 'https://vpena-onpoint.onrender.com'}/Announcement.png`;
+                    }
                 }
 
                 await sendPushNotification(employee.id, notificationPayload);
@@ -4640,13 +4652,16 @@ async function sendPushNotification(userId, notificationData) {
     }
 }
 
+// Serve static files from public directory (for uploads)
+app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
+
 // Serve static files from dist directory
 app.use(express.static(path.join(process.cwd(), 'dist')));
 
 // Handle client-side routing - serve index.html for all non-API routes
 app.get('*', (req, res) => {
   // Skip API routes
-  if (req.path.startsWith('/api')) {
+  if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
     return res.status(404).json({ error: 'API endpoint not found' });
   }
   res.sendFile(path.join(process.cwd(), 'dist', 'index.html'));
