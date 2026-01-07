@@ -4014,9 +4014,10 @@ async function createNotificationsForAnnouncement(announcement) {
             try {
                 await sendPushNotification(employee.id, {
                     title: announcement.title,
-                    body: `${announcement.author_name}: ${announcement.content?.substring(0, 120)}${announcement.content?.length > 120 ? '...' : ''}`,
-                    icon: '/Icon.png',
-                    badge: '/Announcement.png',
+                    body: `${announcement.content?.substring(0, 120)}${announcement.content?.length > 120 ? '...' : ''}`,
+                    icon: '/Announcement.png',
+                    badge: '/Icon.png',
+                    image: announcement.image_url || undefined,
                     data: { 
                         url: '/announcements', 
                         announcementId: announcement.id 
