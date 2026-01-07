@@ -127,6 +127,11 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
     const [expandedYears, setExpandedYears] = useState<Set<string>>(new Set());
     const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
     const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+    const [expandedWorkHistoryDays, setExpandedWorkHistoryDays] = useState<Set<string>>(() => {
+        // Initialize with current day expanded by default
+        const today = new Date().toDateString();
+        return new Set([today]);
+    });
     
     const progressBarRef = useRef<HTMLDivElement>(null);
     const lastActionTimeRef = useRef<number>(0);
@@ -1508,17 +1513,40 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                                 return reqDate === dayDate;
                             });
                             
+                            const isExpanded = expandedWorkHistoryDays.has(day.date.toDateString());
+                            const toggleExpanded = () => {
+                                const dateStr = day.date.toDateString();
+                                setExpandedWorkHistoryDays(prev => {
+                                    const newSet = new Set(prev);
+                                    if (newSet.has(dateStr)) {
+                                        newSet.delete(dateStr);
+                                    } else {
+                                        newSet.add(dateStr);
+                                    }
+                                    return newSet;
+                                });
+                            };
+                            
                             return (
                                 <div key={day.date.toISOString()} className="border-b pb-6 last:border-b-0">
-                                    <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-3 p-2 bg-slate-50 rounded-lg">
-                                        <h4 className="font-bold text-lg text-gray-700">{day.date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h4>
+                                    <button 
+                                        onClick={toggleExpanded}
+                                        className="w-full flex flex-col sm:flex-row justify-between sm:items-center mb-3 p-2 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <ChevronDownIcon 
+                                                className={`h-5 w-5 text-gray-600 transition-transform duration-200 ${isExpanded ? 'rotate-0' : '-rotate-90'}`}
+                                            />
+                                            <h4 className="font-bold text-lg text-gray-700">{day.date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h4>
+                                        </div>
                                         <div className="text-left sm:text-right text-sm mt-2 sm:mt-0">
                                             <p className="font-medium text-gray-600">Worked: <span className="font-bold text-gray-800">{formatDuration(day.summary.worked)}</span></p>
                                             <p className={`font-medium ${day.summary.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                                 Balance: <span className="font-bold">{formatDuration(day.summary.balance, true)}</span>
                                             </p>
                                         </div>
-                                    </div>
+                                    </button>
+                                    {isExpanded && (
                                     <div className="bg-white p-4 rounded-lg border">
                                         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                                             {day.entries.map((entry) => (
@@ -1546,7 +1574,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center space-x-1">
-                                                        {entry.photoUrl && (
+                                                        {entry.photoUrl && [UserRole.ADMIN, UserRole.HR, UserRole.OPERATIONS].includes(currentUser.role) && (
                                                             <button 
                                                                 onClick={() => setPreviewImageUrl(entry.photoUrl!)} 
                                                                 className="flex items-center justify-center text-primary text-xs hover:underline min-h-[44px] min-w-[44px] p-2"
@@ -1565,6 +1593,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                                             ))}
                                         </div>
                                     </div>
+                                    )}
 
                                     {/* ADJUSTMENT SECTION */}
                                     <div className="mt-4 flex justify-end">
