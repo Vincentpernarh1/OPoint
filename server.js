@@ -4012,12 +4012,11 @@ async function createNotificationsForAnnouncement(announcement) {
         
         for (const employee of employees.filter(e => e.role !== 'SuperAdmin' && e.id !== announcement.author_id)) {
             try {
-                await sendPushNotification(employee.id, {
+                const notificationPayload = {
                     title: announcement.title,
                     body: `${announcement.content?.substring(0, 120)}${announcement.content?.length > 120 ? '...' : ''}`,
                     icon: '/Announcement.png',
-                    badge: '/Icon.png',
-                    image: announcement.image_url || undefined,
+                    icon: '/Icon.png',
                     data: { 
                         url: '/announcements', 
                         announcementId: announcement.id 
@@ -4025,7 +4024,14 @@ async function createNotificationsForAnnouncement(announcement) {
                     tag: `announcement-${announcement.id}`,
                     requireInteraction: false,
                     vibrate: [250, 100, 250]
-                });
+                };
+
+                // Only add image if it exists and is a full URL
+                if (announcement.image_url && announcement.image_url.startsWith('http')) {
+                    notificationPayload.image = announcement.image_url;
+                }
+
+                await sendPushNotification(employee.id, notificationPayload);
             } catch (pushError) {
                 console.error(`Failed to send push to user ${employee.id}:`, pushError);
             }
