@@ -265,3 +265,7 @@ CREATE INDEX IF NOT EXISTS idx_payroll_employee_period ON "P360-Opoint_PayrollHi
 SELECT * FROM opoint_companies WHERE id = '4b7e93eb-91f7-49e4-9ab4-536a8487a3dc';
 
 SELECT * from company_vpena_teck_users;
+
+
+
+select * from opoint_announcements limit 20;

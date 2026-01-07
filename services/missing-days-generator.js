@@ -96,9 +96,10 @@ export async function generateMissingDayEntries() {
                     continue;
                 }
                 
-                // Create placeholder entry with artificial same-time punches
+                // Create placeholder entry with artificial punches (clock-out 1 second after clock-in)
                 // This ensures the day appears in work history (0 hours) for adjustment requests
-                const placeholderTime = `${yesterdayStr}T08:00:00.000Z`; // 8:00 AM UTC
+                const placeholderClockIn = `${yesterdayStr}T08:00:00.000Z`; // 8:00 AM UTC
+                const placeholderClockOut = `${yesterdayStr}T08:00:01.000Z`; // 8:00:01 AM UTC (1 second later)
                 
                 const { error: insertError } = await supabase
                     .from('opoint_clock_logs')
@@ -109,11 +110,11 @@ export async function generateMissingDayEntries() {
                         company_name: company.name,
                         date: yesterdayStr,
                         punches: [
-                            { type: 'in', time: placeholderTime, location: 'Auto-generated (no punch)', photo: null },
-                            { type: 'out', time: placeholderTime, location: 'Auto-generated (no punch)', photo: null }
+                            { type: 'in', time: placeholderClockIn, location: 'Auto-generated (no punch)', photo: null },
+                            { type: 'out', time: placeholderClockOut, location: 'Auto-generated (no punch)', photo: null }
                         ],
-                        clock_in: placeholderTime,
-                        clock_out: placeholderTime,
+                        clock_in: placeholderClockIn,
+                        clock_out: placeholderClockOut,
                         location: 'Auto-generated (no punch)',
                         photo_url: null
                     });

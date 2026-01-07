@@ -310,7 +310,15 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
             }
 
             const combined = Array.from(byId.values());
-            combined.sort((a,b) => b.timestamp.getTime() - a.timestamp.getTime());
+            combined.sort((a,b) => {
+                const timeDiff = b.timestamp.getTime() - a.timestamp.getTime();
+                if (timeDiff !== 0) return timeDiff;
+                // For same timestamp, CLOCK_OUT should come before CLOCK_IN
+                // This ensures lastEntry is CLOCK_OUT when auto-generated entries exist
+                if (a.type === TimeEntryType.CLOCK_OUT && b.type === TimeEntryType.CLOCK_IN) return -1;
+                if (a.type === TimeEntryType.CLOCK_IN && b.type === TimeEntryType.CLOCK_OUT) return 1;
+                return 0;
+            });
             setTimeEntries(combined);
         } catch (err) {
             console.warn('refreshTimeEntries failed', err);
@@ -588,7 +596,28 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
 
     const lastEntry = useMemo(() => {
         if (timeEntries.length === 0) return null;
-        return timeEntries[0]; // Already sorted
+        
+        // Skip placeholder entries (auto-generated with clock in/out very close together)
+        // Find the first real entry where there's no matching opposite type within 2 seconds
+        for (let i = 0; i < timeEntries.length; i++) {
+            const entry = timeEntries[i];
+            const oppositeType = entry.type === TimeEntryType.CLOCK_IN ? TimeEntryType.CLOCK_OUT : TimeEntryType.CLOCK_IN;
+            
+            // Check if there's an opposite type entry within 2 seconds (placeholder pattern)
+            const hasMatchingOpposite = timeEntries.some((other, idx) => 
+                idx !== i && 
+                other.type === oppositeType &&
+                Math.abs(other.timestamp.getTime() - entry.timestamp.getTime()) <= 2000
+            );
+            
+            // If no matching opposite nearby, this is a real entry
+            if (!hasMatchingOpposite) {
+                return entry;
+            }
+        }
+        
+        // If all entries are placeholders, return the first one
+        return timeEntries[0];
     }, [timeEntries]);
 
     const isClockedIn = lastEntry?.type === TimeEntryType.CLOCK_IN;
