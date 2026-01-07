@@ -156,6 +156,8 @@ import cors from 'cors';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import cookieParser from 'cookie-parser';
+import multer from 'multer';
+import fs from 'fs';
 import { sendPasswordResetEmail } from './services/emailService.js';
 import path from 'path';
 import webPush from 'web-push';
@@ -163,6 +165,9 @@ import db, { getSupabaseClient, getSupabaseAdminClient, setTenantContext, getCur
 import { validatePasswordStrength } from './utils/passwordValidator.js';
 import { scheduleAutoClose, forceAutoClose } from './services/auto-close.js';
 import { scheduleMissingDaysGenerator, forceGenerateMissingDays } from './services/missing-days-generator.js';
+
+// Configure multer for file uploads
+const upload = multer({ dest: 'temp/' });
 
 const app = express();
 
@@ -3486,6 +3491,37 @@ app.post('/api/companies', async (req, res) => {
 });
 
 // --- ANNOUNCEMENTS ENDPOINTS ---
+
+// Upload announcement image
+app.post('/api/upload-announcement-image', upload.single('image'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, error: 'No image file provided' });
+        }
+
+        // Generate unique filename
+        const filename = `announcement-${Date.now()}-${req.file.originalname}`;
+        const filepath = path.join(process.cwd(), 'public', 'uploads', filename);
+        
+        // Ensure uploads directory exists
+        const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+        if (!fs.existsSync(uploadsDir)) {
+            fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+        
+        // Move file to uploads directory
+        fs.renameSync(req.file.path, filepath);
+        
+        // Return public URL
+        const imageUrl = `/uploads/${filename}`;
+        
+        res.json({ success: true, imageUrl });
+    } catch (error) {
+        console.error('Error uploading announcement image:', error);
+        res.status(500).json({ success: false, error: 'Failed to upload image' });
+    }
+});
+
 app.get('/api/announcements', async (req, res) => {
     try {
         const { userId, limit, offset } = req.query;
@@ -3550,8 +3586,6 @@ app.post('/api/announcements', async (req, res) => {
             image_url: imageUrl,
             created_at: new Date().toISOString()
         };
-
-        console.log('📢 Creating announcement with data:', JSON.stringify(announcementData, null, 2));
         
         const { data, error } = await db.createAnnouncement(announcementData);
 
@@ -3561,8 +3595,6 @@ app.post('/api/announcements', async (req, res) => {
                 error: error.message 
             });
         }
-
-        console.log('✅ Announcement created:', JSON.stringify(data, null, 2));
 
         // Create notifications for all employees
         await createNotificationsForAnnouncement(data);
@@ -4020,29 +4052,18 @@ async function createNotificationsForAnnouncement(announcement) {
                     title: announcement.title,
                     body: `${announcement.content?.substring(0, 120)}${announcement.content?.length > 120 ? '...' : ''}`,
                     icon: '/Icon.png',
-                    badge: '/Announcement.png',
                     data: { 
                         url: '/announcements', 
                         announcementId: announcement.id 
                     },
                     tag: `announcement-${announcement.id}`,
                     requireInteraction: false,
-                    vibrate: [250, 100, 250],
-                    actions: [],
-                    // Add notification styling for Android
-                    android: {
-                        channelId: 'announcements',
-                        color: '#FFA500', // Orange color for the badge
-                        priority: 'high'
-                    }
+                    vibrate: [250, 100, 250]
                 };
 
-                // Add image if it exists
-                if (announcement.image_url) {
+                // Add image only if it's a valid HTTP/HTTPS URL (not base64)
+                if (announcement.image_url && (announcement.image_url.startsWith('http://') || announcement.image_url.startsWith('https://') || announcement.image_url.startsWith('/'))) {
                     notificationPayload.image = announcement.image_url;
-                    console.log(`🖼️ Image URL added to notification: ${announcement.image_url}`);
-                } else {
-                    console.log('ℹ️ No image URL in announcement');
                 }
 
                 await sendPushNotification(employee.id, notificationPayload);

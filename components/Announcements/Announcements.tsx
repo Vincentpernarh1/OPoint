@@ -52,8 +52,26 @@ const AnnouncementForm = memo(({ currentUser, onPost }: { currentUser: User, onP
         setIsSubmitting(true);
         try {
             let imageUrl: string | undefined;
+            
+            // Upload image to server if selected
             if (selectedImage) {
-                imageUrl = await fileToBase64(selectedImage);
+                const formData = new FormData();
+                formData.append('image', selectedImage);
+                
+                const uploadResponse = await fetch('/api/upload-announcement-image', {
+                    method: 'POST',
+                    headers: {
+                        'x-tenant-id': currentUser.tenantId!,
+                    },
+                    body: formData
+                });
+                
+                if (uploadResponse.ok) {
+                    const { imageUrl: uploadedUrl } = await uploadResponse.json();
+                    imageUrl = uploadedUrl;
+                } else {
+                    throw new Error('Failed to upload image');
+                }
             }
 
             const newAnnouncement = await api.createAnnouncement({
