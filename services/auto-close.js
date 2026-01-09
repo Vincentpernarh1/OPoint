@@ -164,8 +164,7 @@ export async function forceAutoClose() {
                     .from('opoint_clock_logs')
                     .update({
                         punches: updatedPunches,
-                        clock_out: closeTime.toISOString(),
-                        still_working: false // Mark as clocked out
+                        clock_out: closeTime.toISOString()
                     })
                     .eq('id', log.id);
                 
