@@ -127,7 +127,7 @@ export async function forceAutoClose() {
         const now = new Date();
         const today = now.toISOString().split('T')[0];
         const closeTime = new Date();
-        closeTime.setHours(22, 0, 0, 0); // Set to 10 PM
+        closeTime.setHours(7, 0, 0, 0); // Set to 7 AM
         
         console.log(`🕚 FORCE auto-close for ${today}...`);
         
