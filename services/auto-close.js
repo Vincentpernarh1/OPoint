@@ -76,8 +76,7 @@ export async function autoCloseOpenShifts() {
                     .from('opoint_clock_logs')
                     .update({
                         punches: updatedPunches,
-                        clock_out: closeTime.toISOString(), // Update legacy column
-                        still_working: false // Mark as clocked out
+                        clock_out: closeTime.toISOString()
                     })
                     .eq('id', log.id);
                 
@@ -126,8 +125,9 @@ export async function forceAutoClose() {
     try {
         const now = new Date();
         const today = now.toISOString().split('T')[0];
+
         const closeTime = new Date();
-        closeTime.setHours(7, 0, 0, 0); // Set to 7 AM
+        closeTime.setHours(22, 0, 0, 0); // Set to 10 PM
         
         console.log(`🕚 FORCE auto-close for ${today}...`);
         
