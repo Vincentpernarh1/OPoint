@@ -14,7 +14,7 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
-  overflow: hidden;
+  /* overflow: hidden; */ /* Removed - prevents scrolling in app content */
 }
 
 /* Default browser font scaling */
@@ -44,6 +44,7 @@ html {
 
 #root {
   height: 100%;
+  overflow: hidden;
   padding-top: 0;
   padding-bottom: 0;
   padding-left: 0;

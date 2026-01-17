@@ -209,7 +209,7 @@ const ManagerDashboard = ({ currentUser, onViewChange, announcements }: ManagerD
     return (
         <div
             ref={containerRef}
-            className="h-full overflow-auto overscroll-contain manager-dashboard-container"
+            className="manager-dashboard-container"
         >
             {(pullDistance > 0 || isRefreshing) && (
                 <PullToRefreshIndicator 

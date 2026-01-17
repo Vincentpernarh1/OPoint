@@ -74,11 +74,12 @@
   }
 
   .scroll-container-strict {
-    overflow-y: auto;
+    overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: none;
     touch-action: pan-y;
     scroll-behavior: smooth;
+    pointer-events: auto;
   }
 
   .no-scroll {

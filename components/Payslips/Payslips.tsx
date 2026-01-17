@@ -314,7 +314,7 @@ const PayslipDetailView = ({ employee, onViewChange, isManager }: { employee: Us
     }
 
     return (
-        <div ref={containerRef} className="h-full overflow-auto relative">
+        <div ref={containerRef} className="relative">
             {/* Pull-to-refresh indicator */}
             {(pullDistance > 0 || isRefreshing) && (
                 <PullToRefreshIndicator 

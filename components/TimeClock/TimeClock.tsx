@@ -1316,7 +1316,7 @@ const TimeClock = ({ currentUser, isOnline, announcements = [] }: TimeClockProps
                 onCancel={() => setConfirmationDialog({ isVisible: false, message: '', onConfirm: () => {} })}
             />
             
-            <div ref={containerRef} className="h-full overflow-auto">
+            <div ref={containerRef}>
                 {/* Pull-to-refresh indicator */}
                 {(pullDistance > 0 || isRefreshing) && (
                     <PullToRefreshIndicator 

@@ -423,7 +423,7 @@ const Approvals = ({ currentUser }: ApprovalsProps) => {
                     onClose={() => setViewingLog(null)} 
                 />
             )}
-            <div ref={containerRef} className="h-full overflow-auto">
+            <div ref={containerRef}>
                 {/* Pull-to-refresh indicator */}
                 {(pullDistance > 0 || isRefreshing) && (
                     <PullToRefreshIndicator 

@@ -640,7 +640,7 @@ const LeaveManagement = ({ currentUser }: LeaveManagementProps) => {
                     isEligibleForAnnualLeave={isEligibleForAnnualLeave}
                 />
             )}
-            <div ref={containerRef} className="h-full overflow-auto">
+            <div ref={containerRef}>
                 {/* Pull-to-refresh indicator */}
                 {(pullDistance > 0 || isRefreshing) && (
                     <PullToRefreshIndicator 
